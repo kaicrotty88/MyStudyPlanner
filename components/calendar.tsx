@@ -73,6 +73,8 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
     showOnCalendar: true
   });
 
+  const today = new Date();
+
   const daysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
@@ -127,7 +129,7 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
     const dateTasks = tasks.filter((task) => isSameDay(task.dueDate, date));
     const dateStudyItems = studyItems.filter((item) => item.showOnCalendar && isSameDay(item.date, date));
     const dateSessions = studySessions.filter((session) => isSameDay(session.date, date));
-    
+
     return { tasks: dateTasks, studyItems: dateStudyItems, sessions: dateSessions };
   };
 
@@ -138,9 +140,9 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
 
   const handleAddOption = (type: AddFormType) => {
     if (!selectedDate) return;
-    
+
     const dateStr = selectedDate.toISOString().split('T')[0];
-    
+
     if (type === 'study') {
       setStudyFormData({
         subjectId: '',
@@ -158,7 +160,7 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
         type: type as 'task' | 'assignment' | 'exam' | 'homework'
       });
     }
-    
+
     setShowAddForm(type);
     setShowPopover(false);
   };
@@ -232,6 +234,12 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
     </div>
   );
 
+  const getTodayCellClasses = (isToday: boolean) => {
+    if (!isToday) return "";
+    // Clear "today" highlight: border + subtle fill + ring
+    return "border-primary bg-primary/10 ring-2 ring-primary/30";
+  };
+
   const renderMonthView = () => {
     const days = daysInMonth(currentDate);
     const firstDay = firstDayOfMonth(currentDate);
@@ -245,17 +253,15 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
     for (let day = 1; day <= days; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       const { tasks: dayTasks, studyItems: dayStudyItems } = getItemsForDate(date);
-      const isToday = isSameDay(new Date(), date);
+      const isToday = isSameDay(today, date);
 
       cells.push(
         <div
           key={day}
           onClick={(e) => handleDayClick(date, e)}
-          className={`min-h-32 p-2 border border-border bg-card transition-colors cursor-pointer hover:bg-muted/50 ${
-            isToday ? 'bg-accent/30 ring-1 ring-primary/30' : ''
-          }`}
+          className={`min-h-32 p-2 border bg-card transition-colors cursor-pointer hover:bg-muted/50 ${getTodayCellClasses(isToday)}`}
         >
-          <div className={`mb-2 text-sm ${isToday ? 'text-primary font-medium' : 'text-foreground'}`}>{day}</div>
+          <div className={`mb-2 text-sm ${isToday ? 'text-primary font-semibold' : 'text-foreground'}`}>{day}</div>
           <div className="space-y-1">
             {dayTasks.map((task) => {
               const subject = getSubjectById(task.subjectId);
@@ -297,15 +303,13 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
       <div className="grid grid-cols-7 gap-px bg-border">
         {days.map((date, i) => {
           const { tasks: dayTasks, studyItems: dayStudyItems } = getItemsForDate(date);
-          const isToday = isSameDay(new Date(), date);
+          const isToday = isSameDay(today, date);
 
           return (
             <div
               key={i}
               onClick={(e) => handleDayClick(date, e)}
-              className={`min-h-96 p-3 bg-card cursor-pointer hover:bg-muted/50 transition-colors ${
-                isToday ? 'bg-accent/30 ring-1 ring-primary/30' : ''
-              }`}
+              className={`min-h-96 p-3 bg-card cursor-pointer hover:bg-muted/50 transition-colors border border-transparent ${isToday ? "border-primary bg-primary/10 ring-2 ring-primary/30" : ""}`}
             >
               <div className="mb-3">
                 <div className="text-xs text-muted-foreground">
@@ -334,10 +338,10 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
 
   const renderDayView = () => {
     const { tasks: dayTasks, studyItems: dayStudyItems } = getItemsForDate(currentDate);
-    const isToday = isSameDay(new Date(), currentDate);
+    const isToday = isSameDay(today, currentDate);
 
     return (
-      <div className="bg-card rounded-lg p-6">
+      <div className={`rounded-lg p-6 border ${isToday ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "bg-card border-border"}`}>
         <div className="mb-6">
           <div className="text-xs text-muted-foreground mb-1">
             {currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
@@ -346,14 +350,13 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
             {currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </div>
         </div>
-        
+
         <div className="space-y-3">
           {dayTasks.length === 0 && dayStudyItems.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-sm mb-4">No items planned for this day</p>
               <button
                 onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
                   handleDayClick(currentDate, e as any);
                 }}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm"
@@ -420,7 +423,7 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
       startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
-      
+
       return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     } else {
       return currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -581,7 +584,7 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </div>
-                
+
                 <input
                   type="text"
                   placeholder="Topic or description"
@@ -667,7 +670,9 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-border pb-3">
-                  <h3 className="text-foreground font-semibold">Add {showAddForm?.charAt(0).toUpperCase()}{showAddForm?.slice(1)}</h3>
+                  <h3 className="text-foreground font-semibold">
+                    Add {showAddForm?.charAt(0).toUpperCase()}{showAddForm?.slice(1)}
+                  </h3>
                   <button onClick={handleCancel} className="p-1 hover:bg-muted rounded">
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>
@@ -722,5 +727,5 @@ function CalendarView({ studySessions, tasks, studyItems, subjects, onAddTask, o
       )}
     </div>
   );
-} 
+}
 export { CalendarView as Calendar };

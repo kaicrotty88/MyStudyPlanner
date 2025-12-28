@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { BookOpen, Calendar } from 'lucide-react';
+import React from "react";
+import { BookOpen, Calendar, AlertTriangle } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -14,7 +14,8 @@ interface Task {
   title: string;
   subjectId: string;
   dueDate: Date;
-  type: 'task' | 'assignment' | 'exam' | 'homework';
+  type: "task" | "assignment" | "exam" | "homework";
+  completed?: boolean;
 }
 
 interface StudyItem {
@@ -30,142 +31,215 @@ interface StudyItem {
 interface DashboardProps {
   tasks: Task[];
   subjects: Subject[];
-  studyItems: StudyItem[];
+  studyItems: StudyItem[]; // these are already "todayStudyItems" from App.tsx
 }
 
-const dailyQuotes = [
-  "Consistent effort compounds into mastery.",
-  "Understanding comes from patient review.",
-  "Each study session builds deeper clarity.",
-  "Progress is made one concept at a time.",
-  "Discipline shapes sustained excellence.",
-  "Focus today, reap understanding tomorrow.",
-  "Intentional practice leads to fluency.",
-];
+const MAX_TODAY = 3;
+const MAX_WEEK = 5;
+const MAX_OVERDUE = 4;
 
 export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
   const today = new Date();
-  const formattedDate = today.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
+
+  const formattedDate = today.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
-
-  // Select quote based on day of year for consistency
-  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-  const quote = dailyQuotes[dayOfYear % dailyQuotes.length];
-
-  const getDaysLeft = (dueDate: Date) => {
-    const diff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
-  };
-
-  const getDaysLeftText = (daysLeft: number) => {
-    if (daysLeft < 0) return 'Overdue';
-    if (daysLeft === 0) return 'Due today';
-    return `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}`;
-  };
 
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
 
-  const sortedTasks = [...tasks].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  const daysBetween = (a: Date, b: Date) => {
+    // difference in whole days from a -> b (b - a)
+    const ms = startOfDay(b).getTime() - startOfDay(a).getTime();
+    return Math.round(ms / (1000 * 60 * 60 * 24));
+  };
+
+  const labelForDaysLeft = (daysLeft: number) => {
+    if (daysLeft < 0) return "Overdue";
+    if (daysLeft === 0) return "Due today";
+    if (daysLeft === 1) return "Due tomorrow";
+    return `${daysLeft}d`;
+  };
+
+  const dueToneClass = (daysLeft: number) => {
+    // subtle urgency (text only)
+    if (daysLeft < 0) return "text-red-500";
+    if (daysLeft <= 1) return "text-amber-500";
+    if (daysLeft <= 3) return "text-yellow-500";
+    return "text-muted-foreground";
+  };
+
+  // Only actionable tasks
+  const activeTasks = tasks.filter((t) => !t.completed);
+
+  // Overdue (strictly before today)
+  const overdueTasks = activeTasks
+    .filter((t) => daysBetween(today, t.dueDate) < 0)
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+  // Next 7 days (today..+7), excluding overdue
+  const upcomingWeek = activeTasks
+    .filter((t) => {
+      const d = daysBetween(today, t.dueDate);
+      return d >= 0 && d <= 7;
+    })
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+  const todayCount = studyItems.length;
+  const focusLine = `${todayCount} ${todayCount === 1 ? "item" : "items"} today`;
+
+  const TaskRow = ({ task }: { task: Task }) => {
+    const subject = getSubjectById(task.subjectId);
+    const daysLeft = daysBetween(today, task.dueDate);
+
+    return (
+      <div className="flex items-center justify-between gap-3 py-2">
+        <div className="min-w-0">
+          <div className="text-sm text-foreground font-medium truncate">{task.title}</div>
+          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+            <Calendar className="w-3 h-3" />
+            <span>
+              {task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+            {subject && (
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-white"
+                style={{ backgroundColor: subject.color }}
+              >
+                {subject.name}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className={`shrink-0 text-xs font-semibold ${dueToneClass(daysLeft)}`}>
+          {labelForDaysLeft(daysLeft)}
+        </div>
+      </div>
+    );
+  };
+
+  const StudyRow = ({ item }: { item: StudyItem }) => {
+    const subject = getSubjectById(item.subjectId);
+
+    return (
+      <div className="flex items-start gap-3 py-2">
+        <BookOpen className="w-4 h-4 mt-0.5 shrink-0" style={{ color: subject?.color }} />
+        <div className="min-w-0">
+          <div className="text-sm text-foreground font-medium truncate">{item.topic}</div>
+          {subject ? (
+            <div className="text-xs mt-1" style={{ color: subject.color }}>
+              {subject.name}
+            </div>
+          ) : (
+            <div className="text-xs mt-1 text-muted-foreground">No subject</div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-6 space-y-5">
-      {/* Header with Quote */}
+    <div className="max-w-6xl mx-auto px-8 py-6 space-y-5">
+      {/* Header */}
       <div className="space-y-1">
         <h1 className="text-foreground font-semibold">{formattedDate}</h1>
-        <p className="text-muted-foreground text-sm italic opacity-70">{quote}</p>
+        <div className="text-sm text-muted-foreground opacity-80">{focusLine}</div>
       </div>
 
-      {/* Today's Study - Compact */}
-      <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
-        <h3 className="mb-3 text-foreground font-semibold">Today's Study</h3>
-        {studyItems.length > 0 ? (
-          <div className="space-y-2">
-            {studyItems.map((item) => {
-              const subject = getSubjectById(item.subjectId);
-              return (
-                <div key={item.id} className="flex items-center gap-2 text-sm">
-                  <BookOpen className="w-4 h-4 shrink-0" style={{ color: subject?.color }} />
-                  <span className="text-foreground">
-                    <span className="font-medium" style={{ color: subject?.color }}>
-                      {subject?.name}
-                    </span>
-                    <span className="text-muted-foreground"> — </span>
-                    <span>{item.topic}</span>
-                  </span>
-                </div>
-              );
-            })}
+      {/* Overdue (only if needed) */}
+      {overdueTasks.length > 0 && (
+        <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <h2 className="text-foreground font-semibold">Overdue</h2>
+            <span className="text-xs text-muted-foreground opacity-80">
+              ({overdueTasks.length})
+            </span>
           </div>
-        ) : (
-          <p className="text-muted-foreground text-sm opacity-80">No study sessions planned for today</p>
-        )}
-      </div>
 
-      {/* Upcoming Deadlines - Compact */}
-      <div className="space-y-3">
-        <h2 className="text-foreground font-semibold">Upcoming Deadlines</h2>
-        <div className="space-y-2">
-          {sortedTasks.length > 0 ? (
-            sortedTasks.map((task) => {
-              const daysLeft = getDaysLeft(task.dueDate);
-              const isOverdue = daysLeft < 0;
-              const isToday = daysLeft === 0;
-              const subject = getSubjectById(task.subjectId);
+          <div className="divide-y divide-border">
+            {overdueTasks.slice(0, MAX_OVERDUE).map((t) => (
+              <div key={t.id}>
+                <TaskRow task={t} />
+              </div>
+            ))}
+          </div>
 
-              return (
-                <div
-                  key={task.id}
-                  className="bg-card rounded-lg p-4 shadow-sm border-l-4 hover:shadow-md transition-shadow"
-                  style={subject ? { borderLeftColor: subject.color } : {}}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-foreground font-semibold truncate">{task.title}</h4>
-                        {subject && (
-                          <span
-                            className="inline-block px-2 py-0.5 rounded-full text-white text-xs shrink-0 font-medium"
-                            style={{ backgroundColor: subject.color }}
-                          >
-                            {subject.name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground text-xs opacity-80">
-                        <Calendar className="w-3 h-3" />
-                        <span>
-                          {task.dueDate.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div
-                        className={`text-base font-bold ${
-                          isOverdue
-                            ? 'text-muted-foreground'
-                            : isToday
-                            ? 'text-primary'
-                            : 'text-foreground'
-                        }`}
-                      >
-                        {getDaysLeftText(daysLeft)}
-                      </div>
-                    </div>
+          {overdueTasks.length > MAX_OVERDUE && (
+            <div className="pt-3 text-xs text-muted-foreground opacity-80">
+              +{overdueTasks.length - MAX_OVERDUE} more overdue
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Main grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Today plan */}
+        <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-foreground font-semibold">Today’s plan</h2>
+            <span className="text-xs text-muted-foreground opacity-80">
+              {studyItems.length}
+            </span>
+          </div>
+
+          {studyItems.length > 0 ? (
+            <>
+              <div className="divide-y divide-border">
+                {studyItems.slice(0, MAX_TODAY).map((item) => (
+                  <div key={item.id}>
+                    <StudyRow item={item} />
                   </div>
+                ))}
+              </div>
+
+              {studyItems.length > MAX_TODAY && (
+                <div className="pt-3 text-xs text-muted-foreground opacity-80">
+                  +{studyItems.length - MAX_TODAY} more planned today
                 </div>
-              );
-            })
+              )}
+            </>
           ) : (
-            <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
-              <p className="text-muted-foreground text-sm text-center opacity-80">No upcoming deadlines</p>
+            <div className="py-8 text-sm text-muted-foreground opacity-80">
+              Nothing planned yet — add a study item in Study Planner.
+            </div>
+          )}
+        </div>
+
+        {/* Next 7 days */}
+        <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-foreground font-semibold">Deadlines (next 7 days)</h2>
+            <span className="text-xs text-muted-foreground opacity-80">
+              {upcomingWeek.length}
+            </span>
+          </div>
+
+          {upcomingWeek.length > 0 ? (
+            <>
+              <div className="divide-y divide-border">
+                {upcomingWeek.slice(0, MAX_WEEK).map((t) => (
+                  <div key={t.id}>
+                    <TaskRow task={t} />
+                  </div>
+                ))}
+              </div>
+
+              {upcomingWeek.length > MAX_WEEK && (
+                <div className="pt-3 text-xs text-muted-foreground opacity-80">
+                  +{upcomingWeek.length - MAX_WEEK} more this week
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="py-8 text-sm text-muted-foreground opacity-80">
+              All clear — no deadlines in the next week.
             </div>
           )}
         </div>

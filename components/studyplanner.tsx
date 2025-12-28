@@ -1,6 +1,6 @@
 "use client";
-import React, { useState } from 'react';
-import { Plus, X, Calendar, Edit2, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from "react";
+import { Plus, Calendar, Edit2, Trash2 } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -13,129 +13,188 @@ interface Task {
   title: string;
   subjectId: string;
   dueDate: Date;
-  type: 'task' | 'assignment' | 'exam' | 'homework';
+  type: "task" | "assignment" | "exam" | "homework";
+  completed?: boolean;
+  completedAt?: Date;
 }
 
-interface StudyItem {
+interface StudySession {
   id: string;
   subjectId: string;
-  topic: string;
   date: Date;
-  linkedTaskId?: string;
-  notes?: string;
-  showOnCalendar: boolean;
+  startTime: string;
+  duration: string; // e.g. "60 min" or "1h 30m"
+  linkedTaskId?: string; // link to exam/assignment
+  completed?: boolean;
+  completedAt?: Date;
 }
 
 interface StudyPlannerProps {
   tasks: Task[];
   subjects: Subject[];
-  studyItems: StudyItem[];
-  onAddStudyItem: (item: Omit<StudyItem, 'id'>) => void;
-  onUpdateStudyItem: (id: string, item: Omit<StudyItem, 'id'>) => void;
-  onRemoveStudyItem: (id: string) => void;
+  studySessions: StudySession[];
+
+  onAddStudySession: (session: Omit<StudySession, "id">) => void;
+  onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
+  onDeleteStudySession: (id: string) => void;
+  onToggleSessionCompleted: (id: string) => void;
 }
+
+const parseDurationToMinutes = (duration: string): number => {
+  if (!duration) return 0;
+  const s = duration.toLowerCase().trim();
+
+  const colon = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (colon) return Number(colon[1]) * 60 + Number(colon[2]);
+
+  let hours = 0;
+  let minutes = 0;
+
+  const hMatch = s.match(/(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)\b/);
+  if (hMatch) hours = Number(hMatch[1]);
+
+  const mMatch = s.match(/(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes)\b/);
+  if (mMatch) minutes = Number(mMatch[1]);
+
+  if (hMatch || mMatch) return Math.round(hours * 60 + minutes);
+
+  const justNumber = s.match(/^\d+$/);
+  if (justNumber) return Number(s);
+
+  const firstNum = s.match(/(\d+)/);
+  return firstNum ? Number(firstNum[1]) : 0;
+};
+
+const formatMinutes = (total: number): string => {
+  const mins = Math.max(0, Math.round(total));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h <= 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+};
 
 export function StudyPlanner({
   tasks,
   subjects,
-  studyItems,
-  onAddStudyItem,
-  onUpdateStudyItem,
-  onRemoveStudyItem
+  studySessions,
+  onAddStudySession,
+  onUpdateStudySession,
+  onDeleteStudySession,
+  onToggleSessionCompleted,
 }: StudyPlannerProps) {
-  const [activeTab, setActiveTab] = useState<string>('all');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [showHelperText, setShowHelperText] = useState(true);
+
+  const [showAddSessionForm, setShowAddSessionForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showHelperText, setShowHelperText] = useState(true);
-  const [formData, setFormData] = useState({
-    subjectId: '',
-    topic: '',
-    date: '',
-    linkedTaskId: '',
-    notes: '',
-    showOnCalendar: false
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  const activeSubject = activeTab !== "all" ? subjects.find((s) => s.id === activeTab) : null;
+
+  const [sessionForm, setSessionForm] = useState({
+    subjectId: "",
+    date: "",
+    startTime: "",
+    duration: "60 min",
+    linkedTaskId: "",
   });
 
-  const getSubjectById = (id: string) => subjects.find(s => s.id === id);
+  const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
 
-  const filteredStudyItems = activeTab === 'all'
-    ? studyItems
-    : studyItems.filter(item => item.subjectId === activeTab);
+  const linkableAssessments = useMemo(() => {
+    return tasks
+      .filter((t) => t.type === "exam" || t.type === "assignment")
+      .filter((t) => (sessionForm.subjectId ? t.subjectId === sessionForm.subjectId : true))
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [tasks, sessionForm.subjectId]);
 
-  const sortedStudyItems = [...filteredStudyItems].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const visibleSessions = useMemo(() => {
+    const base =
+      activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
 
-  const activeSubject = activeTab !== 'all' ? subjects.find((s) => s.id === activeTab) : null;
-  const subjectTasks = activeTab !== 'all' ? tasks.filter((task) => task.subjectId === activeTab) : tasks;
+    const withCompleted = showCompleted ? base : base.filter((s) => !s.completed);
+
+    return withCompleted
+      .slice()
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [studySessions, activeTab, showCompleted]);
+
+  const totalMinutesVisible = useMemo(() => {
+    return visibleSessions.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
+  }, [visibleSessions]);
+
+  const handleOpenNew = () => {
+    setEditingId(null);
+    setShowAddSessionForm(true);
+    setSessionForm({
+      subjectId: activeTab !== "all" ? activeTab : "",
+      date: "",
+      startTime: "",
+      duration: "60 min",
+      linkedTaskId: "",
+    });
+  };
+
+  const handleOpenEdit = (s: StudySession) => {
+    setEditingId(s.id);
+    setShowAddSessionForm(true);
+    setSessionForm({
+      subjectId: s.subjectId,
+      date: s.date.toISOString().split("T")[0],
+      startTime: s.startTime,
+      duration: s.duration || "60 min",
+      linkedTaskId: s.linkedTaskId || "",
+    });
+  };
+
+  const handleSubmitSession = () => {
+    if (!sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime || !sessionForm.duration) return;
+
+    const payload: Omit<StudySession, "id"> = {
+      subjectId: sessionForm.subjectId,
+      date: new Date(sessionForm.date),
+      startTime: sessionForm.startTime,
+      duration: sessionForm.duration,
+      linkedTaskId: sessionForm.linkedTaskId || undefined,
+      // if editing, keep completion state as-is by reading it from current session
+      ...(editingId
+        ? (() => {
+            const current = studySessions.find((x) => x.id === editingId);
+            return {
+              completed: current?.completed,
+              completedAt: current?.completedAt,
+            };
+          })()
+        : {}),
+    };
+
+    if (editingId) {
+      onUpdateStudySession(editingId, payload);
+    } else {
+      onAddStudySession(payload);
+    }
+
+    setEditingId(null);
+    setShowAddSessionForm(false);
+    setSessionForm({
+      subjectId: activeTab !== "all" ? activeTab : "",
+      date: "",
+      startTime: "",
+      duration: "60 min",
+      linkedTaskId: "",
+    });
+  };
+
+  const handleCancelSession = () => {
+    setEditingId(null);
+    setShowAddSessionForm(false);
+  };
 
   const getLinkedTask = (taskId?: string) => {
     if (!taskId) return null;
-    return tasks.find((task) => task.id === taskId);
-  };
-
-  const handleSubmit = () => {
-    if (formData.topic && formData.date && formData.subjectId) {
-      if (editingId) {
-        onUpdateStudyItem(editingId, {
-          subjectId: formData.subjectId,
-          topic: formData.topic,
-          date: new Date(formData.date),
-          linkedTaskId: formData.linkedTaskId || undefined,
-          notes: formData.notes || undefined,
-          showOnCalendar: formData.showOnCalendar
-        });
-        setEditingId(null);
-      } else {
-        onAddStudyItem({
-          subjectId: formData.subjectId,
-          topic: formData.topic,
-          date: new Date(formData.date),
-          linkedTaskId: formData.linkedTaskId || undefined,
-          notes: formData.notes || undefined,
-          showOnCalendar: formData.showOnCalendar
-        });
-      }
-      setFormData({
-        subjectId: '',
-        topic: '',
-        date: '',
-        linkedTaskId: '',
-        notes: '',
-        showOnCalendar: false
-      });
-      setShowAddForm(false);
-    }
-  };
-
-  const handleEdit = (item: StudyItem) => {
-    setEditingId(item.id);
-    setFormData({
-      subjectId: item.subjectId,
-      topic: item.topic,
-      date: item.date.toISOString().split('T')[0],
-      linkedTaskId: item.linkedTaskId || '',
-      notes: item.notes || '',
-      showOnCalendar: item.showOnCalendar
-    });
-    setShowAddForm(true);
-  };
-
-  const handleDelete = (id: string) => {
-    onRemoveStudyItem(id);
-    setDeletingId(null);
-  };
-
-  const handleCancel = () => {
-    setShowAddForm(false);
-    setEditingId(null);
-    setFormData({
-      subjectId: '',
-      topic: '',
-      date: '',
-      linkedTaskId: '',
-      notes: '',
-      showOnCalendar: false
-    });
+    return tasks.find((t) => t.id === taskId) || null;
   };
 
   return (
@@ -143,9 +202,7 @@ export function StudyPlanner({
       {/* Helper Text */}
       {showHelperText && (
         <div className="flex items-center justify-between bg-accent/20 rounded-lg px-4 py-3 border border-primary/20">
-          <p className="text-xs text-muted-foreground">
-            Plan what you'll study on specific dates.
-          </p>
+          <p className="text-xs text-muted-foreground">Log study sessions (hours) and link them to exams/assignments.</p>
           <button
             onClick={() => setShowHelperText(false)}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -158,17 +215,17 @@ export function StudyPlanner({
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-foreground font-semibold">Study Planner</h1>
-        <p className="text-muted-foreground text-sm opacity-80">Plan what you'll study, organized by subject</p>
+        <p className="text-muted-foreground text-sm opacity-80">Log study sessions, organized by subject</p>
       </div>
 
       {/* Subject Tabs */}
       <div className="flex gap-2 border-b border-border overflow-x-auto">
         <button
-          onClick={() => setActiveTab('all')}
+          onClick={() => setActiveTab("all")}
           className={`px-6 py-3 transition-colors border-b-2 whitespace-nowrap font-medium ${
-            activeTab === 'all'
-              ? 'border-primary bg-primary/10 text-primary'
-              : 'border-transparent text-foreground hover:bg-muted'
+            activeTab === "all"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-transparent text-foreground hover:bg-muted"
           }`}
         >
           All
@@ -178,13 +235,11 @@ export function StudyPlanner({
             key={subject.id}
             onClick={() => setActiveTab(subject.id)}
             className={`px-6 py-3 transition-all border-b-2 whitespace-nowrap text-white ${
-              activeTab === subject.id
-                ? 'font-semibold'
-                : 'font-medium opacity-90 hover:opacity-100'
+              activeTab === subject.id ? "font-semibold" : "font-medium opacity-90 hover:opacity-100"
             }`}
             style={{
-              backgroundColor: subject.color + (activeTab === subject.id ? '' : 'DD'),
-              borderBottomColor: activeTab === subject.id ? subject.color : 'transparent'
+              backgroundColor: subject.color + (activeTab === subject.id ? "" : "DD"),
+              borderBottomColor: activeTab === subject.id ? subject.color : "transparent",
             }}
           >
             {subject.name}
@@ -192,62 +247,52 @@ export function StudyPlanner({
         ))}
       </div>
 
-      {/* Content */}
-      <div className="space-y-4">
-        {/* Add Study Item Button */}
-        <div className="flex justify-end">
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-muted-foreground opacity-80">
+          {visibleSessions.length} sessions • {formatMinutes(totalMinutesVisible)}
+        </div>
+
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setShowAddForm(!showAddForm);
-              setEditingId(null);
-              setFormData({
-                subjectId: activeTab !== 'all' ? activeTab : '',
-                topic: '',
-                date: '',
-                linkedTaskId: '',
-                notes: '',
-                showOnCalendar: false
-              });
-            }}
+            onClick={() => setShowCompleted((v) => !v)}
+            className="px-3 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors font-medium"
+          >
+            {showCompleted ? "Hide completed" : "Show completed"}
+          </button>
+
+          <button
+            onClick={handleOpenNew}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:opacity-90 transition-opacity font-medium ${
-              activeSubject ? '' : 'bg-primary'
+              activeSubject ? "" : "bg-primary"
             }`}
             style={activeSubject ? { backgroundColor: activeSubject.color } : undefined}
           >
             <Plus className="w-4 h-4" />
-            Add study item
+            Log study session
           </button>
         </div>
+      </div>
 
-        {/* Add/Edit Form */}
-        {showAddForm && (
-          <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-4">
-            <div className="text-foreground font-medium">
-              {editingId ? 'Edit study item' : 'New study item'}
-            </div>
-            
-            <select
-              value={formData.subjectId}
-              onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select subject</option>
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
+      {/* Add/Edit Session Form */}
+      {showAddSessionForm && (
+        <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-4">
+          <div className="text-foreground font-medium">{editingId ? "Edit study session" : "New study session"}</div>
 
-            <input
-              type="text"
-              placeholder="Topic or description"
-              value={formData.topic}
-              onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+          <select
+            value={sessionForm.subjectId}
+            onChange={(e) => setSessionForm({ ...sessionForm, subjectId: e.target.value, linkedTaskId: "" })}
+            className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">Select subject</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </select>
 
-            {/* Date */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -255,190 +300,184 @@ export function StudyPlanner({
               </label>
               <input
                 type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                value={sessionForm.date}
+                onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
                 className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
-            {/* Link to Task */}
-            <select
-              value={formData.linkedTaskId}
-              onChange={(e) => setFormData({ ...formData, linkedTaskId: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Link to task (optional)</option>
-              {subjectTasks
-                .filter(t => t.subjectId === formData.subjectId)
-                .map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-            </select>
-
-            {/* Notes */}
-            <textarea
-              placeholder="Notes (optional)"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              rows={2}
+            <input
+              type="text"
+              placeholder="Start time (e.g. 4:00 PM)"
+              value={sessionForm.startTime}
+              onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary h-10.5 mt-7 md:mt-0"
             />
 
-            {/* Show on Calendar */}
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={formData.showOnCalendar}
-                onChange={(e) => setFormData({ ...formData, showOnCalendar: e.target.checked })}
-                className="rounded border-border"
-              />
-              Show on calendar
-            </label>
-
-            {/* Form Actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleSubmit}
-                className={`px-4 py-2 rounded-lg text-white hover:opacity-90 transition-opacity font-medium ${
-                  activeSubject ? '' : 'bg-primary'
-                }`}
-                style={activeSubject ? { backgroundColor: activeSubject.color } : undefined}
-              >
-                {editingId ? 'Save' : 'Add'}
-              </button>
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+            <input
+              type="text"
+              placeholder="Duration (e.g. 60 min / 1h 30m)"
+              value={sessionForm.duration}
+              onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary h-10.5 mt-7 md:mt-0"
+            />
           </div>
-        )}
 
-        {/* Study Items List */}
-        <div className="space-y-3">
-          {sortedStudyItems.length > 0 ? (
-            sortedStudyItems.map((item) => {
-              const linkedTask = getLinkedTask(item.linkedTaskId);
-              const itemSubject = getSubjectById(item.subjectId);
-              
-              return (
-                <div key={item.id}>
-                  <div className="bg-card rounded-lg p-4 shadow-sm border border-border group hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        {/* Topic with subject pill */}
-                        <div className="flex items-start gap-2">
-                          <div className="text-foreground font-medium">{item.topic}</div>
-                          {itemSubject && activeTab === 'all' && (
-                            <span
-                              className="inline-block px-2 py-0.5 rounded-full text-white text-xs shrink-0"
-                              style={{ backgroundColor: itemSubject.color }}
-                            >
-                              {itemSubject.name}
-                            </span>
-                          )}
-                        </div>
+          {/* Link to assessment (exam/assignment only) */}
+          <select
+            value={sessionForm.linkedTaskId}
+            onChange={(e) => setSessionForm({ ...sessionForm, linkedTaskId: e.target.value })}
+            className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">Link to assessment (optional)</option>
+            {linkableAssessments.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.type.toUpperCase()}: {t.title}
+              </option>
+            ))}
+          </select>
 
-                        {/* Date */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          <span>
-                            {item.date.toLocaleDateString('en-US', {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </span>
-                        </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSubmitSession}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+            >
+              {editingId ? "Save" : "Add"}
+            </button>
+            <button
+              onClick={handleCancelSession}
+              className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
-                        {/* Linked Task */}
-                        {linkedTask && (
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <span>→</span>
-                            <span>{linkedTask.title}</span>
-                          </div>
-                        )}
+      {/* Sessions List */}
+      <div className="space-y-3">
+        {visibleSessions.length > 0 ? (
+          visibleSessions.map((s) => {
+            const subj = getSubjectById(s.subjectId);
+            const linked = getLinkedTask(s.linkedTaskId);
+            const minutes = parseDurationToMinutes(s.duration);
 
-                        {/* Notes */}
-                        {item.notes && (
-                          <div className="text-sm text-muted-foreground italic opacity-80">
-                            {item.notes}
-                          </div>
-                        )}
+            return (
+              <div
+                key={s.id}
+                className={`bg-card rounded-lg p-4 shadow-sm border border-border group hover:shadow-md transition-shadow ${
+                  s.completed ? "opacity-80" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
+                      {/* completion checkbox */}
+                      <button
+                        onClick={() => onToggleSessionCompleted(s.id)}
+                        className="w-5 h-5 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+                        aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
+                      >
+                        {s.completed ? <div className="w-3 h-3 rounded-sm bg-primary" /> : null}
+                      </button>
 
-                        {/* Show on Calendar Indicator */}
-                        {item.showOnCalendar && (
-                          <div className="text-xs text-muted-foreground opacity-70">
-                            📅 Visible on calendar
-                          </div>
-                        )}
+                      <div className="text-foreground font-medium">
+                        {formatMinutes(minutes)} • {s.startTime}
                       </div>
 
-                      {/* Edit/Delete Buttons */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-1.5 hover:bg-muted rounded"
-                          aria-label="Edit"
+                      {subj && (
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-full text-white text-xs shrink-0"
+                          style={{ backgroundColor: subj.color }}
                         >
-                          <Edit2 className="w-4 h-4 text-foreground" />
+                          {subj.name}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <Calendar className="w-3 h-3" />
+                      <span>
+                        {s.date.toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                      {s.completed && s.completedAt && (
+                        <span className="opacity-70">
+                          • completed{" "}
+                          {s.completedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      )}
+                    </div>
+
+                    {linked && (
+                      <div className="text-xs text-muted-foreground opacity-80">
+                        Linked: {linked.type.toUpperCase()} • {linked.title}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit/Delete Buttons */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleOpenEdit(s)}
+                      className="p-1.5 hover:bg-muted rounded"
+                      aria-label="Edit"
+                    >
+                      <Edit2 className="w-4 h-4 text-foreground" />
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(s.id)}
+                      className="p-1.5 hover:bg-muted rounded"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Delete Confirmation */}
+                {deletingId === s.id && (
+                  <>
+                    <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDeletingId(null)} />
+                    <div className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-card rounded-lg shadow-xl border border-border p-6 w-full max-w-sm">
+                      <h3 className="text-foreground font-semibold mb-2">Delete this session?</h3>
+                      <p className="text-sm text-muted-foreground opacity-80 mb-4">This action cannot be undone.</p>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setDeletingId(null)}
+                          className="px-4 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                        >
+                          Cancel
                         </button>
                         <button
-                          onClick={() => setDeletingId(item.id)}
-                          className="p-1.5 hover:bg-muted rounded"
-                          aria-label="Delete"
+                          onClick={() => {
+                            onDeleteStudySession(s.id);
+                            setDeletingId(null);
+                          }}
+                          className="px-4 py-2 text-sm rounded-lg bg-muted-foreground text-white hover:bg-muted-foreground/90 transition-colors font-medium"
                         >
-                          <Trash2 className="w-4 h-4 text-muted-foreground" />
+                          Delete
                         </button>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Delete Confirmation */}
-                  {deletingId === item.id && (
-                    <>
-                      <div
-                        className="fixed inset-0 bg-black/50 z-40"
-                        onClick={() => setDeletingId(null)}
-                      />
-                      <div className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-card rounded-lg shadow-xl border border-border p-6 w-full max-w-sm">
-                        <h3 className="text-foreground font-semibold mb-2">Delete this item?</h3>
-                        <p className="text-sm text-muted-foreground opacity-80 mb-4">
-                          This action cannot be undone.
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => setDeletingId(null)}
-                            className="px-4 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="px-4 py-2 text-sm rounded-lg bg-muted-foreground text-white hover:bg-muted-foreground/90 transition-colors font-medium"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-              <p className="text-muted-foreground text-sm text-center opacity-80">
-                {activeTab === 'all' ? 'No study items yet' : `No study items planned for ${activeSubject?.name} yet`}
-              </p>
-            </div>
-          )}
-        </div>
+                  </>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+            <p className="text-muted-foreground text-sm text-center opacity-80">
+              {activeTab === "all"
+                ? "No study sessions yet. Log your first one."
+                : `No study sessions for ${activeSubject?.name} yet.`}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
