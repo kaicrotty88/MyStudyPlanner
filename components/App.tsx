@@ -244,10 +244,11 @@ function App() {
       <nav className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <span className="font-bold text-foreground">MyStudentPlanner</span>
-<div className="text-[11px] text-muted-foreground leading-tight">
-  Made by students, for students
-</div>
+            {/* Title + slogan (stacked) */}
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-foreground">MyStudyPlanner</span>
+              <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
+            </div>
 
             <div className="flex gap-1">
               {[
