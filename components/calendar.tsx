@@ -392,7 +392,7 @@ function CalendarView({
             className="text-xs text-foreground leading-snug wrap-break-word"
             style={{
               display: "-webkit-box",
-              WebkitLineClamp: 2,
+              WebkitLineClamp: 3,
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
             }}
