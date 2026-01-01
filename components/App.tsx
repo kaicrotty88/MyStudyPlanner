@@ -9,51 +9,12 @@ import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
 import { Insights } from "./insights";
 
+import type { Subject, Task, StudySession } from "./models";
+
 const STORAGE_KEY = "mystudylife-data";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 type Tab = "dashboard" | "calendar" | "tasks" | "study" | "insights" | "settings";
-
-/* -------------------- Types -------------------- */
-
-export interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-  completed?: boolean;
-  completedAt?: Date;
-}
-
-export interface StudyItem {
-  id: string;
-  subjectId: string;
-  topic: string;
-  date: Date;
-  linkedTaskId?: string;
-  notes?: string;
-  showOnCalendar: boolean;
-}
-
-export interface StudySession {
-  id: string;
-  subjectId: string;
-  date: Date;
-  startTime: string;
-  duration: string;
-  linkedTaskId?: string;
-
-  // for your StudyPlanner “completed” UI
-  completed?: boolean;
-  completedAt?: Date;
-}
 
 /* -------------------- Defaults -------------------- */
 
@@ -86,28 +47,11 @@ const makeDefaultData = () => {
     { id: "t4", title: "Midterm Exam", subjectId: "2", dueDate: in7, type: "exam" },
   ];
 
-  const demoStudyItems: StudyItem[] = [
-    {
-      id: "si1",
-      subjectId: "1",
-      topic: "Quadratic equations practice",
-      date: today,
-      linkedTaskId: "t3",
-      showOnCalendar: true,
-    },
-    {
-      id: "si2",
-      subjectId: "2",
-      topic: "Newton’s laws review",
-      date: today,
-      showOnCalendar: true,
-    },
-  ];
-
   const demoStudySessions: StudySession[] = [
     {
       id: "ss1",
       subjectId: "1",
+      title: "Chapter 5 review",
       date: today,
       startTime: "4:00 PM",
       duration: "60 min",
@@ -116,7 +60,7 @@ const makeDefaultData = () => {
     },
   ];
 
-  return { demoTasks, demoStudyItems, demoStudySessions };
+  return { demoTasks, demoStudySessions };
 };
 
 function App() {
@@ -126,7 +70,6 @@ function App() {
 
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
 
   /* -------------------- Helpers -------------------- */
@@ -146,10 +89,9 @@ function App() {
 
     // first run = seed demo data
     if (!raw) {
-      const { demoTasks, demoStudyItems, demoStudySessions } = makeDefaultData();
+      const { demoTasks, demoStudySessions } = makeDefaultData();
       setSubjects(defaultSubjects);
       setTasks(demoTasks);
-      setStudyItems(demoStudyItems);
       setStudySessions(demoStudySessions);
       hydrated.current = true;
       return;
@@ -166,20 +108,15 @@ function App() {
         completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
       }));
 
-      const loadedStudyItems: StudyItem[] = (parsed.studyItems ?? []).map((i: any) => ({
-        ...i,
-        date: i?.date ? new Date(i.date) : new Date(),
-      }));
-
       const loadedStudySessions: StudySession[] = (parsed.studySessions ?? []).map((s: any) => ({
         ...s,
+        title: typeof s?.title === "string" && s.title.trim() ? s.title : "Study session",
         date: s?.date ? new Date(s.date) : new Date(),
         completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
       }));
 
       setSubjects(loadedSubjects);
       setTasks(pruneAutoDeletedCompletedTasks(loadedTasks));
-      setStudyItems(loadedStudyItems);
       setStudySessions(loadedStudySessions);
     } catch (err) {
       console.error("Failed to load saved data", err);
@@ -191,7 +128,6 @@ function App() {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    // Option A: auto-delete completed tasks after 24h
     const pruned = pruneAutoDeletedCompletedTasks(tasks);
     if (pruned.length !== tasks.length) {
       setTasks(pruned);
@@ -203,11 +139,10 @@ function App() {
       JSON.stringify({
         subjects,
         tasks,
-        studyItems,
         studySessions,
       })
     );
-  }, [subjects, tasks, studyItems, studySessions]);
+  }, [subjects, tasks, studySessions]);
 
   /* -------------------- Subjects (Settings) -------------------- */
 
@@ -223,7 +158,6 @@ function App() {
   const handleDeleteSubject = (id: string) => {
     setSubjects((prev) => prev.filter((s) => s.id !== id));
     setTasks((prev) => prev.filter((t) => t.subjectId !== id));
-    setStudyItems((prev) => prev.filter((i) => i.subjectId !== id));
     setStudySessions((prev) => prev.filter((s) => s.subjectId !== id));
   };
 
@@ -240,9 +174,7 @@ function App() {
 
   const handleDeleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
-
-    // also unlink from study items/sessions
-    setStudyItems((prev) => prev.map((i) => (i.linkedTaskId === id ? { ...i, linkedTaskId: undefined } : i)));
+    // unlink from sessions
     setStudySessions((prev) => prev.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
   };
 
@@ -260,30 +192,30 @@ function App() {
     );
   };
 
-  /* -------------------- Study Items -------------------- */
-
-  const handleAddStudyItem = (newItem: Omit<StudyItem, "id">) => {
-    const item: StudyItem = { ...newItem, id: Date.now().toString() };
-    setStudyItems((prev) => [...prev, item]);
-  };
-
-  const handleUpdateStudyItem = (id: string, updatedItem: Omit<StudyItem, "id">) => {
-    setStudyItems((prev) => prev.map((i) => (i.id === id ? { ...updatedItem, id } : i)));
-  };
-
-  const handleRemoveStudyItem = (id: string) => {
-    setStudyItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
   /* -------------------- Study Sessions -------------------- */
 
   const handleAddStudySession = (newSession: Omit<StudySession, "id">) => {
-    const session: StudySession = { ...newSession, id: Date.now().toString(), completed: false };
+    const session: StudySession = {
+      ...newSession,
+      id: Date.now().toString(),
+      title: newSession.title?.trim() ? newSession.title.trim() : "Study session",
+      completed: false,
+    };
     setStudySessions((prev) => [...prev, session]);
   };
 
   const handleUpdateStudySession = (id: string, updated: Omit<StudySession, "id">) => {
-    setStudySessions((prev) => prev.map((s) => (s.id === id ? { ...updated, id } : s)));
+    setStudySessions((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...updated,
+              id,
+              title: updated.title?.trim() ? updated.title.trim() : "Study session",
+            }
+          : s
+      )
+    );
   };
 
   const handleDeleteStudySession = (id: string) => {
@@ -303,11 +235,6 @@ function App() {
       })
     );
   };
-
-  /* -------------------- Derived -------------------- */
-
-  const todayStr = new Date().toDateString();
-  const todayStudyItems = studyItems.filter((i) => i.date.toDateString() === todayStr);
 
   /* -------------------- Render -------------------- */
 
@@ -331,9 +258,7 @@ function App() {
                   key={key}
                   onClick={() => setActiveTab(key as Tab)}
                   className={`px-4 py-2 rounded-lg transition ${
-                    activeTab === key
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-muted"
+                    activeTab === key ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
                   }`}
                 >
                   {label}
@@ -345,9 +270,7 @@ function App() {
           <button
             onClick={() => setActiveTab("settings")}
             className={`px-4 py-2 rounded-lg transition ${
-              activeTab === "settings"
-                ? "bg-primary text-primary-foreground"
-                : "text-foreground hover:bg-muted"
+              activeTab === "settings" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
             }`}
           >
             Settings
@@ -359,19 +282,24 @@ function App() {
       <main>
         {activeTab === "dashboard" && (
           <Dashboard
-          tasks={tasks} subjects={subjects} studyItems={todayStudyItems} />
+            tasks={tasks}
+            subjects={subjects}
+            studySessions={studySessions}
+            onOpenStudyPlanner={() => setActiveTab("study")}
+          />
         )}
 
         {activeTab === "calendar" && (
           <Calendar
             studySessions={studySessions}
             tasks={tasks}
-            studyItems={studyItems}
             subjects={subjects}
             onAddTask={handleAddTask}
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
-            onAddStudyItem={handleAddStudyItem}
+            onAddStudySession={handleAddStudySession}
+            onUpdateStudySession={handleUpdateStudySession}
+            onDeleteStudySession={handleDeleteStudySession}
           />
         )}
 
@@ -399,15 +327,13 @@ function App() {
           />
         )}
 
-        {activeTab === "insights" && (
-          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
-        )}
+        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
 
         {activeTab === "settings" && (
           <Settings
             subjects={subjects}
             tasks={tasks}
-            studyItems={studyItems}
+            studyItems={[]}
             studySessions={studySessions}
             onAddSubject={handleAddSubject}
             onUpdateSubject={handleUpdateSubject}

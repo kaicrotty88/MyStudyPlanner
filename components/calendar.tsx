@@ -12,54 +12,26 @@ import {
   Sparkles,
 } from "lucide-react";
 
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface StudySession {
-  id: string;
-  subjectId: string;
-  date: Date;
-  startTime: string;
-  duration: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-}
-
-interface StudyItem {
-  id: string;
-  subjectId: string;
-  topic: string;
-  date: Date;
-  linkedTaskId?: string;
-  notes?: string;
-  showOnCalendar: boolean;
-}
-
-interface CalendarProps {
-  studySessions: StudySession[];
-  tasks: Task[];
-  studyItems: StudyItem[];
-  subjects: Subject[];
-  onAddTask: (task: Omit<Task, "id">) => void;
-
-  onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
-  onDeleteTask?: (id: string) => void;
-
-  onAddStudyItem: (item: Omit<StudyItem, "id">) => void;
-}
+import type { Subject, Task, StudySession } from "./models";
 
 type ViewMode = "day" | "week" | "month";
 type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | null;
 
+interface CalendarProps {
+  studySessions: StudySession[];
+  tasks: Task[];
+  subjects: Subject[];
+
+  onAddTask: (task: Omit<Task, "id">) => void;
+  onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
+  onDeleteTask?: (id: string) => void;
+
+  onAddStudySession: (session: Omit<StudySession, "id">) => void;
+  onUpdateStudySession?: (id: string, session: Omit<StudySession, "id">) => void;
+  onDeleteStudySession?: (id: string) => void;
+}
+
+/* -------------------- helpers -------------------- */
 const toLocalDateInputValue = (d: Date) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -100,15 +72,42 @@ function typeDot(t: Task["type"]) {
   return "•";
 }
 
+/* --- time options (keeps UX consistent) --- */
+const buildTimeOptions = (stepMinutes = 15) => {
+  const out: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += stepMinutes) {
+      const d = new Date(2000, 0, 1, h, m);
+      out.push(d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+    }
+  }
+  return out;
+};
+
+const DURATION_OPTIONS: { label: string; value: string }[] = [
+  { label: "15 min", value: "15 min" },
+  { label: "20 min", value: "20 min" },
+  { label: "30 min", value: "30 min" },
+  { label: "45 min", value: "45 min" },
+  { label: "60 min", value: "60 min" },
+  { label: "1h 15m", value: "1h 15m" },
+  { label: "1h 30m", value: "1h 30m" },
+  { label: "1h 45m", value: "1h 45m" },
+  { label: "2h", value: "2h" },
+  { label: "2h 30m", value: "2h 30m" },
+  { label: "3h", value: "3h" },
+];
+
 function CalendarView({
   studySessions,
   tasks,
-  studyItems,
   subjects,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
-  onAddStudyItem,
+  onAddStudySession,
+  onUpdateStudySession,
+  onDeleteStudySession,
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -118,10 +117,18 @@ function CalendarView({
   const [showHelperText, setShowHelperText] = useState(true);
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  const timeOptions = useMemo(() => buildTimeOptions(15), []);
+
+  // tasks edit/delete
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
-  const canEditDelete = Boolean(onUpdateTask && onDeleteTask);
+  // sessions edit/delete
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+
+  const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
+  const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -130,13 +137,14 @@ function CalendarView({
     type: "task" as "task" | "assignment" | "exam" | "homework",
   });
 
-  const [studyFormData, setStudyFormData] = useState({
+  // ✅ Study Sessions form (replaces StudyItems)
+  const [sessionFormData, setSessionFormData] = useState({
+    title: "",
     subjectId: "",
-    topic: "",
     date: "",
+    startTime: "",
+    duration: "60 min",
     linkedTaskId: "",
-    notes: "",
-    showOnCalendar: true,
   });
 
   const subjectById = useMemo(() => {
@@ -145,24 +153,30 @@ function CalendarView({
     return map;
   }, [subjects]);
 
-  const daysInMonth = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const taskById = useMemo(() => {
+    const map = new Map<string, Task>();
+    tasks.forEach((t) => map.set(t.id, t));
+    return map;
+  }, [tasks]);
 
-  const firstDayOfMonth = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  const linkableAssessments = useMemo(() => {
+    return tasks
+      .filter((t) => t.type === "exam" || t.type === "assignment")
+      .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [tasks, sessionFormData.subjectId]);
 
-  const previousMonth = () =>
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
-  const nextMonth = () =>
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
   const previousWeek = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() - 7);
     setCurrentDate(newDate);
   };
-
   const nextWeek = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + 7);
@@ -174,7 +188,6 @@ function CalendarView({
     newDate.setDate(currentDate.getDate() - 1);
     setCurrentDate(newDate);
   };
-
   const nextDay = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + 1);
@@ -183,12 +196,8 @@ function CalendarView({
 
   const getItemsForDate = (date: Date) => {
     const dateTasks = tasks.filter((task) => isSameDay(task.dueDate, date));
-    const dateStudyItems = studyItems.filter(
-      (item) => item.showOnCalendar && isSameDay(item.date, date)
-    );
     const dateSessions = studySessions.filter((session) => isSameDay(session.date, date));
-
-    return { tasks: dateTasks, studyItems: dateStudyItems, sessions: dateSessions };
+    return { tasks: dateTasks, sessions: dateSessions };
   };
 
   const handleDayClick = (date: Date) => {
@@ -198,19 +207,20 @@ function CalendarView({
 
   const handleAddOption = (type: AddFormType) => {
     if (!selectedDate) return;
-
     const dateStr = toLocalDateInputValue(selectedDate);
 
+    // reset editing states
     setEditingTaskId(null);
+    setEditingSessionId(null);
 
     if (type === "study") {
-      setStudyFormData({
+      setSessionFormData({
+        title: "",
         subjectId: "",
-        topic: "",
         date: dateStr,
+        startTime: "",
+        duration: "60 min",
         linkedTaskId: "",
-        notes: "",
-        showOnCalendar: true,
       });
     } else {
       setTaskFormData({
@@ -226,7 +236,7 @@ function CalendarView({
   };
 
   const openEditTask = (task: Task) => {
-    if (!canEditDelete) return;
+    if (!canEditDeleteTasks) return;
 
     setEditingTaskId(task.id);
     setSelectedDate(task.dueDate);
@@ -242,6 +252,25 @@ function CalendarView({
     setShowPopover(false);
   };
 
+  const openEditSession = (session: StudySession) => {
+    if (!canEditDeleteSessions) return;
+
+    setEditingSessionId(session.id);
+    setSelectedDate(session.date);
+
+    setSessionFormData({
+      title: session.title ?? "",
+      subjectId: session.subjectId,
+      date: toLocalDateInputValue(session.date),
+      startTime: session.startTime ?? "",
+      duration: session.duration ?? "60 min",
+      linkedTaskId: session.linkedTaskId ?? "",
+    });
+
+    setShowAddForm("study");
+    setShowPopover(false);
+  };
+
   const handleTaskSubmit = () => {
     if (!taskFormData.title || !taskFormData.subjectId || !taskFormData.dueDate) return;
 
@@ -252,11 +281,8 @@ function CalendarView({
       type: taskFormData.type,
     };
 
-    if (editingTaskId && onUpdateTask) {
-      onUpdateTask(editingTaskId, payload);
-    } else {
-      onAddTask(payload);
-    }
+    if (editingTaskId && onUpdateTask) onUpdateTask(editingTaskId, payload);
+    else onAddTask(payload);
 
     setEditingTaskId(null);
     setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
@@ -264,25 +290,36 @@ function CalendarView({
     setSelectedDate(null);
   };
 
-  const handleStudySubmit = () => {
-    if (!studyFormData.topic || !studyFormData.subjectId || !studyFormData.date) return;
+  const handleSessionSubmit = () => {
+    if (!sessionFormData.title || !sessionFormData.subjectId || !sessionFormData.date || !sessionFormData.startTime || !sessionFormData.duration)
+      return;
 
-    onAddStudyItem({
-      subjectId: studyFormData.subjectId,
-      topic: studyFormData.topic,
-      date: new Date(studyFormData.date),
-      linkedTaskId: studyFormData.linkedTaskId || undefined,
-      notes: studyFormData.notes || undefined,
-      showOnCalendar: studyFormData.showOnCalendar,
-    });
+    const payload: Omit<StudySession, "id"> = {
+      title: sessionFormData.title.trim(),
+      subjectId: sessionFormData.subjectId,
+      date: new Date(sessionFormData.date),
+      startTime: sessionFormData.startTime,
+      duration: sessionFormData.duration,
+      linkedTaskId: sessionFormData.linkedTaskId || undefined,
+      ...(editingSessionId
+        ? (() => {
+            const current = studySessions.find((x) => x.id === editingSessionId);
+            return { completed: current?.completed, completedAt: current?.completedAt };
+          })()
+        : {}),
+    };
 
-    setStudyFormData({
+    if (editingSessionId && onUpdateStudySession) onUpdateStudySession(editingSessionId, payload);
+    else onAddStudySession(payload);
+
+    setEditingSessionId(null);
+    setSessionFormData({
+      title: "",
       subjectId: "",
-      topic: "",
       date: "",
+      startTime: "",
+      duration: "60 min",
       linkedTaskId: "",
-      notes: "",
-      showOnCalendar: true,
     });
     setShowAddForm(null);
     setSelectedDate(null);
@@ -292,62 +329,58 @@ function CalendarView({
     setShowAddForm(null);
     setShowPopover(false);
     setSelectedDate(null);
+
     setEditingTaskId(null);
     setDeletingTaskId(null);
 
+    setEditingSessionId(null);
+    setDeletingSessionId(null);
+
     setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
-    setStudyFormData({
+    setSessionFormData({
+      title: "",
       subjectId: "",
-      topic: "",
       date: "",
+      startTime: "",
+      duration: "60 min",
       linkedTaskId: "",
-      notes: "",
-      showOnCalendar: true,
     });
   };
 
   const SectionShell = ({ children }: { children: React.ReactNode }) => (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      {children}
-    </div>
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">{children}</div>
   );
 
-  const SwitchPill = ({
-    label,
-    active,
-    onClick,
-  }: {
-    label: string;
-    active: boolean;
-    onClick: () => void;
-  }) => (
+  const SwitchPill = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
     <button
       onClick={onClick}
       className={[
         "px-3 py-1.5 rounded-full text-sm transition",
-        active
-          ? "bg-primary text-primary-foreground"
-          : "text-foreground hover:bg-muted border border-border bg-card",
+        active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted border border-border bg-card",
       ].join(" ")}
     >
       {label}
     </button>
   );
 
-  // ✅ 2-line clamp so month view stays clean
+  // ✅ same chip style, just supports tasks + sessions
   const renderChip = ({
     title,
     subjectId,
     isStudy,
     task,
+    session,
   }: {
     title: string;
     subjectId?: string;
     isStudy?: boolean;
     task?: Task;
+    session?: StudySession;
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
     const dot = subject?.color ?? "#94a3b8";
+
+    const linkedTask = session?.linkedTaskId ? taskById.get(session.linkedTaskId) : undefined;
 
     return (
       <div
@@ -381,10 +414,26 @@ function CalendarView({
                 <span className="shrink-0">{typeLabel(task.type)}</span>
               </>
             ) : null}
+
+            {session ? (
+              <>
+                <span className="text-muted-foreground/60">•</span>
+                <span className="shrink-0">
+                  {session.startTime} • {session.duration}
+                </span>
+                {linkedTask ? (
+                  <>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="truncate">Linked: {linkedTask.title}</span>
+                  </>
+                ) : null}
+              </>
+            ) : null}
           </div>
         </div>
 
-        {task && canEditDelete ? (
+        {/* actions */}
+        {task && canEditDeleteTasks ? (
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition mt-0.5">
             <button
               onClick={(e) => {
@@ -408,6 +457,31 @@ function CalendarView({
             </button>
           </div>
         ) : null}
+
+        {session && canEditDeleteSessions ? (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition mt-0.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditSession(session);
+              }}
+              className="p-1 rounded hover:bg-muted"
+              aria-label="Edit session"
+            >
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingSessionId(session.id);
+              }}
+              className="p-1 rounded hover:bg-muted"
+              aria-label="Delete session"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -420,26 +494,22 @@ function CalendarView({
     let cells: JSX.Element[] = [];
 
     for (let i = 0; i < firstDay; i++) {
-      cells.push(
-        <div
-          key={`empty-${i}`}
-          className="min-h-35 p-2 bg-muted/20 border-r border-b border-border"
-        />
-      );
+      cells.push(<div key={`empty-${i}`} className="min-h-35 p-2 bg-muted/20 border-r border-b border-border" />);
     }
 
     for (let day = 1; day <= days; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      const { tasks: dayTasks, studyItems: dayStudyItems } = getItemsForDate(date);
+      const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(date);
 
       const isToday = isSameDay(new Date(), date);
       const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
 
       const previewItems = [
         ...dayTasks.slice(0, 2).map((t) => ({ kind: "task" as const, t })),
-        ...dayStudyItems.slice(0, 1).map((s) => ({ kind: "study" as const, s })),
+        ...daySessions.slice(0, 1).map((s) => ({ kind: "session" as const, s })),
       ];
-      const totalCount = dayTasks.length + dayStudyItems.length;
+
+      const totalCount = dayTasks.length + daySessions.length;
 
       // ✅ FIX NESTED BUTTONS: outer day cell is a div, not a button
       cells.push(
@@ -480,16 +550,17 @@ function CalendarView({
               }
               return (
                 <div key={x.s.id + idx} className="min-w-0">
-                  {renderChip({ title: x.s.topic, subjectId: x.s.subjectId, isStudy: true })}
+                  {renderChip({
+                    title: x.s.title || "Study session",
+                    subjectId: x.s.subjectId,
+                    isStudy: true,
+                    session: x.s,
+                  })}
                 </div>
               );
             })}
 
-            {totalCount > 3 ? (
-              <div className="text-[11px] text-muted-foreground mt-1">
-                +{totalCount - 3} more
-              </div>
-            ) : null}
+            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
           </div>
         </div>
       );
@@ -519,7 +590,7 @@ function CalendarView({
     return (
       <div className="grid grid-cols-7 border-t border-border">
         {days.map((date, i) => {
-          const { tasks: dayTasks, studyItems: dayStudyItems } = getItemsForDate(date);
+          const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(date);
           const isToday = isSameDay(new Date(), date);
 
           // ✅ FIX NESTED BUTTONS: outer day column is a div, not a button
@@ -539,9 +610,7 @@ function CalendarView({
                   <div className="text-[11px] text-muted-foreground">
                     {date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
                   </div>
-                  <div
-                    className={["text-lg font-semibold", isToday ? "text-primary" : "text-foreground"].join(" ")}
-                  >
+                  <div className={["text-lg font-semibold", isToday ? "text-primary" : "text-foreground"].join(" ")}>
                     {date.getDate()}
                   </div>
                 </div>
@@ -554,17 +623,20 @@ function CalendarView({
 
               <div className="mt-3 space-y-2">
                 {dayTasks.map((t) => (
-                  <div key={t.id}>
-                    {renderChip({ title: t.title, subjectId: t.subjectId, task: t })}
-                  </div>
+                  <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t })}</div>
                 ))}
-                {dayStudyItems.map((item) => (
-                  <div key={item.id}>
-                    {renderChip({ title: item.topic, subjectId: item.subjectId, isStudy: true })}
+                {daySessions.map((sess) => (
+                  <div key={sess.id}>
+                    {renderChip({
+                      title: sess.title || "Study session",
+                      subjectId: sess.subjectId,
+                      isStudy: true,
+                      session: sess,
+                    })}
                   </div>
                 ))}
 
-                {dayTasks.length === 0 && dayStudyItems.length === 0 ? (
+                {dayTasks.length === 0 && daySessions.length === 0 ? (
                   <div className="mt-6 text-xs text-muted-foreground border border-dashed border-border rounded-xl p-3 bg-background/30">
                     Empty
                   </div>
@@ -578,22 +650,16 @@ function CalendarView({
   };
 
   const renderDayView = () => {
-    const { tasks: dayTasks, studyItems: dayStudyItems } = getItemsForDate(currentDate);
+    const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(currentDate);
     const isToday = isSameDay(new Date(), currentDate);
 
     return (
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">
-              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
-            </div>
+            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
             <div className="mt-1 text-xl font-semibold text-foreground">
-              {currentDate.toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
           </div>
           {isToday ? (
@@ -604,12 +670,10 @@ function CalendarView({
         </div>
 
         <div className="mt-4 space-y-3">
-          {dayTasks.length === 0 && dayStudyItems.length === 0 ? (
+          {dayTasks.length === 0 && daySessions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-background/40 px-4 py-12 text-center">
               <div className="text-sm font-medium text-foreground">No items planned</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                Click below to add something to this day.
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">Click below to add something to this day.</div>
               <button
                 onClick={() => handleDayClick(currentDate)}
                 className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
@@ -623,9 +687,14 @@ function CalendarView({
               {dayTasks.map((t) => (
                 <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t })}</div>
               ))}
-              {dayStudyItems.map((item) => (
-                <div key={item.id}>
-                  {renderChip({ title: item.topic, subjectId: item.subjectId, isStudy: true })}
+              {daySessions.map((sess) => (
+                <div key={sess.id}>
+                  {renderChip({
+                    title: sess.title || "Study session",
+                    subjectId: sess.subjectId,
+                    isStudy: true,
+                    session: sess,
+                  })}
                 </div>
               ))}
             </>
@@ -636,9 +705,7 @@ function CalendarView({
   };
 
   const getHeaderLabel = () => {
-    if (viewMode === "month") {
-      return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    }
+    if (viewMode === "month") return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
     if (viewMode === "week") {
       const s = startOfWeek(currentDate);
       const e = endOfWeek(currentDate);
@@ -663,12 +730,9 @@ function CalendarView({
         <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
-            Click a day to add study, tasks, or assessments.
+            Click a day to add study sessions, tasks, or assessments.
           </div>
-          <button
-            onClick={() => setShowHelperText(false)}
-            className="text-xs text-muted-foreground hover:text-foreground transition"
-          >
+          <button onClick={() => setShowHelperText(false)} className="text-xs text-muted-foreground hover:text-foreground transition">
             Dismiss
           </button>
         </div>
@@ -686,9 +750,7 @@ function CalendarView({
 
           <div className="min-w-55 text-left md:text-center">
             <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
-            <div className="text-xs text-muted-foreground">
-              {viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}
-            </div>
+            <div className="text-xs text-muted-foreground">{viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}</div>
           </div>
 
           <button
@@ -756,7 +818,7 @@ function CalendarView({
                 onClick={() => handleAddOption("study")}
                 className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
               >
-                <span className="text-sm text-foreground">📚 Add study</span>
+                <span className="text-sm text-foreground">📚 Add study session</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
 
@@ -784,21 +846,15 @@ function CalendarView({
               <div className="space-y-0.5">
                 <div className="text-sm font-semibold text-foreground">
                   {showAddForm === "study"
-                    ? "Add study"
+                    ? `${editingSessionId ? "Edit" : "Add"} study session`
                     : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {selectedDate
-                    ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                    : ""}
+                  {selectedDate ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
                 </div>
               </div>
 
-              <button
-                onClick={handleCancel}
-                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
-                aria-label="Close"
-              >
+              <button onClick={handleCancel} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition" aria-label="Close">
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
@@ -808,21 +864,34 @@ function CalendarView({
                 <>
                   <input
                     type="text"
-                    placeholder="Topic (e.g. Quadratics practice)"
-                    value={studyFormData.topic}
-                    onChange={(e) => setStudyFormData({ ...studyFormData, topic: e.target.value })}
+                    placeholder="Session title (e.g. Trig graphs revision)"
+                    value={sessionFormData.title}
+                    onChange={(e) => setSessionFormData({ ...sessionFormData, title: e.target.value })}
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
 
                   <select
-                    value={studyFormData.subjectId}
-                    onChange={(e) => setStudyFormData({ ...studyFormData, subjectId: e.target.value })}
+                    value={sessionFormData.subjectId}
+                    onChange={(e) => setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })}
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">Select subject</option>
                     {subjects.map((subject) => (
                       <option key={subject.id} value={subject.id}>
                         {subject.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={sessionFormData.linkedTaskId}
+                    onChange={(e) => setSessionFormData({ ...sessionFormData, linkedTaskId: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">Link to assessment (optional)</option>
+                    {linkableAssessments.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.type.toUpperCase()}: {t.title}
                       </option>
                     ))}
                   </select>
@@ -834,36 +903,46 @@ function CalendarView({
                     </label>
                     <input
                       type="date"
-                      value={studyFormData.date}
-                      onChange={(e) => setStudyFormData({ ...studyFormData, date: e.target.value })}
+                      value={sessionFormData.date}
+                      onChange={(e) => setSessionFormData({ ...sessionFormData, date: e.target.value })}
                       className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
 
-                  <textarea
-                    placeholder="Notes (optional)"
-                    value={studyFormData.notes}
-                    onChange={(e) => setStudyFormData({ ...studyFormData, notes: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                    rows={3}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <select
+                      value={sessionFormData.startTime}
+                      onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="">Select start time</option>
+                      {timeOptions.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
 
-                  <label className="flex items-center gap-2 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={studyFormData.showOnCalendar}
-                      onChange={(e) => setStudyFormData({ ...studyFormData, showOnCalendar: e.target.checked })}
-                      className="rounded border-border"
-                    />
-                    Show on calendar
-                  </label>
+                    <select
+                      value={sessionFormData.duration}
+                      onChange={(e) => setSessionFormData({ ...sessionFormData, duration: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="">Select duration</option>
+                      {DURATION_OPTIONS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div className="flex gap-2 pt-1">
                     <button
-                      onClick={handleStudySubmit}
+                      onClick={handleSessionSubmit}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
                     >
-                      Add
+                      {editingSessionId ? "Save" : "Add"}
                     </button>
                     <button
                       onClick={handleCancel}
@@ -924,7 +1003,7 @@ function CalendarView({
         </>
       ) : null}
 
-      {/* Delete confirm modal */}
+      {/* Delete task confirm modal */}
       {deletingTaskId ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingTaskId(null)} />
@@ -944,6 +1023,36 @@ function CalendarView({
                 onClick={() => {
                   if (onDeleteTask) onDeleteTask(deletingTaskId);
                   setDeletingTaskId(null);
+                }}
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {/* Delete session confirm modal */}
+      {deletingSessionId ? (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingSessionId(null)} />
+          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">Delete this study session?</div>
+              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
+            </div>
+            <div className="p-5 flex gap-2 justify-end">
+              <button
+                onClick={() => setDeletingSessionId(null)}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (onDeleteStudySession) onDeleteStudySession(deletingSessionId);
+                  setDeletingSessionId(null);
                 }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
               >

@@ -1,44 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import { Plus, Calendar, Edit2, Trash2, X } from "lucide-react";
-
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-  completed?: boolean;
-  completedAt?: Date;
-}
-
-interface StudySession {
-  id: string;
-  subjectId: string;
-  date: Date;
-  startTime: string;
-  duration: string; // e.g. "60 min" or "1h 30m"
-  linkedTaskId?: string; // link to exam/assignment
-  completed?: boolean;
-  completedAt?: Date;
-}
-
-interface StudyPlannerProps {
-  tasks: Task[];
-  subjects: Subject[];
-  studySessions: StudySession[];
-
-  onAddStudySession: (session: Omit<StudySession, "id">) => void;
-  onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
-  onDeleteStudySession: (id: string) => void;
-  onToggleSessionCompleted: (id: string) => void;
-}
+import type { Subject, Task, StudySession } from "./models";
 
 /* -------------------- Time helpers -------------------- */
 const parseDurationToMinutes = (duration: string): number => {
@@ -120,6 +83,17 @@ const DURATION_OPTIONS: { label: string; value: string }[] = [
   { label: "3h", value: "3h" },
 ];
 
+interface StudyPlannerProps {
+  tasks: Task[];
+  subjects: Subject[];
+  studySessions: StudySession[];
+
+  onAddStudySession: (session: Omit<StudySession, "id">) => void;
+  onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
+  onDeleteStudySession: (id: string) => void;
+  onToggleSessionCompleted: (id: string) => void;
+}
+
 export function StudyPlanner({
   tasks,
   subjects,
@@ -141,6 +115,7 @@ export function StudyPlanner({
   const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
   const [sessionForm, setSessionForm] = useState({
+    title: "",
     subjectId: "",
     date: "",
     startTime: "",
@@ -190,8 +165,8 @@ export function StudyPlanner({
     setDeletingId(null);
     setPanelOpen(true);
 
-    // Works for All tab (you choose subject from dropdown)
     setSessionForm({
+      title: "",
       subjectId: activeTab !== "all" ? activeTab : "",
       date: "",
       startTime: "",
@@ -205,6 +180,7 @@ export function StudyPlanner({
     setDeletingId(null);
     setPanelOpen(true);
     setSessionForm({
+      title: s.title ?? "",
       subjectId: s.subjectId,
       date: s.date.toISOString().split("T")[0],
       startTime: s.startTime,
@@ -219,9 +195,11 @@ export function StudyPlanner({
   };
 
   const handleSubmit = () => {
-    if (!sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime || !sessionForm.duration) return;
+    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime || !sessionForm.duration)
+      return;
 
     const payload: Omit<StudySession, "id"> = {
+      title: sessionForm.title.trim(),
       subjectId: sessionForm.subjectId,
       date: new Date(sessionForm.date),
       startTime: sessionForm.startTime,
@@ -258,7 +236,6 @@ export function StudyPlanner({
           <p className="text-sm text-muted-foreground">Log sessions and link to assessments.</p>
         </div>
 
-        {/* Log session button (consistent primary styling; subject override preserved) */}
         <button
           onClick={openNew}
           className={[
@@ -272,7 +249,7 @@ export function StudyPlanner({
         </button>
       </div>
 
-      {/* Weekly strip (card-style for consistency) */}
+      {/* Weekly strip */}
       <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-foreground">
           <span className="font-medium">This week</span>
@@ -289,9 +266,7 @@ export function StudyPlanner({
         <button
           onClick={() => setActiveTab("all")}
           className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            activeTab === "all"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card border border-border text-foreground hover:bg-muted"
+            activeTab === "all" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground hover:bg-muted"
           }`}
         >
           All
@@ -303,9 +278,7 @@ export function StudyPlanner({
             <button
               key={s.id}
               onClick={() => setActiveTab(s.id)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
-                active ? "text-white" : "text-foreground"
-              }`}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${active ? "text-white" : "text-foreground"}`}
               style={
                 active
                   ? { backgroundColor: s.color, borderColor: s.color }
@@ -348,6 +321,15 @@ export function StudyPlanner({
           </div>
 
           <div className="p-4 space-y-3">
+            {/* ✅ title */}
+            <input
+              type="text"
+              value={sessionForm.title}
+              onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
+              placeholder="Session title (e.g. Trig graphs revision)"
+              className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <select
                 value={sessionForm.subjectId}
@@ -390,7 +372,6 @@ export function StudyPlanner({
                 />
               </div>
 
-              {/* Start time dropdown */}
               <select
                 value={sessionForm.startTime}
                 onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
@@ -404,7 +385,6 @@ export function StudyPlanner({
                 ))}
               </select>
 
-              {/* Duration dropdown */}
               <select
                 value={sessionForm.duration}
                 onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
@@ -446,9 +426,7 @@ export function StudyPlanner({
 
         {visibleSessions.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            {activeTab === "all"
-              ? "No study sessions yet. Log your first one."
-              : `No sessions for ${activeSubject?.name} yet.`}
+            {activeTab === "all" ? "No study sessions yet. Log your first one." : `No sessions for ${activeSubject?.name} yet.`}
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -462,11 +440,8 @@ export function StudyPlanner({
               return (
                 <div
                   key={s.id}
-                  className={`group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition-colors ${
-                    s.completed ? "opacity-80" : ""
-                  }`}
+                  className={`group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition-colors ${s.completed ? "opacity-80" : ""}`}
                 >
-                  {/* left */}
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <button
                       onClick={() => onToggleSessionCompleted(s.id)}
@@ -480,19 +455,20 @@ export function StudyPlanner({
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: leftDot }} />
                         <div className="text-sm font-medium text-foreground truncate">
-                          {formatMinutes(mins)} • {s.startTime}
+                          {s.title}
                         </div>
                         {subj && (
-                          <span
-                            className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-white text-xs shrink-0"
-                            style={chipStyle(subj.color)}
-                          >
+                          <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-white text-xs shrink-0" style={{ backgroundColor: subj.color }}>
                             {subj.name}
                           </span>
                         )}
                       </div>
 
                       <div className="mt-1 text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+                        <span className="opacity-80">{formatMinutes(mins)} • {s.startTime}</span>
+
+                        <span className="text-muted-foreground/50">•</span>
+
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {s.date.toLocaleDateString("en-US", {
@@ -518,7 +494,6 @@ export function StudyPlanner({
                     </div>
                   </div>
 
-                  {/* right actions */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button onClick={() => openEdit(s)} className="p-1.5 hover:bg-muted rounded" aria-label="Edit">
                       <Edit2 className="w-4 h-4 text-foreground" />
@@ -528,7 +503,6 @@ export function StudyPlanner({
                     </button>
                   </div>
 
-                  {/* delete confirm */}
                   {deletingId === s.id && (
                     <>
                       <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDeletingId(null)} />

@@ -1,39 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-  completed?: boolean;
-  completedAt?: Date;
-}
-
-interface StudySession {
-  id: string;
-  subjectId: string;
-  date: Date;
-  startTime: string;
-  duration: string; // e.g. "60 min", "1h 30m", "1:30"
-  linkedTaskId?: string;
-  completed?: boolean;
-  completedAt?: Date;
-}
-
-interface InsightsProps {
-  subjects: Subject[];
-  tasks: Task[];
-  studySessions: StudySession[];
-}
+import type { Subject, Task, StudySession } from "./models";
 
 // --- helpers ---
 const parseDurationToMinutes = (duration: string): number => {
@@ -77,6 +45,12 @@ const daysAgo = (n: number) => {
   t.setDate(t.getDate() - n);
   return startOfDay(t);
 };
+
+interface InsightsProps {
+  subjects: Subject[];
+  tasks: Task[];
+  studySessions: StudySession[];
+}
 
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   const [range, setRange] = useState<7 | 30>(7);
@@ -133,7 +107,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       if (!s.linkedTaskId) return;
       const t = taskById[s.linkedTaskId];
       if (!t) return;
-      if (!(t.type === "exam" || t.type === "assignment")) return; // exclude homework/tasks
+      if (!(t.type === "exam" || t.type === "assignment")) return;
       map[t.id] = (map[t.id] || 0) + parseDurationToMinutes(s.duration);
     });
     return map;
@@ -151,9 +125,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-foreground font-semibold">Insights</h1>
-          <p className="text-sm text-muted-foreground opacity-80">
-            A quick view of your study + upcoming assessments
-          </p>
+          <p className="text-sm text-muted-foreground opacity-80">A quick view of your study + upcoming assessments</p>
         </div>
 
         <div className="flex gap-2">
@@ -176,7 +148,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
         </div>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card rounded-lg p-5 shadow-sm border border-border">
           <div className="text-xs text-muted-foreground opacity-80">Total study (last {range} days)</div>
@@ -187,10 +158,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           <div className="text-xs text-muted-foreground opacity-80">Top subject (last {range} days)</div>
           {topSubject?.subject ? (
             <div className="flex items-center gap-2 mt-2">
-              <span
-                className="inline-block px-2 py-0.5 rounded-full text-white text-xs"
-                style={{ backgroundColor: topSubject.subject.color }}
-              >
+              <span className="inline-block px-2 py-0.5 rounded-full text-white text-xs" style={{ backgroundColor: topSubject.subject.color }}>
                 {topSubject.subject.name}
               </span>
               <div className="text-sm text-foreground font-medium">{formatMinutes(topSubject.minutes)}</div>
@@ -204,9 +172,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           <div className="text-xs text-muted-foreground opacity-80">Most studied assessment</div>
           {mostStudiedAssessment?.task ? (
             <div className="mt-2 space-y-1">
-              <div className="text-sm text-foreground font-medium truncate">
-                {mostStudiedAssessment.task.title}
-              </div>
+              <div className="text-sm text-foreground font-medium truncate">{mostStudiedAssessment.task.title}</div>
               <div className="text-xs text-muted-foreground opacity-80">
                 {mostStudiedAssessment.task.type.toUpperCase()} • {formatMinutes(mostStudiedAssessment.minutes)}
               </div>
@@ -217,7 +183,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
         </div>
       </div>
 
-      {/* Upcoming assessments */}
       <div className="bg-card rounded-lg p-5 shadow-sm border border-border">
         <div className="flex items-center justify-between">
           <div className="text-foreground font-semibold">Upcoming assessments</div>
@@ -237,10 +202,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                     </div>
                   </div>
                   {subj && (
-                    <span
-                      className="inline-block px-2 py-0.5 rounded-full text-white text-xs shrink-0"
-                      style={{ backgroundColor: subj.color }}
-                    >
+                    <span className="inline-block px-2 py-0.5 rounded-full text-white text-xs shrink-0" style={{ backgroundColor: subj.color }}>
                       {subj.name}
                     </span>
                   )}

@@ -2,40 +2,10 @@
 
 import React, { useMemo } from "react";
 import { ArrowUpRight, Calendar } from "lucide-react";
+import type { Subject, Task, StudySession } from "./models";
+import { isSameDay } from "./models";
 
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-  completed?: boolean;
-}
-
-interface StudyItem {
-  id: string;
-  subjectId: string;
-  topic: string;
-  date: Date;
-  notes?: string;
-}
-
-interface DashboardProps {
-  tasks: Task[];
-  subjects: Subject[];
-  studyItems: StudyItem[];
-}
-
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
+/* -------------------- Helpers -------------------- */
 
 const daysUntil = (due: Date, from: Date) =>
   Math.ceil((due.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
@@ -58,7 +28,23 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
-export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
+/* -------------------- Props -------------------- */
+
+interface DashboardProps {
+  tasks: Task[];
+  subjects: Subject[];
+  studySessions: StudySession[];
+  onOpenStudyPlanner: () => void;
+}
+
+/* -------------------- Dashboard -------------------- */
+
+export function Dashboard({
+  tasks,
+  subjects,
+  studySessions,
+  onOpenStudyPlanner,
+}: DashboardProps) {
   const today = new Date();
 
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -74,9 +60,13 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
     return map;
   }, [subjects]);
 
+  // ✅ Focus Today = sessions today (not completed)
   const focusToday = useMemo(
-    () => studyItems.filter((i) => isSameDay(i.date, today)).slice(0, 4),
-    [studyItems, today]
+    () =>
+      studySessions
+        .filter((s) => !s.completed && isSameDay(s.date, today))
+        .slice(0, 4),
+    [studySessions, today]
   );
 
   const upNext = useMemo(
@@ -138,14 +128,15 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
                 Focus today
               </h2>
               <p className="text-xs text-muted-foreground">
-                Top study items
+                Today’s study sessions
               </p>
             </div>
 
             <button
               type="button"
+              onClick={onOpenStudyPlanner}
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              title="Jump to Study Planner (optional)"
+              title="Jump to Study Planner"
             >
               Open <ArrowUpRight className="h-3.5 w-3.5" />
             </button>
@@ -158,18 +149,18 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
                   Nothing planned
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Add a study session in Study Planner or Calendar.
+                  Log a study session to see it here.
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
-                {focusToday.map((item) => {
-                  const subject = subjectById.get(item.subjectId);
+                {focusToday.map((s) => {
+                  const subject = subjectById.get(s.subjectId);
                   const dot = subject?.color ?? "#94a3b8";
 
                   return (
                     <div
-                      key={item.id}
+                      key={s.id}
                       className="group rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
                     >
                       <div className="flex items-start gap-3">
@@ -182,21 +173,16 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="truncate text-sm font-medium text-foreground">
-                                {item.topic}
+                                {s.title}
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground truncate">
+                                {s.duration} • {s.startTime} •{" "}
                                 {subject?.name ?? "Unassigned"}
                               </div>
                             </div>
 
                             <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
                           </div>
-
-                          {item.notes ? (
-                            <div className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                              {item.notes}
-                            </div>
-                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -210,12 +196,8 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
         {/* Up next */}
         <section className="md:col-span-5 rounded-2xl border border-border bg-card shadow-sm">
           <div className="px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">
-              Up next
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Upcoming deadlines
-            </p>
+            <h2 className="text-sm font-semibold text-foreground">Up next</h2>
+            <p className="text-xs text-muted-foreground">Upcoming deadlines</p>
           </div>
 
           <div className="p-4">
@@ -242,10 +224,7 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
                     <div
                       key={task.id}
                       className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
-                      style={{
-                        borderLeftWidth: 3,
-                        borderLeftColor: dot,
-                      }}
+                      style={{ borderLeftWidth: 3, borderLeftColor: dot }}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -269,9 +248,7 @@ export function Dashboard({ tasks, subjects, studyItems }: DashboardProps) {
                           <div
                             className={[
                               "text-xs font-semibold",
-                              isLate
-                                ? "text-destructive"
-                                : "text-foreground",
+                              isLate ? "text-destructive" : "text-foreground",
                             ].join(" ")}
                           >
                             {dueLabel(d)}
