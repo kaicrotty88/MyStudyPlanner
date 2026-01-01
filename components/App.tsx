@@ -245,6 +245,9 @@ function App() {
         <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <span className="font-bold text-foreground">MyStudentPlanner</span>
+<div className="text-[11px] text-muted-foreground leading-tight">
+  Made by students, for students
+</div>
 
             <div className="flex gap-1">
               {[
