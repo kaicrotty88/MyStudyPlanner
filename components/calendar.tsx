@@ -98,6 +98,13 @@ const DURATION_OPTIONS: { label: string; value: string }[] = [
   { label: "3h", value: "3h" },
 ];
 
+const lineClampStyle = (lines: number) => ({
+  display: "-webkit-box",
+  WebkitLineClamp: lines,
+  WebkitBoxOrient: "vertical" as const,
+  overflow: "hidden",
+});
+
 function CalendarView({
   studySessions,
   tasks,
@@ -137,7 +144,7 @@ function CalendarView({
     type: "task" as "task" | "assignment" | "exam" | "homework",
   });
 
-  // ✅ Study Sessions form (replaces StudyItems)
+  // ✅ Study Sessions form
   const [sessionFormData, setSessionFormData] = useState({
     title: "",
     subjectId: "",
@@ -209,7 +216,6 @@ function CalendarView({
     if (!selectedDate) return;
     const dateStr = toLocalDateInputValue(selectedDate);
 
-    // reset editing states
     setEditingTaskId(null);
     setEditingSessionId(null);
 
@@ -259,12 +265,12 @@ function CalendarView({
     setSelectedDate(session.date);
 
     setSessionFormData({
-      title: (session as any).title ?? "",
+      title: session.title ?? "",
       subjectId: session.subjectId,
       date: toLocalDateInputValue(session.date),
       startTime: session.startTime ?? "",
       duration: session.duration ?? "60 min",
-      linkedTaskId: (session as any).linkedTaskId ?? "",
+      linkedTaskId: session.linkedTaskId ?? "",
     });
 
     setShowAddForm("study");
@@ -301,7 +307,6 @@ function CalendarView({
       return;
 
     const payload: Omit<StudySession, "id"> = {
-      ...(sessionFormData as any),
       title: sessionFormData.title.trim(),
       subjectId: sessionFormData.subjectId,
       date: new Date(sessionFormData.date),
@@ -310,11 +315,11 @@ function CalendarView({
       linkedTaskId: sessionFormData.linkedTaskId || undefined,
       ...(editingSessionId
         ? (() => {
-            const current = studySessions.find((x) => x.id === editingSessionId) as any;
+            const current = studySessions.find((x) => x.id === editingSessionId);
             return { completed: current?.completed, completedAt: current?.completedAt };
           })()
         : {}),
-    } as any;
+    };
 
     if (editingSessionId && onUpdateStudySession) onUpdateStudySession(editingSessionId, payload);
     else onAddStudySession(payload);
@@ -370,115 +375,46 @@ function CalendarView({
     </button>
   );
 
-  // ✅ UPDATED: consistent chip width/height + overlay actions (no text squish) + no wrapping meta
+  // ✅ improved chip readability:
+  // - Month: 2-line title + compact meta
+  // - Week/Day: 3-line title + fuller meta
   const renderChip = ({
     title,
     subjectId,
     isStudy,
     task,
     session,
+    compact,
   }: {
     title: string;
     subjectId?: string;
     isStudy?: boolean;
     task?: Task;
     session?: StudySession;
+    compact?: boolean;
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
     const dot = subject?.color ?? "#94a3b8";
+    const linkedTask = session?.linkedTaskId ? taskById.get(session.linkedTaskId) : undefined;
 
-    const linkedTask = (session as any)?.linkedTaskId ? taskById.get((session as any).linkedTaskId) : undefined;
-
-    const showTaskActions = Boolean(task && canEditDeleteTasks);
-    const showSessionActions = Boolean(session && canEditDeleteSessions);
+    const titleLines = compact ? 2 : 3;
 
     return (
       <div
-        className={[
-          "group relative rounded-lg border border-border bg-background/40 hover:bg-background/60 transition",
-          "px-2 py-1",
-          "min-h-14", // consistent feel between cards
-        ].join(" ")}
+        className="group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition"
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+        title={title} // hover shows full title (helps a lot on month view)
       >
-        {/* Actions OVERLAY (does not steal width from title) */}
-        {(showTaskActions || showSessionActions) ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-            {task && canEditDeleteTasks ? (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditTask(task);
-                  }}
-                  className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted"
-                  aria-label="Edit task"
-                  type="button"
-                >
-                  <Pencil className="h-3.5 w-3.5 text-foreground" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingTaskId(task.id);
-                  }}
-                  className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted"
-                  aria-label="Delete task"
-                  type="button"
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </>
-            ) : null}
-
-            {session && canEditDeleteSessions ? (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditSession(session);
-                  }}
-                  className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted"
-                  aria-label="Edit session"
-                  type="button"
-                >
-                  <Pencil className="h-3.5 w-3.5 text-foreground" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingSessionId(session.id);
-                  }}
-                  className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted"
-                  aria-label="Delete session"
-                  type="button"
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* Text content (reserve space on the right so overlay buttons never cover text) */}
-        <div className="min-w-0 pr-14">
-          {/* Title: 2 lines max, uses full width */}
-          <div
-            className="text-xs text-foreground leading-snug wrap-break-word"
-            style={{
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+        {/* leave space for buttons so they NEVER squeeze the title */}
+        <div className="min-w-0 flex-1 pr-9">
+          <div className="text-xs text-foreground leading-snug wrap-break-word" style={lineClampStyle(titleLines)}>
             {isStudy ? "📚 " : ""}
             {task ? `${typeDot(task.type)} ` : ""}
             {title}
           </div>
 
-          {/* Meta: FORCE single line (no wrapping) */}
-          <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground overflow-hidden whitespace-nowrap">
+          {/* meta row: compact in Month, fuller in Week/Day */}
+          <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             <span className="inline-flex items-center gap-1 min-w-0">
               <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
               <span className="truncate">{subject?.name ?? "Unassigned"}</span>
@@ -495,9 +431,9 @@ function CalendarView({
               <>
                 <span className="text-muted-foreground/60">•</span>
                 <span className="shrink-0">
-                  {(session as any).startTime} • {(session as any).duration}
+                  {session.startTime} • {session.duration}
                 </span>
-                {linkedTask ? (
+                {!compact && linkedTask ? (
                   <>
                     <span className="text-muted-foreground/60">•</span>
                     <span className="truncate">Linked: {linkedTask.title}</span>
@@ -507,6 +443,57 @@ function CalendarView({
             ) : null}
           </div>
         </div>
+
+        {/* actions (top-right, smaller, no layout chaos) */}
+        {task && canEditDeleteTasks ? (
+          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditTask(task);
+              }}
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              aria-label="Edit task"
+            >
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingTaskId(task.id);
+              }}
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              aria-label="Delete task"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        ) : null}
+
+        {session && canEditDeleteSessions ? (
+          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditSession(session);
+              }}
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              aria-label="Edit session"
+            >
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingSessionId(session.id);
+              }}
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              aria-label="Delete session"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -568,17 +555,18 @@ function CalendarView({
               if (x.kind === "task") {
                 return (
                   <div key={x.t.id + idx} className="min-w-0">
-                    {renderChip({ title: x.t.title, subjectId: x.t.subjectId, task: x.t })}
+                    {renderChip({ title: x.t.title, subjectId: x.t.subjectId, task: x.t, compact: true })}
                   </div>
                 );
               }
               return (
-                <div key={(x.s as any).id + idx} className="min-w-0">
+                <div key={x.s.id + idx} className="min-w-0">
                   {renderChip({
-                    title: (x.s as any).title || "Study session",
+                    title: x.s.title || "Study session",
                     subjectId: x.s.subjectId,
                     isStudy: true,
                     session: x.s,
+                    compact: true,
                   })}
                 </div>
               );
@@ -646,15 +634,16 @@ function CalendarView({
 
               <div className="mt-3 space-y-2">
                 {dayTasks.map((t) => (
-                  <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t })}</div>
+                  <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}</div>
                 ))}
                 {daySessions.map((sess) => (
                   <div key={sess.id}>
                     {renderChip({
-                      title: (sess as any).title || "Study session",
+                      title: sess.title || "Study session",
                       subjectId: sess.subjectId,
                       isStudy: true,
                       session: sess,
+                      compact: false,
                     })}
                   </div>
                 ))}
@@ -680,9 +669,7 @@ function CalendarView({
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">
-              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
-            </div>
+            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
             <div className="mt-1 text-xl font-semibold text-foreground">
               {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
@@ -710,15 +697,16 @@ function CalendarView({
           ) : (
             <>
               {dayTasks.map((t) => (
-                <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t })}</div>
+                <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}</div>
               ))}
               {daySessions.map((sess) => (
                 <div key={sess.id}>
                   {renderChip({
-                    title: (sess as any).title || "Study session",
+                    title: sess.title || "Study session",
                     subjectId: sess.subjectId,
                     isStudy: true,
                     session: sess,
+                    compact: false,
                   })}
                 </div>
               ))}
@@ -757,10 +745,7 @@ function CalendarView({
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             Click a day to add study sessions, tasks, or assessments.
           </div>
-          <button
-            onClick={() => setShowHelperText(false)}
-            className="text-xs text-muted-foreground hover:text-foreground transition"
-          >
+          <button onClick={() => setShowHelperText(false)} className="text-xs text-muted-foreground hover:text-foreground transition">
             Dismiss
           </button>
         </div>
@@ -778,9 +763,7 @@ function CalendarView({
 
           <div className="min-w-55 text-left md:text-center">
             <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
-            <div className="text-xs text-muted-foreground">
-              {viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}
-            </div>
+            <div className="text-xs text-muted-foreground">{viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}</div>
           </div>
 
           <button
@@ -880,17 +863,11 @@ function CalendarView({
                     : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {selectedDate
-                    ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                    : ""}
+                  {selectedDate ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
                 </div>
               </div>
 
-              <button
-                onClick={handleCancel}
-                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
-                aria-label="Close"
-              >
+              <button onClick={handleCancel} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition" aria-label="Close">
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
