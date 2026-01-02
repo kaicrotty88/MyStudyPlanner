@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import {
-  Plus,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  Edit2,
-  Trash2,
-  Sparkles,
-} from "lucide-react";
+import { Plus, Calendar, ChevronDown, ChevronUp, Edit2, Trash2, Sparkles } from "lucide-react";
 
 const ALL_ACCENT = "#7A9B7F";
 
@@ -118,7 +110,6 @@ export function Tasks({
 }: TasksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
 
-  // ✅ default collapsed
   const [expandedSections, setExpandedSections] = useState({
     task: false,
     assignment: false,
@@ -141,7 +132,6 @@ export function Tasks({
 
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
 
-  // ✅ better collapse behaviour: collapsing a section closes its add/edit form
   const toggleSection = (section: "task" | "assignment" | "exam" | "homework") => {
     setExpandedSections((prev) => {
       const next = !prev[section];
@@ -155,9 +145,7 @@ export function Tasks({
     });
   };
 
-  const filteredTasksBase =
-    selectedSubject === "all" ? tasks : tasks.filter((task) => task.subjectId === selectedSubject);
-
+  const filteredTasksBase = selectedSubject === "all" ? tasks : tasks.filter((task) => task.subjectId === selectedSubject);
   const filteredTasks = showCompleted ? filteredTasksBase : filteredTasksBase.filter((t) => !t.completed);
 
   const tasksByType = useMemo(
@@ -171,9 +159,7 @@ export function Tasks({
   );
 
   const getMinutesStudiedForTask = (taskId: string) =>
-    studySessions
-      .filter((s) => s.linkedTaskId === taskId)
-      .reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
+    studySessions.filter((s) => s.linkedTaskId === taskId).reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
 
   const getSectionAccentColor = () => {
     if (selectedSubject !== "all") return getSubjectById(selectedSubject)?.color || ALL_ACCENT;
@@ -229,34 +215,72 @@ export function Tasks({
     setFormData({ title: "", subjectId: "", dueDate: "" });
   };
 
-  const SectionHeader = ({
-    type,
-    label,
-    count,
-  }: {
-    type: "task" | "assignment" | "exam" | "homework";
-    label: string;
-    count: number;
-  }) => {
+  // ✅ IMPORTANT FIX: render form as JSX (not a component) to prevent remount + focus loss
+  const renderAddForm = (type: "task" | "assignment" | "exam" | "homework") => (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+      <div className="text-sm font-semibold text-foreground">{editingId ? "Edit" : "New"} {type}</div>
+
+      <input
+        type="text"
+        placeholder="Title"
+        value={formData.title}
+        onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        autoFocus
+      />
+
+      <select
+        value={formData.subjectId}
+        onChange={(e) => setFormData((p) => ({ ...p, subjectId: e.target.value }))}
+        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+      >
+        <option value="">Select subject</option>
+        {subjects.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+
+      <input
+        type="date"
+        value={formData.dueDate}
+        onChange={(e) => setFormData((p) => ({ ...p, dueDate: e.target.value }))}
+        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+      />
+
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          onClick={() => handleSubmit(type)}
+          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        >
+          {editingId ? "Save" : "Add"}
+        </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  const SectionHeader = ({ type, label, count }: { type: "task" | "assignment" | "exam" | "homework"; label: string; count: number }) => {
     const isExpanded = expandedSections[type];
     const accent = getSectionAccentColor();
 
     return (
-      <div
-        className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
-        style={{ borderLeftWidth: 4, borderLeftColor: accent }}
-      >
+      <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm" style={{ borderLeftWidth: 4, borderLeftColor: accent }}>
         <button
           onClick={() => toggleSection(type)}
           className="flex items-center gap-3 flex-1 text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           type="button"
         >
           <div className="h-9 w-9 rounded-xl border border-border bg-background/40 grid place-items-center">
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            )}
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </div>
 
           <div className="min-w-0">
@@ -288,31 +312,22 @@ export function Tasks({
     const tone = dueTone(task);
 
     const toneBorder =
-      tone === "overdue"
-        ? "border-red-500/30"
-        : tone === "today"
-        ? "border-orange-500/30"
-        : tone === "soon"
-        ? "border-yellow-500/30"
-        : "border-border";
+      tone === "overdue" ? "border-red-500/30" :
+      tone === "today" ? "border-orange-500/30" :
+      tone === "soon" ? "border-yellow-500/30" :
+      "border-border";
 
     const toneWash =
-      tone === "overdue"
-        ? "bg-red-500/5"
-        : tone === "today"
-        ? "bg-orange-500/5"
-        : tone === "soon"
-        ? "bg-yellow-500/5"
-        : "bg-card";
+      tone === "overdue" ? "bg-red-500/5" :
+      tone === "today" ? "bg-orange-500/5" :
+      tone === "soon" ? "bg-yellow-500/5" :
+      "bg-card";
 
     const chipClass =
-      tone === "overdue"
-        ? "bg-red-500/10 text-red-700 border-red-500/20"
-        : tone === "today"
-        ? "bg-orange-500/10 text-orange-700 border-orange-500/20"
-        : tone === "soon"
-        ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20"
-        : "bg-muted/40 text-foreground border-border";
+      tone === "overdue" ? "bg-red-500/10 text-red-700 border-red-500/20" :
+      tone === "today" ? "bg-orange-500/10 text-orange-700 border-orange-500/20" :
+      tone === "soon" ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" :
+      "bg-muted/40 text-foreground border-border";
 
     return (
       <div
@@ -323,10 +338,7 @@ export function Tasks({
           toneWash,
           task.completed ? "opacity-75" : "",
         ].join(" ")}
-        style={{
-          borderLeftWidth: 4,
-          borderLeftColor: subject?.color ?? ALL_ACCENT,
-        }}
+        style={{ borderLeftWidth: 4, borderLeftColor: subject?.color ?? ALL_ACCENT }}
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -340,12 +352,7 @@ export function Tasks({
             </button>
 
             <div className="min-w-0">
-              <div
-                className={[
-                  "text-sm font-medium truncate",
-                  task.completed ? "line-through text-muted-foreground" : "text-foreground",
-                ].join(" ")}
-              >
+              <div className={["text-sm font-medium truncate", task.completed ? "line-through text-muted-foreground" : "text-foreground"].join(" ")}>
                 {task.title}
               </div>
 
@@ -403,59 +410,6 @@ export function Tasks({
     );
   };
 
-  const AddForm = ({ type }: { type: "task" | "assignment" | "exam" | "homework" }) => (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-      <div className="text-sm font-semibold text-foreground">
-        {editingId ? "Edit" : "New"} {type}
-      </div>
-
-      <input
-        type="text"
-        placeholder="Title"
-        value={formData.title}
-        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
-
-      <select
-        value={formData.subjectId}
-        onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-      >
-        <option value="">Select subject</option>
-        {subjects.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-
-      <input
-        type="date"
-        value={formData.dueDate}
-        onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
-
-      <div className="flex gap-2 pt-1">
-        <button
-          type="button"
-          onClick={() => handleSubmit(type)}
-          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        >
-          {editingId ? "Save" : "Add"}
-        </button>
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-
   const renderSection = (taskList: Task[], type: "task" | "assignment" | "exam" | "homework") => {
     const label = type.charAt(0).toUpperCase() + type.slice(1) + "s";
     const isExpanded = expandedSections[type];
@@ -467,7 +421,7 @@ export function Tasks({
 
         {isExpanded ? (
           <div className="ml-3 sm:ml-5 pl-3 sm:pl-4 border-l border-border/60 space-y-3">
-            {showAddForm === type ? <AddForm type={type} /> : null}
+            {showAddForm === type ? renderAddForm(type) : null}
 
             {sortedTasks.length ? (
               <div className="space-y-2">
@@ -505,7 +459,6 @@ export function Tasks({
         </div>
       ) : null}
 
-      {/* Subject pills */}
       <div className="rounded-2xl border border-border bg-card p-2 flex flex-wrap gap-2">
         <button
           type="button"
@@ -531,9 +484,7 @@ export function Tasks({
               className={[
                 "px-4 py-2 rounded-full text-sm font-medium transition border",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                active
-                  ? "bg-muted/50 border-border"
-                  : "bg-card border-border hover:bg-muted",
+                active ? "bg-muted/50 border-border" : "bg-card border-border hover:bg-muted",
               ].join(" ")}
               style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
             >
@@ -546,7 +497,6 @@ export function Tasks({
         })}
       </div>
 
-      {/* Top controls */}
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
           {filteredTasks.length} showing{selectedSubject !== "all" ? " (filtered)" : ""}
@@ -568,7 +518,6 @@ export function Tasks({
         {renderSection(tasksByType.homework, "homework")}
       </div>
 
-      {/* Delete modal */}
       {deletingId ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingId(null)} />

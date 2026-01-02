@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2, Trash2, LogOut, Trash } from "lucide-react";
+import { SignOutButton } from "@clerk/nextjs";
 
 interface Subject {
   id: string;
@@ -34,10 +35,11 @@ interface StudySession {
   duration: string;
 }
 
+type AppMode = "demo" | "app";
+
 interface SettingsProps {
   subjects: Subject[];
 
-  // NEW: for delete-confirm counts
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
@@ -45,6 +47,10 @@ interface SettingsProps {
   onAddSubject: (name: string, color: string) => void;
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
+
+  // NEW: demo vs real app + clear/reset handler
+  appMode: AppMode;
+  onClearAllData: () => void;
 }
 
 export function Settings({
@@ -55,12 +61,17 @@ export function Settings({
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
+  appMode,
+  onClearAllData,
 }: SettingsProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({ name: "", color: "#7A9B7F" });
+
+  // NEW: confirm modal for clear/reset
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const colorPalette = [
     "#7A9B7F",
@@ -135,12 +146,69 @@ export function Settings({
     setDeletingSubjectId(null);
   };
 
+  const handleConfirmClear = () => {
+    onClearAllData();
+    setShowClearConfirm(false);
+  };
+
+  const clearTitle = appMode === "demo" ? "Reset demo data?" : "Clear all data?";
+  const clearBody =
+    appMode === "demo"
+      ? "This will reset the demo back to the original sample subjects, tasks, and sessions."
+      : "This will permanently delete all your subjects, tasks, and study sessions from this device.";
+
+  const clearButtonLabel = appMode === "demo" ? "Reset demo" : "Clear all data";
+
   return (
     <div className="max-w-4xl mx-auto px-8 py-6 space-y-6">
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-foreground">Settings</h1>
         <p className="text-muted-foreground text-sm">Manage your subjects and preferences</p>
+      </div>
+
+      {/* Account + Data */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {/* Account */}
+        <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
+          <div className="space-y-0.5">
+            <div className="text-foreground font-medium">Account</div>
+            <div className="text-muted-foreground text-sm">
+              Sign out of MyStudyPlanner on this device.
+            </div>
+          </div>
+
+          <SignOutButton redirectUrl="/sign-in">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </SignOutButton>
+        </div>
+
+        {/* Data */}
+        <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
+          <div className="space-y-0.5">
+            <div className="text-foreground font-medium">Data</div>
+            <div className="text-muted-foreground text-sm">
+              {appMode === "demo"
+                ? "Start over with the sample data."
+                : "Clear everything and start fresh."}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowClearConfirm(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition"
+          >
+            <Trash className="w-4 h-4" />
+            {clearButtonLabel}
+          </button>
+        </div>
       </div>
 
       {/* Subjects Section */}
@@ -282,6 +350,37 @@ export function Settings({
                 className="px-4 py-2 text-sm rounded-lg bg-muted-foreground text-white hover:bg-muted-foreground/90 transition-colors font-medium"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Clear/Reset Confirmation Modal */}
+      {showClearConfirm && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowClearConfirm(false)} />
+          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 bg-card rounded-lg shadow-xl border border-border p-6">
+            <h3 className="text-foreground font-semibold mb-2">{clearTitle}</h3>
+
+            <p className="text-sm text-muted-foreground opacity-80 mb-4">{clearBody}</p>
+
+            <p className="text-sm text-muted-foreground opacity-80 mb-4">
+              {appMode === "demo" ? "You can keep exploring after reset." : "This action cannot be undone."}
+            </p>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmClear}
+                className="px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition font-medium"
+              >
+                {clearButtonLabel}
               </button>
             </div>
           </div>

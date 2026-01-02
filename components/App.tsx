@@ -11,12 +11,16 @@ import { Insights } from "./insights";
 
 import type { Subject, Task, StudySession } from "./models";
 
-const STORAGE_KEY = "mystudylife-data";
+import { UserButton } from "@clerk/nextjs";
+
+const REAL_STORAGE_KEY = "mystudyplanner-data";
+const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 type Tab = "dashboard" | "calendar" | "tasks" | "study" | "insights" | "settings";
+type AppMode = "demo" | "app";
 
-/* -------------------- Defaults -------------------- */
+/* -------------------- Defaults / Demo -------------------- */
 
 const defaultSubjects: Subject[] = [
   { id: "1", name: "Mathematics", color: "#6B9BC3" },
@@ -60,10 +64,10 @@ const makeDefaultData = () => {
     },
   ];
 
-  return { demoTasks, demoStudySessions };
+  return { subjects: defaultSubjects, tasks: demoTasks, studySessions: demoStudySessions };
 };
 
-function App() {
+function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -71,6 +75,8 @@ function App() {
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+
+  const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
   /* -------------------- Helpers -------------------- */
 
@@ -85,212 +91,193 @@ function App() {
   /* -------------------- Persistence -------------------- */
 
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
 
-    // first run = seed demo data
-    if (!raw) {
-      const { demoTasks, demoStudySessions } = makeDefaultData();
+    if (!raw && mode === "demo") {
+      const seeded = makeDefaultData();
+      setSubjects(seeded.subjects);
+      setTasks(seeded.tasks);
+      setStudySessions(seeded.studySessions);
+      hydrated.current = true;
+      return;
+    }
+
+    if (!raw && mode === "app") {
       setSubjects(defaultSubjects);
-      setTasks(demoTasks);
-      setStudySessions(demoStudySessions);
+      setTasks([]);
+      setStudySessions([]);
       hydrated.current = true;
       return;
     }
 
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(raw as string);
 
-      const loadedSubjects: Subject[] = Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects;
+      setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects);
 
-      const loadedTasks: Task[] = (parsed.tasks ?? []).map((t: any) => ({
-        ...t,
-        dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
-        completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
-      }));
+      setTasks(
+        pruneAutoDeletedCompletedTasks(
+          (parsed.tasks ?? []).map((t: any) => ({
+            ...t,
+            dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
+            completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
+          }))
+        )
+      );
 
-      const loadedStudySessions: StudySession[] = (parsed.studySessions ?? []).map((s: any) => ({
-        ...s,
-        title: typeof s?.title === "string" && s.title.trim() ? s.title : "Study session",
-        date: s?.date ? new Date(s.date) : new Date(),
-        completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
-      }));
-
-      setSubjects(loadedSubjects);
-      setTasks(pruneAutoDeletedCompletedTasks(loadedTasks));
-      setStudySessions(loadedStudySessions);
-    } catch (err) {
-      console.error("Failed to load saved data", err);
+      setStudySessions(
+        (parsed.studySessions ?? []).map((s: any) => ({
+          ...s,
+          title: s?.title?.trim() || "Study session",
+          date: s?.date ? new Date(s.date) : new Date(),
+          completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
+        }))
+      );
+    } catch {
+      if (mode === "demo") {
+        const seeded = makeDefaultData();
+        setSubjects(seeded.subjects);
+        setTasks(seeded.tasks);
+        setStudySessions(seeded.studySessions);
+      } else {
+        setSubjects(defaultSubjects);
+        setTasks([]);
+        setStudySessions([]);
+      }
     } finally {
       hydrated.current = true;
     }
-  }, []);
+  }, [mode, storageKey]);
 
   useEffect(() => {
     if (!hydrated.current) return;
 
-    const pruned = pruneAutoDeletedCompletedTasks(tasks);
-    if (pruned.length !== tasks.length) {
-      setTasks(pruned);
-      return; // next effect run will save
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ subjects, tasks, studySessions })
+    );
+  }, [subjects, tasks, studySessions, storageKey]);
+
+  /* -------------------- Clear / Reset -------------------- */
+
+  const handleClearAllData = () => {
+    localStorage.removeItem(storageKey);
+
+    if (mode === "demo") {
+      const seeded = makeDefaultData();
+      setSubjects(seeded.subjects);
+      setTasks(seeded.tasks);
+      setStudySessions(seeded.studySessions);
+    } else {
+      setSubjects(defaultSubjects);
+      setTasks([]);
+      setStudySessions([]);
     }
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        subjects,
-        tasks,
-        studySessions,
-      })
-    );
-  }, [subjects, tasks, studySessions]);
-
-  /* -------------------- Subjects (Settings) -------------------- */
-
-  const handleAddSubject = (name: string, color: string) => {
-    const newSubject: Subject = { id: Date.now().toString(), name, color };
-    setSubjects((prev) => [...prev, newSubject]);
+    setActiveTab("dashboard");
   };
 
-  const handleUpdateSubject = (id: string, name: string, color: string) => {
-    setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, name, color } : s)));
-  };
+  /* -------------------- Handlers -------------------- */
+
+  const handleAddSubject = (name: string, color: string) =>
+    setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
+
+  const handleUpdateSubject = (id: string, name: string, color: string) =>
+    setSubjects((p) => p.map((s) => (s.id === id ? { ...s, name, color } : s)));
 
   const handleDeleteSubject = (id: string) => {
-    setSubjects((prev) => prev.filter((s) => s.id !== id));
-    setTasks((prev) => prev.filter((t) => t.subjectId !== id));
-    setStudySessions((prev) => prev.filter((s) => s.subjectId !== id));
+    setSubjects((p) => p.filter((s) => s.id !== id));
+    setTasks((p) => p.filter((t) => t.subjectId !== id));
+    setStudySessions((p) => p.filter((s) => s.subjectId !== id));
   };
 
-  /* -------------------- Tasks -------------------- */
+  const handleAddTask = (t: Omit<Task, "id">) =>
+    setTasks((p) => [...p, { ...t, id: Date.now().toString() }]);
 
-  const handleAddTask = (newTask: Omit<Task, "id">) => {
-    const task: Task = { ...newTask, id: Date.now().toString() };
-    setTasks((prev) => [...prev, task]);
-  };
-
-  const handleUpdateTask = (id: string, updatedTask: Omit<Task, "id">) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...updatedTask, id } : t)));
-  };
+  const handleUpdateTask = (id: string, t: Omit<Task, "id">) =>
+    setTasks((p) => p.map((x) => (x.id === id ? { ...t, id } : x)));
 
   const handleDeleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    // unlink from sessions
-    setStudySessions((prev) => prev.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
+    setTasks((p) => p.filter((t) => t.id !== id));
+    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
   };
 
-  const toggleTaskCompleted = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        const nextCompleted = !t.completed;
-        return {
-          ...t,
-          completed: nextCompleted,
-          completedAt: nextCompleted ? new Date() : undefined,
-        };
-      })
-    );
-  };
-
-  /* -------------------- Study Sessions -------------------- */
-
-  const handleAddStudySession = (newSession: Omit<StudySession, "id">) => {
-    const session: StudySession = {
-      ...newSession,
-      id: Date.now().toString(),
-      title: newSession.title?.trim() ? newSession.title.trim() : "Study session",
-      completed: false,
-    };
-    setStudySessions((prev) => [...prev, session]);
-  };
-
-  const handleUpdateStudySession = (id: string, updated: Omit<StudySession, "id">) => {
-    setStudySessions((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...updated,
-              id,
-              title: updated.title?.trim() ? updated.title.trim() : "Study session",
-            }
-          : s
+  const toggleTaskCompleted = (id: string) =>
+    setTasks((p) =>
+      p.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
       )
     );
-  };
 
-  const handleDeleteStudySession = (id: string) => {
-    setStudySessions((prev) => prev.filter((s) => s.id !== id));
-  };
+  const handleAddStudySession = (s: Omit<StudySession, "id">) =>
+    setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
 
-  const handleToggleSessionCompleted = (id: string) => {
-    setStudySessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s;
-        const nextCompleted = !s.completed;
-        return {
-          ...s,
-          completed: nextCompleted,
-          completedAt: nextCompleted ? new Date() : undefined,
-        };
-      })
+  const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
+    setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
+
+  const handleDeleteStudySession = (id: string) =>
+    setStudySessions((p) => p.filter((s) => s.id !== id));
+
+  const handleToggleSessionCompleted = (id: string) =>
+    setStudySessions((p) =>
+      p.map((s) =>
+        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
+      )
     );
-  };
 
   /* -------------------- Render -------------------- */
 
+  const tabs: Array<[Tab, string]> = [
+    ["dashboard", "Dashboard"],
+    ["calendar", "Calendar"],
+    ["tasks", "Tasks"],
+    ["study", "Study Planner"],
+    ["insights", "Insights"],
+  ];
+
   return (
     <div className="min-h-screen bg-background">
-      {/* NAV */}
       <nav className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            {/* Title + slogan (stacked) */}
             <div className="flex flex-col leading-tight">
-              <span className="font-bold text-foreground">MyStudyPlanner</span>
+              <span className="font-semibold text-foreground">MyStudyPlanner</span>
               <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
             </div>
 
-            <div className="flex gap-1">
-              {[
-                ["dashboard", "Dashboard"],
-                ["calendar", "Calendar"],
-                ["tasks", "Tasks"],
-                ["study", "Study Planner"],
-                ["insights", "Insights"],
-              ].map(([key, label]) => (
+            <div className="hidden md:flex gap-1">
+              {tabs.map(([k, l]) => (
                 <button
-                  key={key}
-                  onClick={() => setActiveTab(key as Tab)}
+                  key={k}
+                  onClick={() => setActiveTab(k)}
                   className={`px-4 py-2 rounded-lg transition ${
-                    activeTab === key ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+                    activeTab === k ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   }`}
                 >
-                  {label}
+                  {l}
                 </button>
               ))}
             </div>
           </div>
 
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2 rounded-lg transition ${
-              activeTab === "settings" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-            }`}
-          >
-            Settings
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`px-4 py-2 rounded-lg transition ${
+                activeTab === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              }`}
+            >
+              Settings
+            </button>
+
+            <UserButton afterSignOutUrl="/sign-in" />
+          </div>
         </div>
       </nav>
 
-      {/* CONTENT */}
       <main>
         {activeTab === "dashboard" && (
-          <Dashboard
-            tasks={tasks}
-            subjects={subjects}
-            studySessions={studySessions}
-            onOpenStudyPlanner={() => setActiveTab("study")}
-          />
+          <Dashboard tasks={tasks} subjects={subjects} studySessions={studySessions} onOpenStudyPlanner={() => setActiveTab("study")} />
         )}
 
         {activeTab === "calendar" && (
@@ -331,10 +318,13 @@ function App() {
           />
         )}
 
-        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
+        {activeTab === "insights" && (
+          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
+        )}
 
         {activeTab === "settings" && (
           <Settings
+            appMode={mode}
             subjects={subjects}
             tasks={tasks}
             studyItems={[]}
@@ -342,6 +332,7 @@ function App() {
             onAddSubject={handleAddSubject}
             onUpdateSubject={handleUpdateSubject}
             onDeleteSubject={handleDeleteSubject}
+            onClearAllData={handleClearAllData}
           />
         )}
       </main>
