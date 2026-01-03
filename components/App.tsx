@@ -152,10 +152,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({ subjects, tasks, studySessions })
-    );
+    localStorage.setItem(storageKey, JSON.stringify({ subjects, tasks, studySessions }));
   }, [subjects, tasks, studySessions, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
@@ -344,14 +341,12 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
       </main>
 
-      {/* ✅ Beta / Early access footer (subtle, non-intrusive) */}
-      <footer className="border-t border-border bg-background">
-        <div className="mx-auto max-w-6xl px-6 md:px-10 py-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Beta</span>
-          <span className="mx-1">•</span>
-          Early access — features are still evolving. Paid features coming later.
-        </div>
-      </footer>
+      {/* ✅ Small version badge (non-intrusive) */}
+      <div className="fixed bottom-3 right-3 z-20 pointer-events-none">
+        <span className="inline-flex items-center rounded-full border border-border bg-card/70 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
+          v1.0
+        </span>
+      </div>
     </div>
   );
 }
