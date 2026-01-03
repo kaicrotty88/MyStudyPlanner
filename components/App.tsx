@@ -12,6 +12,7 @@ import { Insights } from "./insights";
 import type { Subject, Task, StudySession } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
+import { User } from "lucide-react";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -241,7 +242,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-8">
             <div className="flex flex-col leading-tight">
               <span className="font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
+              <span className="text-[11px] text-muted-foreground">
+                Made by students, for students
+              </span>
             </div>
 
             <div className="hidden md:flex gap-1">
@@ -269,7 +272,39 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               Settings
             </button>
 
-            <UserButton afterSignOutUrl="/sign-in" />
+            {/* Account pill + themed Clerk button (no manage/signout here) */}
+            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
+              <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
+
+              <UserButton
+                afterSignOutUrl="/sign-in"
+                appearance={{
+                  variables: {
+                    colorPrimary: "hsl(var(--primary))",
+                    colorText: "hsl(var(--foreground))",
+                    colorTextSecondary: "hsl(var(--muted-foreground))",
+                    colorBackground: "hsl(var(--card))",
+                    colorNeutral: "hsl(var(--border))",
+                    borderRadius: "12px",
+                    fontFamily: "inherit",
+                  },
+                  elements: {
+                    userButtonAvatarBox: "ring-1 ring-border",
+                    userButtonPopoverCard: "border border-border shadow-lg bg-card",
+                    userButtonPopoverFooter: "hidden",
+                  },
+                }}
+              >
+                {/* Custom menu: only "Account" (no manage account, no sign out) */}
+                <UserButton.MenuItems>
+                  <UserButton.Action
+                    label="Account"
+                    labelIcon={<User className="h-4 w-4" />}
+                    onClick={() => setActiveTab("settings")}
+                  />
+                </UserButton.MenuItems>
+              </UserButton>
+            </div>
           </div>
         </div>
       </nav>

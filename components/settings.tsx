@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, LogOut, Trash } from "lucide-react";
-import { SignOutButton } from "@clerk/nextjs";
+import { Plus, Edit2, Trash2, Trash } from "lucide-react";
+import { UserProfile } from "@clerk/nextjs";
 
 interface Subject {
   id: string;
@@ -167,48 +167,66 @@ export function Settings({
         <p className="text-muted-foreground text-sm">Manage your subjects and preferences</p>
       </div>
 
-      {/* Account + Data */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {/* Account */}
-        <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
-          <div className="space-y-0.5">
-            <div className="text-foreground font-medium">Account</div>
-            <div className="text-muted-foreground text-sm">
-              Sign out of MyStudyPlanner on this device.
-            </div>
+      {/* Account */}
+      <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-3">
+        <div className="space-y-0.5">
+          <div className="text-foreground font-medium">Account</div>
+          <div className="text-muted-foreground text-sm">
+            Manage your profile, email, password, and sign out.
           </div>
-
-          <SignOutButton redirectUrl="/sign-in">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign out
-            </button>
-          </SignOutButton>
         </div>
 
-        {/* Data */}
-        <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
-          <div className="space-y-0.5">
-            <div className="text-foreground font-medium">Data</div>
-            <div className="text-muted-foreground text-sm">
-              {appMode === "demo"
-                ? "Start over with the sample data."
-                : "Clear everything and start fresh."}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowClearConfirm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition"
-          >
-            <Trash className="w-4 h-4" />
-            {clearButtonLabel}
-          </button>
+        <div className="rounded-lg border border-border bg-background/40 p-3">
+          <UserProfile
+            routing="virtual"
+            appearance={{
+              variables: {
+                // Pull from your Tailwind CSS variables (keeps this future-proof)
+                colorPrimary: "hsl(var(--primary))",
+                colorText: "hsl(var(--foreground))",
+                colorTextSecondary: "hsl(var(--muted-foreground))",
+                colorBackground: "hsl(var(--card))",
+                colorInputBackground: "hsl(var(--input-background))",
+                colorNeutral: "hsl(var(--border))",
+                borderRadius: "12px",
+                fontFamily: "inherit",
+              },
+              elements: {
+                card: "shadow-none border border-border bg-card",
+                navbar: "bg-card border-r border-border",
+                headerTitle: "text-foreground",
+                headerSubtitle: "text-muted-foreground",
+                profileSectionTitle: "text-foreground",
+                profileSectionContent: "text-foreground",
+                formFieldLabel: "text-foreground",
+                formFieldInput:
+                  "bg-input-background border-border text-foreground focus:ring-2 focus:ring-primary",
+                button:
+                  "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
+                badge: "border border-border",
+              },
+            }}
+          />
         </div>
+      </div>
+
+      {/* Data */}
+      <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
+        <div className="space-y-0.5">
+          <div className="text-foreground font-medium">Data</div>
+          <div className="text-muted-foreground text-sm">
+            {appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowClearConfirm(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition"
+        >
+          <Trash className="w-4 h-4" />
+          {clearButtonLabel}
+        </button>
       </div>
 
       {/* Subjects Section */}
