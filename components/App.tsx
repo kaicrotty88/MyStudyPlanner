@@ -199,7 +199,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
+    setStudySessions((p) =>
+      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
+    );
   };
 
   const toggleTaskCompleted = (id: string) =>
@@ -277,7 +279,12 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
       <main>
         {activeTab === "dashboard" && (
-          <Dashboard tasks={tasks} subjects={subjects} studySessions={studySessions} onOpenStudyPlanner={() => setActiveTab("study")} />
+          <Dashboard
+            tasks={tasks}
+            subjects={subjects}
+            studySessions={studySessions}
+            onOpenStudyPlanner={() => setActiveTab("study")}
+          />
         )}
 
         {activeTab === "calendar" && (
@@ -336,6 +343,15 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
       </main>
+
+      {/* ✅ Beta / Early access footer (subtle, non-intrusive) */}
+      <footer className="border-t border-border bg-background">
+        <div className="mx-auto max-w-6xl px-6 md:px-10 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Beta</span>
+          <span className="mx-1">•</span>
+          Early access — features are still evolving. Paid features coming later.
+        </div>
+      </footer>
     </div>
   );
 }
