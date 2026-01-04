@@ -152,7 +152,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   useEffect(() => {
     if (!hydrated.current) return;
-
     localStorage.setItem(storageKey, JSON.stringify({ subjects, tasks, studySessions }));
   }, [subjects, tasks, studySessions, storageKey]);
 
@@ -272,39 +271,30 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               Settings
             </button>
 
-            {/* Profile pill (icon-only) + themed Clerk button */}
+            {/* ✅ Clerk profile — forced green avatar */}
             <div className="inline-flex items-center rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-muted/40 transition-colors">
               <UserButton
                 afterSignOutUrl="/sign-in"
                 appearance={{
                   variables: {
                     colorPrimary: "hsl(var(--primary))",
+                    colorBackground: "hsl(var(--card))",
                     colorText: "hsl(var(--foreground))",
                     colorTextSecondary: "hsl(var(--muted-foreground))",
-                    colorBackground: "hsl(var(--card))",
-                    colorNeutral: "hsl(var(--border))",
                     borderRadius: "12px",
                     fontFamily: "inherit",
                   },
                   elements: {
-                    // ✅ Force avatar placeholder / fallback to be green-toned (instead of Clerk purple)
-                    // This affects the circle behind initials & the default avatar background.
                     userButtonAvatarBox:
-                      "ring-1 ring-border bg-primary/15 text-primary [&_svg]:text-primary",
-
-                    // ✅ Also theme the popover to match your app
-                    userButtonPopoverCard: "border border-border shadow-lg bg-card",
+                      "bg-primary text-primary-foreground ring-1 ring-border overflow-hidden",
+                    userButtonAvatarText:
+                      "text-primary-foreground font-semibold",
+                    userButtonPopoverCard:
+                      "border border-border shadow-lg bg-card",
                     userButtonPopoverFooter: "hidden",
-
-                    // ✅ Make menu items feel consistent
-                    userButtonPopoverActionButton:
-                      "hover:bg-muted focus:bg-muted text-foreground",
-                    userButtonPopoverActionButtonText: "text-foreground",
-                    userButtonPopoverActionButtonIcon: "text-muted-foreground",
                   },
                 }}
               >
-                {/* Custom menu: only Settings */}
                 <UserButton.MenuItems>
                   <UserButton.Action
                     label="Settings"
@@ -385,7 +375,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
       </main>
 
-      {/* ✅ Small version badge (non-intrusive) */}
       <div className="fixed bottom-3 right-3 z-20 pointer-events-none">
         <span className="inline-flex items-center rounded-full border border-border bg-card/70 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
           v1.0
