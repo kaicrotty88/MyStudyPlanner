@@ -533,9 +533,11 @@ function CalendarView({
             if (e.key === "Enter" || e.key === " ") handleDayClick(date);
           }}
           className={[
-            "min-h-35 text-left p-2 bg-card border-r border-b border-border hover:bg-muted/40 transition",
+            "min-h-35 text-left p-2 border-r border-b border-border hover:bg-muted/40 transition",
             "focus:outline-none focus:ring-2 focus:ring-primary/30",
-            "flex flex-col cursor-pointer",
+            "flex flex-col cursor-pointer bg-card",
+            isToday ? "bg-primary/[0.04]" : "",
+            isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
           ].join(" ")}
         >
           <div className="flex items-center justify-between">
@@ -548,6 +550,12 @@ function CalendarView({
             >
               {day}
             </div>
+
+            {isToday ? (
+              <span className="text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                Today
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-2 space-y-1 min-h-0">
@@ -614,7 +622,10 @@ function CalendarView({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") handleDayClick(date);
               }}
-              className="min-h-130 p-3 bg-card hover:bg-muted/40 transition text-left border-r border-border focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+              className={[
+                "min-h-130 p-3 text-left border-r border-border focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer transition",
+                isToday ? "bg-primary/[0.04]" : "bg-card hover:bg-muted/40",
+              ].join(" ")}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -737,6 +748,14 @@ function CalendarView({
     else direction === "prev" ? previousDay() : nextDay();
   };
 
+  const jumpToToday = () => {
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDate(null);
+    setShowPopover(false);
+    setShowAddForm(null);
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-4">
       {showHelperText ? (
@@ -773,6 +792,16 @@ function CalendarView({
           >
             <ChevronRight className="h-4 w-4 text-foreground" />
           </button>
+
+          {/* Jump to today (small UX + visual anchor) */}
+          <button
+            onClick={jumpToToday}
+            className="ml-1 hidden sm:inline-flex items-center gap-2 h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-muted transition"
+            aria-label="Jump to today"
+          >
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            Today
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -784,23 +813,30 @@ function CalendarView({
         </div>
       </div>
 
-      <SectionShell>
-        {viewMode === "month" ? (
-          <>
-            <div className="grid grid-cols-7 bg-muted/20 border-b border-border">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="p-3 text-center text-xs font-medium text-muted-foreground">
-                  {day}
-                </div>
-              ))}
-            </div>
-            {renderMonthView()}
-          </>
-        ) : null}
+      {/* Subtle section wrapper (hierarchy/rhythm) */}
+      <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-xs font-medium text-muted-foreground">Plan</div>
+        </div>
 
-        {viewMode === "week" ? renderWeekView() : null}
-        {viewMode === "day" ? renderDayView() : null}
-      </SectionShell>
+        <SectionShell>
+          {viewMode === "month" ? (
+            <>
+              <div className="grid grid-cols-7 bg-muted/20 border-b border-border">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                  <div key={day} className="p-3 text-center text-xs font-medium text-muted-foreground">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              {renderMonthView()}
+            </>
+          ) : null}
+
+          {viewMode === "week" ? renderWeekView() : null}
+          {viewMode === "day" ? renderDayView() : null}
+        </SectionShell>
+      </div>
 
       {/* Popover */}
       {showPopover && selectedDate ? (
