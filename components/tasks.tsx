@@ -218,7 +218,9 @@ export function Tasks({
   // ✅ IMPORTANT FIX: render form as JSX (not a component) to prevent remount + focus loss
   const renderAddForm = (type: "task" | "assignment" | "exam" | "homework") => (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-      <div className="text-sm font-semibold text-foreground">{editingId ? "Edit" : "New"} {type}</div>
+      <div className="text-sm font-semibold text-foreground">
+        {editingId ? "Edit" : "New"} {type}
+      </div>
 
       <input
         type="text"
@@ -268,19 +270,34 @@ export function Tasks({
     </div>
   );
 
-  const SectionHeader = ({ type, label, count }: { type: "task" | "assignment" | "exam" | "homework"; label: string; count: number }) => {
+  const SectionHeader = ({
+    type,
+    label,
+    count,
+  }: {
+    type: "task" | "assignment" | "exam" | "homework";
+    label: string;
+    count: number;
+  }) => {
     const isExpanded = expandedSections[type];
     const accent = getSectionAccentColor();
 
     return (
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm" style={{ borderLeftWidth: 4, borderLeftColor: accent }}>
+      <div
+        className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
+        style={{ borderLeftWidth: 4, borderLeftColor: accent }}
+      >
         <button
           onClick={() => toggleSection(type)}
           className="flex items-center gap-3 flex-1 text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           type="button"
         >
-          <div className="h-9 w-9 rounded-xl border border-border bg-background/40 grid place-items-center">
-            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          <div className="h-9 w-9 rounded-xl border border-border bg-muted/20 grid place-items-center">
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
           </div>
 
           <div className="min-w-0">
@@ -352,7 +369,12 @@ export function Tasks({
             </button>
 
             <div className="min-w-0">
-              <div className={["text-sm font-medium truncate", task.completed ? "line-through text-muted-foreground" : "text-foreground"].join(" ")}>
+              <div
+                className={[
+                  "text-sm font-medium truncate",
+                  task.completed ? "line-through text-muted-foreground" : "text-foreground",
+                ].join(" ")}
+              >
                 {task.title}
               </div>
 
@@ -443,6 +465,12 @@ export function Tasks({
 
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-5">
+      {/* Header (adds the missing "page rhythm") */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
+        <p className="text-sm text-muted-foreground">Organise assessments, track deadlines, and tick things off.</p>
+      </div>
+
       {showHelperText ? (
         <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -459,6 +487,7 @@ export function Tasks({
         </div>
       ) : null}
 
+      {/* Subject filter (slightly cleaner surface + spacing) */}
       <div className="rounded-2xl border border-border bg-card p-2 flex flex-wrap gap-2">
         <button
           type="button"
@@ -511,11 +540,18 @@ export function Tasks({
         </button>
       </div>
 
-      <div className="space-y-4">
-        {renderSection(tasksByType.task, "task")}
-        {renderSection(tasksByType.assignment, "assignment")}
-        {renderSection(tasksByType.exam, "exam")}
-        {renderSection(tasksByType.homework, "homework")}
+      {/* Section framing (same idea as Calendar’s “Plan” wrapper) */}
+      <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-xs font-medium text-muted-foreground">Taskboard</div>
+        </div>
+
+        <div className="space-y-4">
+          {renderSection(tasksByType.task, "task")}
+          {renderSection(tasksByType.assignment, "assignment")}
+          {renderSection(tasksByType.exam, "exam")}
+          {renderSection(tasksByType.homework, "homework")}
+        </div>
       </div>
 
       {deletingId ? (
