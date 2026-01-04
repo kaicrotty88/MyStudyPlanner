@@ -118,157 +118,166 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-        {/* Focus today */}
-        <section className="md:col-span-7 rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Focus today
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Today’s study sessions
-              </p>
+      {/* Subtle section wrapper (hierarchy/rhythm) */}
+      <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-xs font-medium text-muted-foreground">
+            Today
+          </div>
+        </div>
+
+        {/* Main grid */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+          {/* Focus today */}
+          <section className="md:col-span-7 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">
+                  Focus today
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Today’s study sessions
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenStudyPlanner}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                title="Jump to Study Planner"
+              >
+                Open <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenStudyPlanner}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              title="Jump to Study Planner"
-            >
-              Open <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div className="p-4">
-            {focusToday.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
-                <div className="text-sm font-medium text-foreground">
-                  Nothing planned
+            <div className="p-4">
+              {focusToday.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
+                  <div className="text-sm font-medium text-foreground">
+                    Nothing planned
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Log a study session to see it here.
+                  </div>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Log a study session to see it here.
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {focusToday.map((s) => {
-                  const subject = subjectById.get(s.subjectId);
-                  const dot = subject?.color ?? "#94a3b8";
+              ) : (
+                <div className="space-y-2">
+                  {focusToday.map((s) => {
+                    const subject = subjectById.get(s.subjectId);
+                    const dot = subject?.color ?? "#94a3b8";
 
-                  return (
-                    <div
-                      key={s.id}
-                      className="group rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: dot }}
-                        />
+                    return (
+                      <div
+                        key={s.id}
+                        className="group rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span
+                            className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: dot }}
+                          />
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-medium text-foreground">
-                                {s.title}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-foreground">
+                                  {s.title}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground truncate">
+                                  {s.duration} • {s.startTime} •{" "}
+                                  {subject?.name ?? "Unassigned"}
+                                </div>
                               </div>
-                              <div className="mt-1 text-xs text-muted-foreground truncate">
-                                {s.duration} • {s.startTime} •{" "}
-                                {subject?.name ?? "Unassigned"}
-                              </div>
+
+                              <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
                             </div>
-
-                            <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Up next */}
-        <section className="md:col-span-5 rounded-2xl border border-border bg-card shadow-sm">
-          <div className="px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Up next</h2>
-            <p className="text-xs text-muted-foreground">Upcoming deadlines</p>
-          </div>
-
-          <div className="p-4">
-            {upNext.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
-                <div className="text-sm font-medium text-foreground">
-                  All clear
+                    );
+                  })}
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  No upcoming tasks.
+              )}
+            </div>
+          </section>
+
+          {/* Up next */}
+          <section className="md:col-span-5 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="px-5 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">Up next</h2>
+              <p className="text-xs text-muted-foreground">Upcoming deadlines</p>
+            </div>
+
+            <div className="p-4">
+              {upNext.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
+                  <div className="text-sm font-medium text-foreground">
+                    All clear
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    No upcoming tasks.
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {upNext.map((task) => {
-                  const subject = subjectById.get(task.subjectId);
-                  const d = daysUntil(task.dueDate, today);
-                  const dot = subject?.color ?? "#94a3b8";
+              ) : (
+                <div className="space-y-2">
+                  {upNext.map((task) => {
+                    const subject = subjectById.get(task.subjectId);
+                    const d = daysUntil(task.dueDate, today);
+                    const dot = subject?.color ?? "#94a3b8";
 
-                  const urgency = clamp(d, -30, 30);
-                  const isLate = urgency < 0;
+                    const urgency = clamp(d, -30, 30);
+                    const isLate = urgency < 0;
 
-                  return (
-                    <div
-                      key={task.id}
-                      className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
-                      style={{ borderLeftWidth: 3, borderLeftColor: dot }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-foreground">
-                            {task.title}
+                    return (
+                      <div
+                        key={task.id}
+                        className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
+                        style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-foreground">
+                              {task.title}
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="inline-flex items-center gap-1">
+                                <span
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: dot }}
+                                />
+                                {subject?.name ?? "Unassigned"}
+                              </span>
+                              <span className="text-muted-foreground/60">•</span>
+                              <span>{typeLabel(task.type)}</span>
+                            </div>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1">
-                              <span
-                                className="h-2 w-2 rounded-full"
-                                style={{ backgroundColor: dot }}
-                              />
-                              {subject?.name ?? "Unassigned"}
-                            </span>
-                            <span className="text-muted-foreground/60">•</span>
-                            <span>{typeLabel(task.type)}</span>
-                          </div>
-                        </div>
 
-                        <div className="shrink-0 text-right">
-                          <div
-                            className={[
-                              "text-xs font-semibold",
-                              isLate ? "text-destructive" : "text-foreground",
-                            ].join(" ")}
-                          >
-                            {dueLabel(d)}
-                          </div>
-                          <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {task.dueDate.toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                          <div className="shrink-0 text-right">
+                            <div
+                              className={[
+                                "text-xs font-semibold",
+                                isLate ? "text-destructive" : "text-foreground",
+                              ].join(" ")}
+                            >
+                              {dueLabel(d)}
+                            </div>
+                            <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {task.dueDate.toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </section>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
