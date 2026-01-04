@@ -287,9 +287,20 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                     fontFamily: "inherit",
                   },
                   elements: {
-                    userButtonAvatarBox: "ring-1 ring-border",
+                    // ✅ Force avatar placeholder / fallback to be green-toned (instead of Clerk purple)
+                    // This affects the circle behind initials & the default avatar background.
+                    userButtonAvatarBox:
+                      "ring-1 ring-border bg-primary/15 text-primary [&_svg]:text-primary",
+
+                    // ✅ Also theme the popover to match your app
                     userButtonPopoverCard: "border border-border shadow-lg bg-card",
                     userButtonPopoverFooter: "hidden",
+
+                    // ✅ Make menu items feel consistent
+                    userButtonPopoverActionButton:
+                      "hover:bg-muted focus:bg-muted text-foreground",
+                    userButtonPopoverActionButtonText: "text-foreground",
+                    userButtonPopoverActionButtonIcon: "text-muted-foreground",
                   },
                 }}
               >
