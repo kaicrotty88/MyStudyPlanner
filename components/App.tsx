@@ -271,13 +271,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               Settings
             </button>
 
-            {/* ✅ Clerk profile — forced green avatar */}
+            {/* ✅ Clerk profile — HARD-FORCED GREEN AVATAR */}
             <div className="inline-flex items-center rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-muted/40 transition-colors">
               <UserButton
                 afterSignOutUrl="/sign-in"
                 appearance={{
                   variables: {
-                    colorPrimary: "hsl(var(--primary))",
+                    colorPrimary: "#7A9B7F",
                     colorBackground: "hsl(var(--card))",
                     colorText: "hsl(var(--foreground))",
                     colorTextSecondary: "hsl(var(--muted-foreground))",
@@ -286,9 +286,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   },
                   elements: {
                     userButtonAvatarBox:
-                      "bg-primary text-primary-foreground ring-1 ring-border overflow-hidden",
+                      "bg-[#7A9B7F] text-white ring-1 ring-border overflow-hidden",
                     userButtonAvatarText:
-                      "text-primary-foreground font-semibold",
+                      "text-white font-semibold",
                     userButtonPopoverCard:
                       "border border-border shadow-lg bg-card",
                     userButtonPopoverFooter: "hidden",
