@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, Trash } from "lucide-react";
+import { Plus, Edit2, Trash2, Trash, ChevronDown, ChevronUp } from "lucide-react";
 import { UserProfile } from "@clerk/nextjs";
 
 interface Subject {
@@ -48,7 +48,7 @@ interface SettingsProps {
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
 
-  // NEW: demo vs real app + clear/reset handler
+  // demo vs real app + clear/reset handler
   appMode: AppMode;
   onClearAllData: () => void;
 }
@@ -70,8 +70,11 @@ export function Settings({
 
   const [formData, setFormData] = useState({ name: "", color: "#7A9B7F" });
 
-  // NEW: confirm modal for clear/reset
+  // confirm modal for clear/reset
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Subjects collapsible
+  const [subjectsOpen, setSubjectsOpen] = useState(true);
 
   const colorPalette = [
     "#7A9B7F",
@@ -132,6 +135,7 @@ export function Settings({
     setEditingId(subject.id);
     setFormData({ name: subject.name, color: subject.color });
     setShowAddForm(false);
+    setSubjectsOpen(true);
   };
 
   const handleCancel = () => {
@@ -167,21 +171,13 @@ export function Settings({
         <p className="text-muted-foreground text-sm">Manage your subjects and preferences</p>
       </div>
 
-      {/* Account */}
-      <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-3">
-        <div className="space-y-0.5">
-          <div className="text-foreground font-medium">Account</div>
-          <div className="text-muted-foreground text-sm">
-            Manage your profile, email, password, and sign out.
-          </div>
-        </div>
-
+      {/* Clerk profile UI (no “Account” card/heading) */}
+      <div className="bg-card rounded-lg p-5 shadow-sm border border-border">
         <div className="rounded-lg border border-border bg-background/40 p-3">
           <UserProfile
             routing="virtual"
             appearance={{
               variables: {
-                // Pull from your Tailwind CSS variables (keeps this future-proof)
                 colorPrimary: "hsl(var(--primary))",
                 colorText: "hsl(var(--foreground))",
                 colorTextSecondary: "hsl(var(--muted-foreground))",
@@ -210,10 +206,144 @@ export function Settings({
         </div>
       </div>
 
-      {/* Data */}
+      {/* Subjects (collapsible) */}
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setSubjectsOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors"
+        >
+          <div className="text-left">
+            <div className="text-foreground font-medium">Subjects</div>
+            <div className="text-muted-foreground text-sm">
+              Add, edit, and organise your subjects.
+            </div>
+          </div>
+
+          {subjectsOpen ? (
+            <ChevronUp className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
+
+        {subjectsOpen && (
+          <div className="px-5 pb-5 space-y-4">
+            <div className="flex items-center justify-end">
+              <button
+                onClick={() => {
+                  setShowAddForm(true);
+                  setEditingId(null);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Subject
+              </button>
+            </div>
+
+            {/* Add/Edit Form */}
+            {(showAddForm || editingId) && (
+              <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-4">
+                <h3 className="text-foreground">{editingId ? "Edit Subject" : "New Subject"}</h3>
+
+                <input
+                  type="text"
+                  placeholder="Subject name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+
+                <div className="space-y-2">
+                  <label className="text-sm text-foreground">Choose a color</label>
+                  <div className="grid grid-cols-8 gap-2">
+                    {colorPalette.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setFormData({ ...formData, color })}
+                        className={`w-10 h-10 rounded-lg transition-transform ${
+                          formData.color === color ? "ring-2 ring-primary scale-110" : "hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: color }}
+                        aria-label={`Select color ${color}`}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    className="w-full h-10 rounded-lg border border-border cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSubmit}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    {editingId ? "Save" : "Add"}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Subjects List */}
+            <div className="space-y-2">
+              {subjects.map((subject) => (
+                <div
+                  key={subject.id}
+                  className="bg-card rounded-lg p-4 shadow-sm border border-border flex items-center justify-between group hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: subject.color }} />
+                    <div>
+                      <div className="text-foreground">{subject.name}</div>
+                      <div className="text-xs text-muted-foreground">{subject.color}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleEdit(subject)}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      aria-label="Edit subject"
+                    >
+                      <Edit2 className="w-4 h-4 text-foreground" />
+                    </button>
+                    <button
+                      onClick={() => setDeletingSubjectId(subject.id)}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      aria-label="Delete subject"
+                    >
+                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {subjects.length === 0 && (
+              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+                <p className="text-muted-foreground text-sm text-center">
+                  No subjects yet. Add your first subject to get started.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Clear all data (below Subjects) */}
       <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
         <div className="space-y-0.5">
-          <div className="text-foreground font-medium">Data</div>
+          <div className="text-foreground font-medium">Clear all data</div>
           <div className="text-muted-foreground text-sm">
             {appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}
           </div>
@@ -227,115 +357,6 @@ export function Settings({
           <Trash className="w-4 h-4" />
           {clearButtonLabel}
         </button>
-      </div>
-
-      {/* Subjects Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-foreground">Subjects</h2>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Subject
-          </button>
-        </div>
-
-        {/* Add/Edit Form */}
-        {(showAddForm || editingId) && (
-          <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-4">
-            <h3 className="text-foreground">{editingId ? "Edit Subject" : "New Subject"}</h3>
-
-            <input
-              type="text"
-              placeholder="Subject name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-
-            <div className="space-y-2">
-              <label className="text-sm text-foreground">Choose a color</label>
-              <div className="grid grid-cols-8 gap-2">
-                {colorPalette.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setFormData({ ...formData, color })}
-                    className={`w-10 h-10 rounded-lg transition-transform ${
-                      formData.color === color ? "ring-2 ring-primary scale-110" : "hover:scale-105"
-                    }`}
-                    style={{ backgroundColor: color }}
-                    aria-label={`Select color ${color}`}
-                  />
-                ))}
-              </div>
-              <input
-                type="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-full h-10 rounded-lg border border-border cursor-pointer"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleSubmit}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                {editingId ? "Save" : "Add"}
-              </button>
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Subjects List */}
-        <div className="space-y-2">
-          {subjects.map((subject) => (
-            <div
-              key={subject.id}
-              className="bg-card rounded-lg p-4 shadow-sm border border-border flex items-center justify-between group hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: subject.color }} />
-                <div>
-                  <div className="text-foreground">{subject.name}</div>
-                  <div className="text-xs text-muted-foreground">{subject.color}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => handleEdit(subject)}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  aria-label="Edit subject"
-                >
-                  <Edit2 className="w-4 h-4 text-foreground" />
-                </button>
-                <button
-                  onClick={() => setDeletingSubjectId(subject.id)}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  aria-label="Delete subject"
-                >
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {subjects.length === 0 && (
-          <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-            <p className="text-muted-foreground text-sm text-center">
-              No subjects yet. Add your first subject to get started.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Delete Confirmation Modal */}
