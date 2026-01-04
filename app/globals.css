@@ -211,3 +211,7 @@ html {
 .clerk-embed [class*="formFieldHintText"] {
   display: none !important;
 }
+/* Force Clerk generated avatar to match app theme */
+.cl-userButtonAvatarBox svg {
+  background-color: hsl(var(--primary)) !important;
+}
