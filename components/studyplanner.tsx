@@ -42,7 +42,7 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 
 const getWeekStart = (d: Date) => {
   const x = startOfDay(d);
-  const day = x.getDay(); // 0 Sun
+  const day = x.getDay();
   x.setDate(x.getDate() - day);
   return x;
 };
@@ -69,7 +69,7 @@ const buildTimeOptions = (stepMinutes = 15) => {
   return out;
 };
 
-const DURATION_OPTIONS: { label: string; value: string }[] = [
+const DURATION_OPTIONS = [
   { label: "15 min", value: "15 min" },
   { label: "20 min", value: "20 min" },
   { label: "30 min", value: "30 min" },
@@ -87,7 +87,6 @@ interface StudyPlannerProps {
   tasks: Task[];
   subjects: Subject[];
   studySessions: StudySession[];
-
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession: (id: string) => void;
@@ -111,7 +110,6 @@ export function StudyPlanner({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeSubject = activeTab !== "all" ? subjects.find((s) => s.id === activeTab) : null;
-
   const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
   const [sessionForm, setSessionForm] = useState({
@@ -134,18 +132,16 @@ export function StudyPlanner({
 
   const visibleSessions = useMemo(() => {
     const base = activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
-    const withoutCompleted = showCompleted ? base : base.filter((s) => !s.completed);
-    return withoutCompleted.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
+    const filtered = showCompleted ? base : base.filter((s) => !s.completed);
+    return filtered.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [studySessions, activeTab, showCompleted]);
 
   const weeklySummary = useMemo(() => {
     const now = new Date();
     const a = getWeekStart(now);
     const b = getWeekEnd(now);
-
     const inWeek = studySessions.filter((s) => inRange(s.date, a, b));
     const minutes = inWeek.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
-
     return {
       count: inWeek.length,
       minutes,
@@ -156,15 +152,15 @@ export function StudyPlanner({
     };
   }, [studySessions]);
 
-  const totalMinutesVisible = useMemo(() => {
-    return visibleSessions.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
-  }, [visibleSessions]);
+  const totalMinutesVisible = useMemo(
+    () => visibleSessions.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0),
+    [visibleSessions]
+  );
 
   const openNew = () => {
     setEditingId(null);
     setDeletingId(null);
     setPanelOpen(true);
-
     setSessionForm({
       title: "",
       subjectId: activeTab !== "all" ? activeTab : "",
@@ -195,8 +191,7 @@ export function StudyPlanner({
   };
 
   const handleSubmit = () => {
-    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime || !sessionForm.duration)
-      return;
+    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime) return;
 
     const payload: Omit<StudySession, "id"> = {
       title: sessionForm.title.trim(),
@@ -213,46 +208,32 @@ export function StudyPlanner({
         : {}),
     };
 
-    if (editingId) onUpdateStudySession(editingId, payload);
-    else onAddStudySession(payload);
-
-    setEditingId(null);
-    setPanelOpen(false);
+    editingId ? onUpdateStudySession(editingId, payload) : onAddStudySession(payload);
+    closePanel();
   };
-
-  const getLinkedTask = (taskId?: string) => {
-    if (!taskId) return null;
-    return tasks.find((t) => t.id === taskId) || null;
-  };
-
-  const chipStyle = (color: string) => ({ backgroundColor: color });
 
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
-      {/* Title */}
+      {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-foreground font-semibold text-xl">Study Planner</h1>
-          <p className="text-sm text-muted-foreground">Log sessions and link to assessments.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Planner</h1>
+          <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
         </div>
 
         <button
           onClick={openNew}
-          className={[
-            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition",
-            activeSubject ? "text-white hover:opacity-90" : "bg-primary text-primary-foreground hover:bg-primary/90",
-          ].join(" ")}
-          style={activeSubject ? { backgroundColor: activeSubject.color } : undefined}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
         >
           <Plus className="w-4 h-4" />
           Log session
         </button>
       </div>
 
-      {/* Weekly strip */}
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-foreground">
-          <span className="font-medium">This week</span>
+      {/* Weekly summary */}
+      <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm flex items-center justify-between">
+        <div className="text-sm">
+          <span className="font-medium text-foreground">This week</span>
           <span className="text-muted-foreground"> • {weeklySummary.label}</span>
         </div>
         <div className="text-sm text-muted-foreground">
@@ -262,11 +243,11 @@ export function StudyPlanner({
       </div>
 
       {/* Subject tabs */}
-      <div className="flex flex-wrap gap-2 pt-1">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setActiveTab("all")}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            activeTab === "all" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground hover:bg-muted"
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
+            activeTab === "all" ? "bg-primary text-primary-foreground" : "bg-card border border-border hover:bg-muted"
           }`}
         >
           All
@@ -278,16 +259,16 @@ export function StudyPlanner({
             <button
               key={s.id}
               onClick={() => setActiveTab(s.id)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${active ? "text-white" : "text-foreground"}`}
+              className="px-3 py-1.5 rounded-full text-sm font-medium border transition"
               style={
                 active
-                  ? { backgroundColor: s.color, borderColor: s.color }
-                  : { borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--card))" }
+                  ? { backgroundColor: s.color, borderColor: s.color, color: "white" }
+                  : { backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))" }
               }
             >
               <span
-                className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
-                style={active ? { backgroundColor: "rgba(255,255,255,0.9)" } : { backgroundColor: s.color }}
+                className="inline-block w-2 h-2 rounded-full mr-2"
+                style={{ backgroundColor: active ? "white" : s.color }}
               />
               {s.name}
             </button>
@@ -296,245 +277,146 @@ export function StudyPlanner({
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {visibleSessions.length} sessions •{" "}
           <span className="text-foreground font-semibold">{formatMinutes(totalMinutesVisible)}</span>
         </div>
-
         <button
           onClick={() => setShowCompleted((v) => !v)}
-          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition"
+          className="rounded-xl border border-border bg-card px-3 py-2 text-sm hover:bg-muted transition"
         >
           {showCompleted ? "Hide completed" : "Show completed"}
         </button>
       </div>
 
-      {/* Inset panel (Add/Edit) */}
-      {panelOpen && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-            <div className="text-sm font-semibold text-foreground">{editingId ? "Edit session" : "New session"}</div>
-            <button onClick={closePanel} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close">
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </div>
-
-          <div className="p-4 space-y-3">
-            {/* ✅ title */}
-            <input
-              type="text"
-              value={sessionForm.title}
-              onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-              placeholder="Session title (e.g. Trig graphs revision)"
-              className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <select
-                value={sessionForm.subjectId}
-                onChange={(e) => setSessionForm({ ...sessionForm, subjectId: e.target.value, linkedTaskId: "" })}
-                className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="">Select subject</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={sessionForm.linkedTaskId}
-                onChange={(e) => setSessionForm({ ...sessionForm, linkedTaskId: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="">Link to assessment (optional)</option>
-                {linkableAssessments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.type.toUpperCase()}: {t.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={sessionForm.date}
-                  onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
-                  className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-
-              <select
-                value={sessionForm.startTime}
-                onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 mt-7 md:mt-0"
-              >
-                <option value="">Select start time</option>
-                {timeOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={sessionForm.duration}
-                onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 mt-7 md:mt-0"
-              >
-                <option value="">Select duration</option>
-                {DURATION_OPTIONS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={handleSubmit}
-                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
-              >
-                {editingId ? "Save" : "Add"}
-              </button>
-              <button
-                onClick={closePanel}
-                className="px-4 py-2 rounded-xl border border-border bg-card text-foreground hover:bg-muted transition text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Sessions list */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-        <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
-          <div className="text-sm font-semibold text-foreground">Sessions</div>
-          <div className="text-xs text-muted-foreground">{showCompleted ? "Including completed" : "Hiding completed"}</div>
+        <div className="px-4 py-3 border-b border-border bg-muted/30 text-sm font-semibold text-foreground">
+          Sessions
         </div>
 
         {visibleSessions.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            {activeTab === "all" ? "No study sessions yet. Log your first one." : `No sessions for ${activeSubject?.name} yet.`}
+            No study sessions yet. Log your first one.
           </div>
         ) : (
           <div className="divide-y divide-border">
             {visibleSessions.map((s) => {
               const subj = getSubjectById(s.subjectId);
-              const linked = getLinkedTask(s.linkedTaskId);
               const mins = parseDurationToMinutes(s.duration);
-
-              const leftDot = subj?.color ?? "hsl(var(--muted-foreground))";
 
               return (
                 <div
                   key={s.id}
-                  className={`group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition-colors ${s.completed ? "opacity-80" : ""}`}
+                  className={`group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition ${
+                    s.completed ? "opacity-80" : ""
+                  }`}
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <button
                       onClick={() => onToggleSessionCompleted(s.id)}
-                      className="mt-0.5 w-5 h-5 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
-                      aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
+                      className="mt-0.5 w-5 h-5 rounded border border-border grid place-items-center hover:bg-muted transition"
                     >
-                      {s.completed ? <div className="w-3 h-3 rounded-sm bg-primary" /> : null}
+                      {s.completed && <div className="w-3 h-3 rounded-sm bg-primary" />}
                     </button>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: leftDot }} />
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {s.title}
-                        </div>
-                        {subj && (
-                          <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-white text-xs shrink-0" style={{ backgroundColor: subj.color }}>
-                            {subj.name}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-1 text-xs text-muted-foreground flex flex-wrap items-center gap-2">
-                        <span className="opacity-80">{formatMinutes(mins)} • {s.startTime}</span>
-
-                        <span className="text-muted-foreground/50">•</span>
-
-                        <span className="inline-flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {s.date.toLocaleDateString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </span>
-
-                        {linked && (
-                          <span className="opacity-80">
-                            • Linked: {linked.type.toUpperCase()} — {linked.title}
-                          </span>
-                        )}
-
-                        {s.completed && s.completedAt && (
-                          <span className="opacity-70">
-                            • completed {s.completedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </span>
-                        )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">{s.title}</div>
+                      <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-2">
+                        <span>{formatMinutes(mins)} • {s.startTime}</span>
+                        <span>• {s.date.toLocaleDateString()}</span>
+                        {subj && <span>• {subj.name}</span>}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button onClick={() => openEdit(s)} className="p-1.5 hover:bg-muted rounded" aria-label="Edit">
-                      <Edit2 className="w-4 h-4 text-foreground" />
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button onClick={() => openEdit(s)} className="p-1.5 hover:bg-muted rounded">
+                      <Edit2 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setDeletingId(s.id)} className="p-1.5 hover:bg-muted rounded" aria-label="Delete">
+                    <button onClick={() => setDeletingId(s.id)} className="p-1.5 hover:bg-muted rounded">
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </button>
                   </div>
-
-                  {deletingId === s.id && (
-                    <>
-                      <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDeletingId(null)} />
-                      <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card rounded-2xl shadow-xl border border-border p-6 w-full max-w-sm">
-                        <h3 className="text-foreground font-semibold mb-2">Delete this session?</h3>
-                        <p className="text-sm text-muted-foreground opacity-80 mb-4">This action cannot be undone.</p>
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => setDeletingId(null)}
-                            className="px-4 py-2 text-sm rounded-xl border border-border bg-card text-foreground hover:bg-muted transition"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => {
-                              onDeleteStudySession(s.id);
-                              setDeletingId(null);
-                            }}
-                            className="px-4 py-2 text-sm rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 transition font-medium"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Add / Edit panel */}
+      {panelOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={closePanel} />
+          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+              <div className="text-sm font-semibold">{editingId ? "Edit session" : "New session"}</div>
+              <button onClick={closePanel} className="p-1.5 hover:bg-muted rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <input
+                value={sessionForm.title}
+                onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
+                placeholder="Session title"
+                className="w-full rounded-xl border border-border px-4 py-2"
+              />
+
+              <select
+                value={sessionForm.subjectId}
+                onChange={(e) => setSessionForm({ ...sessionForm, subjectId: e.target.value })}
+                className="w-full rounded-xl border border-border px-4 py-2"
+              >
+                <option value="">Select subject</option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  type="date"
+                  value={sessionForm.date}
+                  onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
+                  className="rounded-xl border border-border px-3 py-2"
+                />
+                <select
+                  value={sessionForm.startTime}
+                  onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
+                  className="rounded-xl border border-border px-3 py-2"
+                >
+                  <option value="">Start</option>
+                  {timeOptions.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+                <select
+                  value={sessionForm.duration}
+                  onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
+                  className="rounded-xl border border-border px-3 py-2"
+                >
+                  {DURATION_OPTIONS.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={handleSubmit} className="flex-1 rounded-xl bg-primary px-4 py-2 text-white">
+                  {editingId ? "Save" : "Add"}
+                </button>
+                <button onClick={closePanel} className="flex-1 rounded-xl border border-border px-4 py-2">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
