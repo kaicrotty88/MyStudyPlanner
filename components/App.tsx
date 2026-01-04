@@ -12,7 +12,7 @@ import { Insights } from "./insights";
 import type { Subject, Task, StudySession } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
-import { User } from "lucide-react";
+import { Settings as SettingsIcon } from "lucide-react";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -272,10 +272,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               Settings
             </button>
 
-            {/* Account pill + themed Clerk button (no manage/signout here) */}
-            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
-              <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
-
+            {/* Profile pill (icon-only) + themed Clerk button */}
+            <div className="inline-flex items-center rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-muted/40 transition-colors">
               <UserButton
                 afterSignOutUrl="/sign-in"
                 appearance={{
@@ -295,11 +293,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   },
                 }}
               >
-                {/* Custom menu: only "Account" (no manage account, no sign out) */}
+                {/* Custom menu: only Settings */}
                 <UserButton.MenuItems>
                   <UserButton.Action
-                    label="Account"
-                    labelIcon={<User className="h-4 w-4" />}
+                    label="Settings"
+                    labelIcon={<SettingsIcon className="h-4 w-4" />}
                     onClick={() => setActiveTab("settings")}
                   />
                 </UserButton.MenuItems>
