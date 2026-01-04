@@ -47,7 +47,6 @@ interface SettingsProps {
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
 
-  // demo vs real app + clear/reset handler
   appMode: AppMode;
   onClearAllData: () => void;
 }
@@ -69,10 +68,7 @@ export function Settings({
 
   const [formData, setFormData] = useState({ name: "", color: "#7A9B7F" });
 
-  // confirm modal for clear/reset
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-
-  // Subjects collapsible — default collapsed ✅
   const [subjectsOpen, setSubjectsOpen] = useState(false);
 
   const colorPalette = [
@@ -171,7 +167,7 @@ export function Settings({
         <p className="text-muted-foreground text-sm">Manage your subjects and preferences</p>
       </div>
 
-      {/* Subjects (collapsible, default collapsed) */}
+      {/* Subjects */}
       <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         <button
           type="button"
@@ -180,7 +176,9 @@ export function Settings({
         >
           <div className="text-left">
             <div className="text-foreground font-medium">Subjects</div>
-            <div className="text-muted-foreground text-sm">Add, edit, and organise your subjects.</div>
+            <div className="text-muted-foreground text-sm">
+              Add, edit, and organise your subjects.
+            </div>
           </div>
 
           {subjectsOpen ? (
@@ -225,10 +223,11 @@ export function Settings({
                         key={color}
                         onClick={() => setFormData({ ...formData, color })}
                         className={`w-10 h-10 rounded-lg transition-transform ${
-                          formData.color === color ? "ring-2 ring-primary scale-110" : "hover:scale-105"
+                          formData.color === color
+                            ? "ring-2 ring-primary scale-110"
+                            : "hover:scale-105"
                         }`}
                         style={{ backgroundColor: color }}
-                        aria-label={`Select color ${color}`}
                       />
                     ))}
                   </div>
@@ -243,13 +242,13 @@ export function Settings({
                 <div className="flex gap-2">
                   <button
                     onClick={handleSubmit}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground"
                   >
                     {editingId ? "Save" : "Add"}
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                    className="px-4 py-2 rounded-lg bg-muted text-foreground"
                   >
                     Cancel
                   </button>
@@ -261,27 +260,25 @@ export function Settings({
               {subjects.map((subject) => (
                 <div
                   key={subject.id}
-                  className="bg-card rounded-lg p-4 shadow-sm border border-border flex items-center justify-between group hover:shadow-md transition-shadow"
+                  className="bg-card rounded-lg p-4 shadow-sm border border-border flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: subject.color }} />
+                    <div
+                      className="w-10 h-10 rounded-lg"
+                      style={{ backgroundColor: subject.color }}
+                    />
                     <div>
                       <div className="text-foreground">{subject.name}</div>
                       <div className="text-xs text-muted-foreground">{subject.color}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleEdit(subject)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
-                      aria-label="Edit subject"
-                    >
-                      <Edit2 className="w-4 h-4 text-foreground" />
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+                    <button onClick={() => handleEdit(subject)} className="p-2 hover:bg-muted rounded-lg">
+                      <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setDeletingSubjectId(subject.id)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
-                      aria-label="Delete subject"
+                      className="p-2 hover:bg-muted rounded-lg"
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -289,65 +286,62 @@ export function Settings({
                 </div>
               ))}
             </div>
-
-            {subjects.length === 0 && (
-              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-                <p className="text-muted-foreground text-sm text-center">
-                  No subjects yet. Add your first subject to get started.
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Clear all data (below Subjects) */}
+      {/* Clear all data */}
       <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
-        <div className="space-y-0.5">
+        <div>
           <div className="text-foreground font-medium">Clear all data</div>
           <div className="text-muted-foreground text-sm">
-            {appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}
+            {appMode === "demo"
+              ? "Start over with the sample data."
+              : "Clear everything and start fresh."}
           </div>
         </div>
 
         <button
-          type="button"
           onClick={() => setShowClearConfirm(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground"
         >
           <Trash className="w-4 h-4" />
           {clearButtonLabel}
         </button>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Contact */}
+      <div className="pt-6 text-center text-xs text-muted-foreground">
+        Need help? Contact us at{" "}
+        <a
+          href="mailto:mystudyplanner.studio@gmail.com"
+          className="underline hover:text-foreground transition-colors"
+        >
+          mystudyplanner.studio@gmail.com
+        </a>
+      </div>
+
+      {/* Modals */}
       {deletingSubject && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setDeletingSubjectId(null)} />
-          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 bg-card rounded-lg shadow-xl border border-border p-6">
-            <h3 className="text-foreground font-semibold mb-2">Delete “{deletingSubject.name}”?</h3>
-
-            <p className="text-sm text-muted-foreground opacity-80 mb-4">
-              This will permanently delete:
-              <span className="block mt-2">
-                • {deleteCounts.tasks} task(s) / assignment(s) / exam(s) / homework item(s)
-              </span>
-              <span className="block">• {deleteCounts.items} study item(s)</span>
-              <span className="block">• {deleteCounts.sessions} study session(s)</span>
+          <div className="fixed inset-0 bg-black/50 z-40" />
+          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 bg-card p-6 border rounded-lg">
+            <h3 className="font-semibold mb-2">
+              Delete “{deletingSubject.name}”?
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This action cannot be undone.
             </p>
-
-            <p className="text-sm text-muted-foreground opacity-80 mb-4">This action cannot be undone.</p>
-
-            <div className="flex gap-2 justify-end">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeletingSubjectId(null)}
-                className="px-4 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                className="px-4 py-2 bg-muted rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 text-sm rounded-lg bg-muted-foreground text-white hover:bg-muted-foreground/90 transition-colors font-medium"
+                className="px-4 py-2 bg-muted-foreground text-white rounded-lg"
               >
                 Delete
               </button>
@@ -356,29 +350,22 @@ export function Settings({
         </>
       )}
 
-      {/* Clear/Reset Confirmation Modal */}
       {showClearConfirm && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowClearConfirm(false)} />
-          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 bg-card rounded-lg shadow-xl border border-border p-6">
-            <h3 className="text-foreground font-semibold mb-2">{clearTitle}</h3>
-
-            <p className="text-sm text-muted-foreground opacity-80 mb-4">{clearBody}</p>
-
-            <p className="text-sm text-muted-foreground opacity-80 mb-4">
-              {appMode === "demo" ? "You can keep exploring after reset." : "This action cannot be undone."}
-            </p>
-
-            <div className="flex gap-2 justify-end">
+          <div className="fixed inset-0 bg-black/50 z-40" />
+          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 bg-card p-6 border rounded-lg">
+            <h3 className="font-semibold mb-2">{clearTitle}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{clearBody}</p>
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="px-4 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                className="px-4 py-2 bg-muted rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmClear}
-                className="px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition font-medium"
+                className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg"
               >
                 {clearButtonLabel}
               </button>
