@@ -73,8 +73,8 @@ export function Settings({
   // confirm modal for clear/reset
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Subjects collapsible
-  const [subjectsOpen, setSubjectsOpen] = useState(true);
+  // Subjects collapsible — default collapsed ✅
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
 
   const colorPalette = [
     "#7A9B7F",
@@ -171,7 +171,7 @@ export function Settings({
         <p className="text-muted-foreground text-sm">Manage your subjects and preferences</p>
       </div>
 
-      {/* Clerk profile UI (no “Account” card/heading) */}
+      {/* Clerk profile UI (no Account heading text anywhere) ✅ */}
       <div className="bg-card rounded-lg p-5 shadow-sm border border-border">
         <div className="rounded-lg border border-border bg-background/40 p-3">
           <UserProfile
@@ -206,7 +206,7 @@ export function Settings({
         </div>
       </div>
 
-      {/* Subjects (collapsible) */}
+      {/* Subjects (collapsible, default collapsed) ✅ */}
       <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         <button
           type="button"
