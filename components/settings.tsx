@@ -39,7 +39,6 @@ type AppMode = "demo" | "app";
 
 interface SettingsProps {
   subjects: Subject[];
-
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
@@ -48,7 +47,6 @@ interface SettingsProps {
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
 
-  // demo vs real app + clear/reset handler
   appMode: AppMode;
   onClearAllData: () => void;
 }
@@ -70,11 +68,14 @@ export function Settings({
 
   const [formData, setFormData] = useState({ name: "", color: "#7A9B7F" });
 
-  // confirm modal for clear/reset
+  // Clear/reset confirm modal
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Subjects collapsible — default collapsed ✅
+  // Subjects collapsible (default collapsed)
   const [subjectsOpen, setSubjectsOpen] = useState(false);
+
+  // ✅ Account manager collapsible (default collapsed)
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const colorPalette = [
     "#7A9B7F",
@@ -119,16 +120,17 @@ export function Settings({
   }, [deletingSubjectId, tasks, studyItems, studySessions]);
 
   const handleSubmit = () => {
-    if (formData.name && formData.color) {
-      if (editingId) {
-        onUpdateSubject(editingId, formData.name, formData.color);
-        setEditingId(null);
-      } else {
-        onAddSubject(formData.name, formData.color);
-        setShowAddForm(false);
-      }
-      setFormData({ name: "", color: "#7A9B7F" });
+    if (!formData.name || !formData.color) return;
+
+    if (editingId) {
+      onUpdateSubject(editingId, formData.name, formData.color);
+      setEditingId(null);
+    } else {
+      onAddSubject(formData.name, formData.color);
+      setShowAddForm(false);
     }
+
+    setFormData({ name: "", color: "#7A9B7F" });
   };
 
   const handleEdit = (subject: Subject) => {
@@ -171,42 +173,65 @@ export function Settings({
         <p className="text-muted-foreground text-sm">Manage your subjects and preferences</p>
       </div>
 
-      {/* Clerk profile UI (no Account heading text anywhere) ✅ */}
-      <div className="bg-card rounded-lg p-5 shadow-sm border border-border">
-        <div className="rounded-lg border border-border bg-background/40 p-3">
-          <UserProfile
-            routing="virtual"
-            appearance={{
-              variables: {
-                colorPrimary: "hsl(var(--primary))",
-                colorText: "hsl(var(--foreground))",
-                colorTextSecondary: "hsl(var(--muted-foreground))",
-                colorBackground: "hsl(var(--card))",
-                colorInputBackground: "hsl(var(--input-background))",
-                colorNeutral: "hsl(var(--border))",
-                borderRadius: "12px",
-                fontFamily: "inherit",
-              },
-              elements: {
-                card: "shadow-none border border-border bg-card",
-                navbar: "bg-card border-r border-border",
-                headerTitle: "text-foreground",
-                headerSubtitle: "text-muted-foreground",
-                profileSectionTitle: "text-foreground",
-                profileSectionContent: "text-foreground",
-                formFieldLabel: "text-foreground",
-                formFieldInput:
-                  "bg-input-background border-border text-foreground focus:ring-2 focus:ring-primary",
-                button:
-                  "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
-                badge: "border border-border",
-              },
-            }}
-          />
-        </div>
+      {/* ✅ Account manager (collapsible, default CLOSED) */}
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAccountOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors"
+        >
+          <div className="text-left">
+            <div className="text-foreground font-medium">Manage account</div>
+            <div className="text-muted-foreground text-sm">
+              Email, password, security, connected accounts, sign out.
+            </div>
+          </div>
+
+          {accountOpen ? (
+            <ChevronUp className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
+
+        {accountOpen && (
+          <div className="px-5 pb-5">
+            <div className="rounded-lg border border-border bg-background/40 p-3">
+              <UserProfile
+                routing="virtual"
+                appearance={{
+                  variables: {
+                    colorPrimary: "hsl(var(--primary))",
+                    colorText: "hsl(var(--foreground))",
+                    colorTextSecondary: "hsl(var(--muted-foreground))",
+                    colorBackground: "hsl(var(--card))",
+                    colorInputBackground: "hsl(var(--input-background))",
+                    colorNeutral: "hsl(var(--border))",
+                    borderRadius: "12px",
+                    fontFamily: "inherit",
+                  },
+                  elements: {
+                    card: "shadow-none border border-border bg-card",
+                    navbar: "bg-card border-r border-border",
+                    headerTitle: "text-foreground",
+                    headerSubtitle: "text-muted-foreground",
+                    profileSectionTitle: "text-foreground",
+                    profileSectionContent: "text-foreground",
+                    formFieldLabel: "text-foreground",
+                    formFieldInput:
+                      "bg-input-background border-border text-foreground focus:ring-2 focus:ring-primary",
+                    button:
+                      "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
+                    badge: "border border-border",
+                  },
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Subjects (collapsible, default collapsed) ✅ */}
+      {/* Subjects (collapsible, default collapsed) */}
       <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         <button
           type="button"
@@ -242,7 +267,6 @@ export function Settings({
               </button>
             </div>
 
-            {/* Add/Edit Form */}
             {(showAddForm || editingId) && (
               <div className="bg-card rounded-lg p-5 shadow-sm border border-border space-y-4">
                 <h3 className="text-foreground">{editingId ? "Edit Subject" : "New Subject"}</h3>
@@ -295,7 +319,6 @@ export function Settings({
               </div>
             )}
 
-            {/* Subjects List */}
             <div className="space-y-2">
               {subjects.map((subject) => (
                 <div
@@ -340,7 +363,7 @@ export function Settings({
         )}
       </div>
 
-      {/* Clear all data (below Subjects) */}
+      {/* Clear all data */}
       <div className="bg-card rounded-lg p-5 shadow-sm border border-border flex items-center justify-between">
         <div className="space-y-0.5">
           <div className="text-foreground font-medium">Clear all data</div>
