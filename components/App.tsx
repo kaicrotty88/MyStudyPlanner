@@ -12,7 +12,7 @@ import { Insights } from "./insights";
 import type { Subject, Task, StudySession } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, User as UserIcon } from "lucide-react";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -188,25 +188,17 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setStudySessions((p) => p.filter((s) => s.subjectId !== id));
   };
 
-  const handleAddTask = (t: Omit<Task, "id">) =>
-    setTasks((p) => [...p, { ...t, id: Date.now().toString() }]);
+  const handleAddTask = (t: Omit<Task, "id">) => setTasks((p) => [...p, { ...t, id: Date.now().toString() }]);
 
-  const handleUpdateTask = (id: string, t: Omit<Task, "id">) =>
-    setTasks((p) => p.map((x) => (x.id === id ? { ...t, id } : x)));
+  const handleUpdateTask = (id: string, t: Omit<Task, "id">) => setTasks((p) => p.map((x) => (x.id === id ? { ...t, id } : x)));
 
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) =>
-      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
-    );
+    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
   };
 
   const toggleTaskCompleted = (id: string) =>
-    setTasks((p) =>
-      p.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
-      )
-    );
+    setTasks((p) => p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t)));
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
     setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
@@ -214,15 +206,10 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
-  const handleDeleteStudySession = (id: string) =>
-    setStudySessions((p) => p.filter((s) => s.id !== id));
+  const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((p) =>
-      p.map((s) =>
-        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
-      )
-    );
+    setStudySessions((p) => p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s)));
 
   /* -------------------- Render -------------------- */
 
@@ -241,9 +228,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-8">
             <div className="flex flex-col leading-tight">
               <span className="font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">
-                Made by students, for students
-              </span>
+              <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
             </div>
 
             <div className="hidden md:flex gap-1">
@@ -251,9 +236,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                 <button
                   key={k}
                   onClick={() => setActiveTab(k)}
-                  className={`px-4 py-2 rounded-lg transition ${
-                    activeTab === k ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
+                  className={`px-4 py-2 rounded-lg transition ${activeTab === k ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                 >
                   {l}
                 </button>
@@ -264,20 +247,19 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveTab("settings")}
-              className={`px-4 py-2 rounded-lg transition ${
-                activeTab === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-              }`}
+              className={`px-4 py-2 rounded-lg transition ${activeTab === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
             >
               Settings
             </button>
 
-            {/* ✅ Clerk profile — HARD-FORCED GREEN AVATAR */}
-            <div className="inline-flex items-center rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-muted/40 transition-colors">
+            {/* ✅ Option B: Hide Clerk avatar entirely + show your own green icon trigger */}
+            <div className="relative h-10 w-10">
+              {/* The clickable Clerk trigger (avatar hidden) */}
               <UserButton
                 afterSignOutUrl="/sign-in"
                 appearance={{
                   variables: {
-                    colorPrimary: "#7A9B7F",
+                    colorPrimary: "hsl(var(--primary))",
                     colorBackground: "hsl(var(--card))",
                     colorText: "hsl(var(--foreground))",
                     colorTextSecondary: "hsl(var(--muted-foreground))",
@@ -285,12 +267,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                     fontFamily: "inherit",
                   },
                   elements: {
-                    userButtonAvatarBox:
-                      "bg-[#7A9B7F] text-white ring-1 ring-border overflow-hidden",
-                    userButtonAvatarText:
-                      "text-white font-semibold",
-                    userButtonPopoverCard:
-                      "border border-border shadow-lg bg-card",
+                    userButtonTrigger:
+                      "absolute inset-0 rounded-xl bg-primary hover:bg-primary/90 transition-colors grid place-items-center ring-1 ring-border",
+                    // hide everything Clerk uses to render the purple fallback
+                    userButtonAvatarBox: "hidden",
+                    userButtonAvatarImage: "hidden",
+                    userButtonAvatarText: "hidden",
+                    userButtonPopoverCard: "border border-border shadow-lg bg-card",
                     userButtonPopoverFooter: "hidden",
                   },
                 }}
@@ -303,6 +286,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   />
                 </UserButton.MenuItems>
               </UserButton>
+
+              {/* Your visible icon (not clickable; click passes through to Clerk trigger) */}
+              <UserIcon className="pointer-events-none absolute inset-0 m-auto h-4 w-4 text-primary-foreground" />
             </div>
           </div>
         </div>
@@ -310,12 +296,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
       <main>
         {activeTab === "dashboard" && (
-          <Dashboard
-            tasks={tasks}
-            subjects={subjects}
-            studySessions={studySessions}
-            onOpenStudyPlanner={() => setActiveTab("study")}
-          />
+          <Dashboard tasks={tasks} subjects={subjects} studySessions={studySessions} onOpenStudyPlanner={() => setActiveTab("study")} />
         )}
 
         {activeTab === "calendar" && (
@@ -356,9 +337,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
 
-        {activeTab === "insights" && (
-          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
-        )}
+        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
 
         {activeTab === "settings" && (
           <Settings
