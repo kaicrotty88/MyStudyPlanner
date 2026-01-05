@@ -41,12 +41,6 @@ const formatMinutes = (total: number): string => {
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-const daysAgo = (n: number) => {
-  const t = new Date();
-  t.setDate(t.getDate() - n);
-  return startOfDay(t);
-};
-
 interface InsightsProps {
   subjects: Subject[];
   tasks: Task[];
@@ -55,6 +49,9 @@ interface InsightsProps {
 
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   const [range, setRange] = useState<7 | 30>(7);
+
+  // Stable "now" so date-based memos don't drift every render
+  const now = useMemo(() => new Date(), []);
 
   const subjectById = useMemo(() => {
     const map: Record<string, Subject> = {};
@@ -68,7 +65,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return map;
   }, [tasks]);
 
-  const cutoff = useMemo(() => daysAgo(range), [range]);
+  const cutoff = useMemo(() => {
+    const t = new Date(now);
+    t.setDate(t.getDate() - range);
+    return startOfDay(t);
+  }, [range, now]);
 
   const sessionsInRange = useMemo(() => {
     return studySessions.filter((s) => startOfDay(s.date) >= cutoff);
@@ -94,13 +95,12 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   }, [minutesBySubject, subjectById]);
 
   const upcomingAssessments = useMemo(() => {
-    const now = new Date();
     return tasks
       .filter((t) => t.type === "exam" || t.type === "assignment")
       .filter((t) => t.dueDate >= now)
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
       .slice(0, 5);
-  }, [tasks]);
+  }, [tasks, now]);
 
   const minutesByAssessment = useMemo(() => {
     const map: Record<string, number> = {};
@@ -169,7 +169,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
@@ -183,7 +183,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               onClick={() => setRange(7)}
               className={[
                 "px-3 py-1.5 rounded-full text-sm transition",
-                range === 7 ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted border border-border bg-card",
+                range === 7
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground hover:bg-muted border border-border bg-card",
               ].join(" ")}
             >
               7 days
@@ -192,7 +194,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               onClick={() => setRange(30)}
               className={[
                 "px-3 py-1.5 rounded-full text-sm transition",
-                range === 30 ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted border border-border bg-card",
+                range === 30
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground hover:bg-muted border border-border bg-card",
               ].join(" ")}
             >
               30 days
@@ -203,22 +207,14 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
       {/* Top cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card
-          title={`Total study`}
-          subtitle={`Last ${range} days`}
-          icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-        >
+        <Card title="Total study" subtitle={`Last ${range} days`} icon={<Clock className="h-4 w-4 text-muted-foreground" />}>
           <div className="text-3xl font-semibold text-foreground">{formatMinutes(totalMinutes)}</div>
           <div className="mt-2 text-xs text-muted-foreground">
             {sessionsInRange.length} session{sessionsInRange.length === 1 ? "" : "s"} logged
           </div>
         </Card>
 
-        <Card
-          title="Top subject"
-          subtitle={`Last ${range} days`}
-          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-        >
+        <Card title="Top subject" subtitle={`Last ${range} days`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}>
           {topSubject?.subject ? (
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -265,11 +261,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Subject breakdown */}
         <div className="lg:col-span-5">
-          <Card
-            title="Study breakdown"
-            subtitle={`By subject (last ${range} days)`}
-            icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
-          >
+          <Card title="Study breakdown" subtitle={`By subject (last ${range} days)`} icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}>
             {subjectBreakdown.entries.length ? (
               <div className="space-y-3">
                 {subjectBreakdown.entries.map((x) => {

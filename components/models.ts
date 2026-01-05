@@ -18,7 +18,7 @@ export interface Task {
 export interface StudySession {
   id: string;
   subjectId: string;
-  title: string;          // ✅ REQUIRED
+  title?: string; // ✅ optional (UI already falls back to "Study session")
   date: Date;
   startTime: string;
   duration: string;

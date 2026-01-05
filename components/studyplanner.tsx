@@ -223,7 +223,7 @@ export function StudyPlanner({
 
         <button
           onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           <Plus className="w-4 h-4" />
           Log session
@@ -242,13 +242,16 @@ export function StudyPlanner({
         </div>
       </div>
 
-      {/* Subject tabs */}
-      <div className="flex flex-wrap gap-2">
+      {/* Subject tabs — match Calendar/Insights pill system */}
+      <div className="rounded-full border border-border bg-card p-1 flex flex-wrap gap-1">
         <button
           onClick={() => setActiveTab("all")}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-            activeTab === "all" ? "bg-primary text-primary-foreground" : "bg-card border border-border hover:bg-muted"
-          }`}
+          className={[
+            "px-3 py-1.5 rounded-full text-sm transition",
+            activeTab === "all"
+              ? "bg-primary text-primary-foreground"
+              : "text-foreground hover:bg-muted",
+          ].join(" ")}
         >
           All
         </button>
@@ -259,18 +262,16 @@ export function StudyPlanner({
             <button
               key={s.id}
               onClick={() => setActiveTab(s.id)}
-              className="px-3 py-1.5 rounded-full text-sm font-medium border transition"
-              style={
-                active
-                  ? { backgroundColor: s.color, borderColor: s.color, color: "white" }
-                  : { backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))" }
-              }
+              className={[
+                "px-3 py-1.5 rounded-full text-sm transition",
+                active ? "bg-muted text-foreground" : "text-foreground hover:bg-muted",
+              ].join(" ")}
+              style={active ? { boxShadow: `0 0 0 2px ${s.color}22` } : undefined}
             >
-              <span
-                className="inline-block w-2 h-2 rounded-full mr-2"
-                style={{ backgroundColor: active ? "white" : s.color }}
-              />
-              {s.name}
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                <span className="truncate">{s.name}</span>
+              </span>
             </button>
           );
         })}
@@ -284,7 +285,7 @@ export function StudyPlanner({
         </div>
         <button
           onClick={() => setShowCompleted((v) => !v)}
-          className="rounded-xl border border-border bg-card px-3 py-2 text-sm hover:bg-muted transition"
+          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           {showCompleted ? "Hide completed" : "Show completed"}
         </button>
@@ -297,8 +298,9 @@ export function StudyPlanner({
         </div>
 
         {visibleSessions.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            No study sessions yet. Log your first one.
+          <div className="p-8 text-center">
+            <div className="text-sm font-medium text-foreground">No sessions yet</div>
+            <div className="mt-1 text-xs text-muted-foreground">Log your first one to start tracking progress.</div>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -316,15 +318,18 @@ export function StudyPlanner({
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <button
                       onClick={() => onToggleSessionCompleted(s.id)}
-                      className="mt-0.5 w-5 h-5 rounded border border-border grid place-items-center hover:bg-muted transition"
+                      className="mt-0.5 h-5 w-5 rounded border border-border grid place-items-center bg-background/40 hover:bg-muted transition shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
                     >
-                      {s.completed && <div className="w-3 h-3 rounded-sm bg-primary" />}
+                      {s.completed && <div className="h-3 w-3 rounded-sm bg-primary" />}
                     </button>
 
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{s.title}</div>
                       <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-2">
-                        <span>{formatMinutes(mins)} • {s.startTime}</span>
+                        <span>
+                          {formatMinutes(mins)} • {s.startTime}
+                        </span>
                         <span>• {s.date.toLocaleDateString()}</span>
                         {subj && <span>• {subj.name}</span>}
                       </div>
@@ -332,10 +337,18 @@ export function StudyPlanner({
                   </div>
 
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                    <button onClick={() => openEdit(s)} className="p-1.5 hover:bg-muted rounded">
-                      <Edit2 className="w-4 h-4" />
+                    <button
+                      onClick={() => openEdit(s)}
+                      className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      aria-label="Edit"
+                    >
+                      <Edit2 className="w-4 h-4 text-foreground" />
                     </button>
-                    <button onClick={() => setDeletingId(s.id)} className="p-1.5 hover:bg-muted rounded">
+                    <button
+                      onClick={() => setDeletingId(s.id)}
+                      className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      aria-label="Delete"
+                    >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </button>
                   </div>
@@ -351,29 +364,38 @@ export function StudyPlanner({
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closePanel} />
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-              <div className="text-sm font-semibold">{editingId ? "Edit session" : "New session"}</div>
-              <button onClick={closePanel} className="p-1.5 hover:bg-muted rounded">
-                <X className="w-4 h-4" />
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="space-y-0.5">
+                <div className="text-sm font-semibold text-foreground">{editingId ? "Edit session" : "New session"}</div>
+                <div className="text-xs text-muted-foreground">Add title, subject, time, and duration.</div>
+              </div>
+              <button
+                onClick={closePanel}
+                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
               <input
                 value={sessionForm.title}
                 onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-                placeholder="Session title"
-                className="w-full rounded-xl border border-border px-4 py-2"
+                placeholder="Session title (e.g. Trig graphs revision)"
+                className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
 
               <select
                 value={sessionForm.subjectId}
                 onChange={(e) => setSessionForm({ ...sessionForm, subjectId: e.target.value })}
-                className="w-full rounded-xl border border-border px-4 py-2"
+                className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="">Select subject</option>
                 {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
               </select>
 
@@ -382,12 +404,12 @@ export function StudyPlanner({
                   type="date"
                   value={sessionForm.date}
                   onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
-                  className="rounded-xl border border-border px-3 py-2"
+                  className="rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <select
                   value={sessionForm.startTime}
                   onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
-                  className="rounded-xl border border-border px-3 py-2"
+                  className="rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   <option value="">Start</option>
                   {timeOptions.map((t) => (
@@ -397,19 +419,27 @@ export function StudyPlanner({
                 <select
                   value={sessionForm.duration}
                   onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
-                  className="rounded-xl border border-border px-3 py-2"
+                  className="rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   {DURATION_OPTIONS.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex gap-2">
-                <button onClick={handleSubmit} className="flex-1 rounded-xl bg-primary px-4 py-2 text-white">
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleSubmit}
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
                   {editingId ? "Save" : "Add"}
                 </button>
-                <button onClick={closePanel} className="flex-1 rounded-xl border border-border px-4 py-2">
+                <button
+                  onClick={closePanel}
+                  className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
                   Cancel
                 </button>
               </div>

@@ -1,36 +1,11 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Plus, Calendar, ChevronDown, ChevronUp, Edit2, Trash2, Sparkles } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, Edit2, Plus, Sparkles, Trash2 } from "lucide-react";
+
+import type { Subject, Task, StudySession } from "./models";
 
 const ALL_ACCENT = "#7A9B7F";
-
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface StudySession {
-  id: string;
-  subjectId: string;
-  date: Date;
-  startTime: string;
-  duration: string;
-  linkedTaskId?: string;
-  completed?: boolean;
-  completedAt?: Date;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-  completed?: boolean;
-  completedAt?: Date;
-}
 
 const parseDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
@@ -159,7 +134,9 @@ export function Tasks({
   );
 
   const getMinutesStudiedForTask = (taskId: string) =>
-    studySessions.filter((s) => s.linkedTaskId === taskId).reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
+    studySessions
+      .filter((s) => s.linkedTaskId === taskId)
+      .reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
 
   const getSectionAccentColor = () => {
     if (selectedSubject !== "all") return getSubjectById(selectedSubject)?.color || ALL_ACCENT;
@@ -215,7 +192,7 @@ export function Tasks({
     setFormData({ title: "", subjectId: "", dueDate: "" });
   };
 
-  // ✅ IMPORTANT FIX: render form as JSX (not a component) to prevent remount + focus loss
+  // ✅ IMPORTANT: render form as JSX (not a component) to prevent remount + focus loss
   const renderAddForm = (type: "task" | "assignment" | "exam" | "homework") => (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
       <div className="text-sm font-semibold text-foreground">
@@ -227,14 +204,14 @@ export function Tasks({
         placeholder="Title"
         value={formData.title}
         onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         autoFocus
       />
 
       <select
         value={formData.subjectId}
         onChange={(e) => setFormData((p) => ({ ...p, subjectId: e.target.value }))}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         <option value="">Select subject</option>
         {subjects.map((s) => (
@@ -248,7 +225,7 @@ export function Tasks({
         type="date"
         value={formData.dueDate}
         onChange={(e) => setFormData((p) => ({ ...p, dueDate: e.target.value }))}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       />
 
       <div className="flex gap-2 pt-1">
@@ -329,22 +306,31 @@ export function Tasks({
     const tone = dueTone(task);
 
     const toneBorder =
-      tone === "overdue" ? "border-red-500/30" :
-      tone === "today" ? "border-orange-500/30" :
-      tone === "soon" ? "border-yellow-500/30" :
-      "border-border";
+      tone === "overdue"
+        ? "border-red-500/30"
+        : tone === "today"
+        ? "border-orange-500/30"
+        : tone === "soon"
+        ? "border-yellow-500/30"
+        : "border-border";
 
     const toneWash =
-      tone === "overdue" ? "bg-red-500/5" :
-      tone === "today" ? "bg-orange-500/5" :
-      tone === "soon" ? "bg-yellow-500/5" :
-      "bg-card";
+      tone === "overdue"
+        ? "bg-red-500/5"
+        : tone === "today"
+        ? "bg-orange-500/5"
+        : tone === "soon"
+        ? "bg-yellow-500/5"
+        : "bg-card";
 
     const chipClass =
-      tone === "overdue" ? "bg-red-500/10 text-red-700 border-red-500/20" :
-      tone === "today" ? "bg-orange-500/10 text-orange-700 border-orange-500/20" :
-      tone === "soon" ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" :
-      "bg-muted/40 text-foreground border-border";
+      tone === "overdue"
+        ? "bg-red-500/10 text-red-700 border-red-500/20"
+        : tone === "today"
+        ? "bg-orange-500/10 text-orange-700 border-orange-500/20"
+        : tone === "soon"
+        ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20"
+        : "bg-muted/40 text-foreground border-border";
 
     return (
       <div
@@ -464,8 +450,7 @@ export function Tasks({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-5">
-      {/* Header (adds the missing "page rhythm") */}
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-5">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
         <p className="text-sm text-muted-foreground">Organise assessments, track deadlines, and tick things off.</p>
@@ -487,7 +472,6 @@ export function Tasks({
         </div>
       ) : null}
 
-      {/* Subject filter (slightly cleaner surface + spacing) */}
       <div className="rounded-2xl border border-border bg-card p-2 flex flex-wrap gap-2">
         <button
           type="button"
@@ -540,7 +524,6 @@ export function Tasks({
         </button>
       </div>
 
-      {/* Section framing (same idea as Calendar’s “Plan” wrapper) */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-xs font-medium text-muted-foreground">Taskboard</div>

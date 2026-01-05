@@ -12,7 +12,7 @@ import { Insights } from "./insights";
 import type { Subject, Task, StudySession } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
-import { Settings as SettingsIcon } from "lucide-react";
+import { User } from "lucide-react";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -236,44 +236,62 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="mx-auto max-w-6xl px-6 md:px-10 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* ✅ Polished sticky top bar: subtle blur + cleaner rhythm */}
+      <nav className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-6 md:px-10 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
+            {/* Brand */}
             <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">
-                Made by students, for students
-              </span>
+              <span className="text-sm font-semibold tracking-tight text-foreground">MyStudyPlanner</span>
+              <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
             </div>
 
-            <div className="hidden md:flex gap-1">
-              {tabs.map(([k, l]) => (
-                <button
-                  key={k}
-                  onClick={() => setActiveTab(k)}
-                  className={`px-4 py-2 rounded-lg transition ${
-                    activeTab === k ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
-                >
-                  {l}
-                </button>
-              ))}
+            {/* Tabs (desktop) */}
+            <div className="hidden md:flex items-center gap-1">
+              {tabs.map(([k, l]) => {
+                const active = activeTab === k;
+                return (
+                  <button
+                    key={k}
+                    onClick={() => setActiveTab(k)}
+                    className={[
+                      "px-3 py-1.5 rounded-lg text-sm transition",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                      active
+                        ? "bg-muted text-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    ].join(" ")}
+                    type="button"
+                  >
+                    {l}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
+          {/* Right side */}
           <div className="flex items-center gap-3">
+            {/* Settings button */}
             <button
               onClick={() => setActiveTab("settings")}
-              className={`px-4 py-2 rounded-lg transition ${
-                activeTab === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-              }`}
+              className={[
+                "px-3 py-1.5 rounded-lg text-sm transition",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                activeTab === "settings"
+                  ? "bg-muted text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              ].join(" ")}
+              type="button"
             >
               Settings
             </button>
 
-            {/* Profile pill (icon-only) + themed Clerk button */}
-            <div className="inline-flex items-center rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-muted/40 transition-colors">
+            {/* Account pill (keep your Clerk styling exactly) */}
+            <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-2.5 py-1.5 hover:bg-muted/40 transition-colors">
+              <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
+
               <UserButton
                 afterSignOutUrl="/sign-in"
                 appearance={{
@@ -293,11 +311,10 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   },
                 }}
               >
-                {/* Custom menu: only Settings */}
                 <UserButton.MenuItems>
                   <UserButton.Action
-                    label="Settings"
-                    labelIcon={<SettingsIcon className="h-4 w-4" />}
+                    label="Account"
+                    labelIcon={<User className="h-4 w-4" />}
                     onClick={() => setActiveTab("settings")}
                   />
                 </UserButton.MenuItems>
@@ -307,7 +324,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         </div>
       </nav>
 
-      <main>
+      {/* ✅ Consistent app content frame:
+          - max width handled here
+          - pages can keep their own internal spacing
+      */}
+      <main className="mx-auto max-w-7xl">
         {activeTab === "dashboard" && (
           <Dashboard
             tasks={tasks}

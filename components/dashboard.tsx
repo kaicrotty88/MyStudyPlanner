@@ -45,7 +45,8 @@ export function Dashboard({
   studySessions,
   onOpenStudyPlanner,
 }: DashboardProps) {
-  const today = new Date();
+  // Keep "today" stable so useMemo dependencies actually memoize
+  const today = useMemo(() => new Date(), []);
 
   const formattedDate = today.toLocaleDateString("en-US", {
     weekday: "long",
@@ -89,7 +90,7 @@ export function Dashboard({
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">

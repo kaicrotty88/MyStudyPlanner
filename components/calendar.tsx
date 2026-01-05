@@ -370,14 +370,13 @@ function CalendarView({
         "px-3 py-1.5 rounded-full text-sm transition",
         active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted border border-border bg-card",
       ].join(" ")}
+      type="button"
     >
       {label}
     </button>
   );
 
   // ✅ improved chip readability:
-  // - Month: 2-line title + compact meta
-  // - Week/Day: 3-line title + fuller meta
   const renderChip = ({
     title,
     subjectId,
@@ -403,17 +402,15 @@ function CalendarView({
       <div
         className="group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition"
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
-        title={title} // hover shows full title (helps a lot on month view)
+        title={title}
       >
-        {/* leave space for buttons so they NEVER squeeze the title */}
         <div className="min-w-0 flex-1 pr-9">
-          <div className="text-xs text-foreground leading-snug wrap-break-word" style={lineClampStyle(titleLines)}>
+          <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
             {isStudy ? "📚 " : ""}
             {task ? `${typeDot(task.type)} ` : ""}
             {title}
           </div>
 
-          {/* meta row: compact in Month, fuller in Week/Day */}
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             <span className="inline-flex items-center gap-1 min-w-0">
               <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
@@ -444,7 +441,6 @@ function CalendarView({
           </div>
         </div>
 
-        {/* actions (top-right, smaller, no layout chaos) */}
         {task && canEditDeleteTasks ? (
           <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
             <button
@@ -452,8 +448,9 @@ function CalendarView({
                 e.stopPropagation();
                 openEditTask(task);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit task"
+              type="button"
             >
               <Pencil className="h-3.5 w-3.5 text-foreground" />
             </button>
@@ -462,8 +459,9 @@ function CalendarView({
                 e.stopPropagation();
                 setDeletingTaskId(task.id);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete task"
+              type="button"
             >
               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
@@ -477,8 +475,9 @@ function CalendarView({
                 e.stopPropagation();
                 openEditSession(session);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit session"
+              type="button"
             >
               <Pencil className="h-3.5 w-3.5 text-foreground" />
             </button>
@@ -487,8 +486,9 @@ function CalendarView({
                 e.stopPropagation();
                 setDeletingSessionId(session.id);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete session"
+              type="button"
             >
               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
@@ -506,7 +506,12 @@ function CalendarView({
     let cells: JSX.Element[] = [];
 
     for (let i = 0; i < firstDay; i++) {
-      cells.push(<div key={`empty-${i}`} className="min-h-35 p-2 bg-muted/20 border-r border-b border-border" />);
+      cells.push(
+        <div
+          key={`empty-${i}`}
+          className="min-h-[140px] p-2 bg-muted/20 border-r border-b border-border"
+        />
+      );
     }
 
     for (let day = 1; day <= days; day++) {
@@ -533,8 +538,8 @@ function CalendarView({
             if (e.key === "Enter" || e.key === " ") handleDayClick(date);
           }}
           className={[
-            "min-h-35 text-left p-2 border-r border-b border-border hover:bg-muted/40 transition",
-            "focus:outline-none focus:ring-2 focus:ring-primary/30",
+            "min-h-[140px] text-left p-2 border-r border-b border-border hover:bg-muted/40 transition",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
             "flex flex-col cursor-pointer bg-card",
             isToday ? "bg-primary/[0.04]" : "",
             isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
@@ -580,7 +585,9 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
+            {totalCount > 3 ? (
+              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
+            ) : null}
           </div>
         </div>
       );
@@ -623,7 +630,8 @@ function CalendarView({
                 if (e.key === "Enter" || e.key === " ") handleDayClick(date);
               }}
               className={[
-                "min-h-130 p-3 text-left border-r border-border focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer transition",
+                "min-h-[520px] p-3 text-left border-r border-border cursor-pointer transition",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 isToday ? "bg-primary/[0.04]" : "bg-card hover:bg-muted/40",
               ].join(" ")}
             >
@@ -645,7 +653,9 @@ function CalendarView({
 
               <div className="mt-3 space-y-2">
                 {dayTasks.map((t) => (
-                  <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}</div>
+                  <div key={t.id}>
+                    {renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}
+                  </div>
                 ))}
                 {daySessions.map((sess) => (
                   <div key={sess.id}>
@@ -680,7 +690,9 @@ function CalendarView({
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
+            <div className="text-xs text-muted-foreground">
+              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
+            </div>
             <div className="mt-1 text-xl font-semibold text-foreground">
               {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
@@ -700,6 +712,7 @@ function CalendarView({
               <button
                 onClick={() => handleDayClick(currentDate)}
                 className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                type="button"
               >
                 <Plus className="h-4 w-4" />
                 Add item
@@ -757,14 +770,18 @@ function CalendarView({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-4">
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-4">
       {showHelperText ? (
         <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             Click a day to add study sessions, tasks, or assessments.
           </div>
-          <button onClick={() => setShowHelperText(false)} className="text-xs text-muted-foreground hover:text-foreground transition">
+          <button
+            onClick={() => setShowHelperText(false)}
+            className="text-xs text-muted-foreground hover:text-foreground transition"
+            type="button"
+          >
             Dismiss
           </button>
         </div>
@@ -776,28 +793,32 @@ function CalendarView({
             onClick={() => handleNavigate("prev")}
             className="h-9 w-9 grid place-items-center rounded-lg border border-border bg-card hover:bg-muted transition"
             aria-label="Previous"
+            type="button"
           >
             <ChevronLeft className="h-4 w-4 text-foreground" />
           </button>
 
-          <div className="min-w-55 text-left md:text-center">
+          <div className="min-w-[220px] text-left md:text-center">
             <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
-            <div className="text-xs text-muted-foreground">{viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}</div>
+            <div className="text-xs text-muted-foreground">
+              {viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}
+            </div>
           </div>
 
           <button
             onClick={() => handleNavigate("next")}
             className="h-9 w-9 grid place-items-center rounded-lg border border-border bg-card hover:bg-muted transition"
             aria-label="Next"
+            type="button"
           >
             <ChevronRight className="h-4 w-4 text-foreground" />
           </button>
 
-          {/* Jump to today (small UX + visual anchor) */}
           <button
             onClick={jumpToToday}
             className="ml-1 hidden sm:inline-flex items-center gap-2 h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-muted transition"
             aria-label="Jump to today"
+            type="button"
           >
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
             Today
@@ -813,7 +834,6 @@ function CalendarView({
         </div>
       </div>
 
-      {/* Subtle section wrapper (hierarchy/rhythm) */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-xs font-medium text-muted-foreground">Plan</div>
@@ -857,6 +877,7 @@ function CalendarView({
                 onClick={() => setShowPopover(false)}
                 className="h-8 w-8 grid place-items-center rounded-lg hover:bg-muted transition"
                 aria-label="Close"
+                type="button"
               >
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -866,6 +887,7 @@ function CalendarView({
               <button
                 onClick={() => handleAddOption("study")}
                 className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
+                type="button"
               >
                 <span className="text-sm text-foreground">📚 Add study session</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
@@ -876,6 +898,7 @@ function CalendarView({
                   key={t}
                   onClick={() => handleAddOption(t)}
                   className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
+                  type="button"
                 >
                   <span className="text-sm text-foreground">Add {typeLabel(t)}</span>
                   <Plus className="h-4 w-4 text-muted-foreground" />
@@ -903,7 +926,12 @@ function CalendarView({
                 </div>
               </div>
 
-              <button onClick={handleCancel} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition" aria-label="Close">
+              <button
+                onClick={handleCancel}
+                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
+                aria-label="Close"
+                type="button"
+              >
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
@@ -916,13 +944,13 @@ function CalendarView({
                     placeholder="Session title (e.g. Trig graphs revision)"
                     value={sessionFormData.title}
                     onChange={(e) => setSessionFormData({ ...sessionFormData, title: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   />
 
                   <select
                     value={sessionFormData.subjectId}
                     onChange={(e) => setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Select subject</option>
                     {subjects.map((subject) => (
@@ -935,7 +963,7 @@ function CalendarView({
                   <select
                     value={sessionFormData.linkedTaskId}
                     onChange={(e) => setSessionFormData({ ...sessionFormData, linkedTaskId: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Link to assessment (optional)</option>
                     {linkableAssessments.map((t) => (
@@ -954,7 +982,7 @@ function CalendarView({
                       type="date"
                       value={sessionFormData.date}
                       onChange={(e) => setSessionFormData({ ...sessionFormData, date: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     />
                   </div>
 
@@ -962,7 +990,7 @@ function CalendarView({
                     <select
                       value={sessionFormData.startTime}
                       onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     >
                       <option value="">Select start time</option>
                       {timeOptions.map((t) => (
@@ -975,7 +1003,7 @@ function CalendarView({
                     <select
                       value={sessionFormData.duration}
                       onChange={(e) => setSessionFormData({ ...sessionFormData, duration: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     >
                       <option value="">Select duration</option>
                       {DURATION_OPTIONS.map((d) => (
@@ -990,12 +1018,14 @@ function CalendarView({
                     <button
                       onClick={handleSessionSubmit}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                      type="button"
                     >
                       {editingSessionId ? "Save" : "Add"}
                     </button>
                     <button
                       onClick={handleCancel}
                       className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
+                      type="button"
                     >
                       Cancel
                     </button>
@@ -1008,13 +1038,13 @@ function CalendarView({
                     placeholder="Title"
                     value={taskFormData.title}
                     onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   />
 
                   <select
                     value={taskFormData.subjectId}
                     onChange={(e) => setTaskFormData({ ...taskFormData, subjectId: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Select subject</option>
                     {subjects.map((subject) => (
@@ -1028,19 +1058,21 @@ function CalendarView({
                     type="date"
                     value={taskFormData.dueDate}
                     onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   />
 
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={handleTaskSubmit}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                      type="button"
                     >
                       {editingTaskId ? "Save" : "Add"}
                     </button>
                     <button
                       onClick={handleCancel}
                       className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
+                      type="button"
                     >
                       Cancel
                     </button>
@@ -1065,6 +1097,7 @@ function CalendarView({
               <button
                 onClick={() => setDeletingTaskId(null)}
                 className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
+                type="button"
               >
                 Cancel
               </button>
@@ -1074,6 +1107,7 @@ function CalendarView({
                   setDeletingTaskId(null);
                 }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                type="button"
               >
                 Delete
               </button>
@@ -1095,6 +1129,7 @@ function CalendarView({
               <button
                 onClick={() => setDeletingSessionId(null)}
                 className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
+                type="button"
               >
                 Cancel
               </button>
@@ -1104,6 +1139,7 @@ function CalendarView({
                   setDeletingSessionId(null);
                 }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                type="button"
               >
                 Delete
               </button>
