@@ -49,7 +49,13 @@ const makeDefaultData = () => {
   const demoTasks: Task[] = [
     { id: "t1", title: "Read pages 120–145", subjectId: "5", dueDate: tomorrow, type: "task" },
     { id: "t2", title: "Lab Report", subjectId: "3", dueDate: in3, type: "assignment" },
-    { id: "t3", title: "Complete Chapter 5 Review", subjectId: "1", dueDate: in5, type: "assignment" },
+    {
+      id: "t3",
+      title: "Complete Chapter 5 Review",
+      subjectId: "1",
+      dueDate: in5,
+      type: "assignment",
+    },
     { id: "t4", title: "Midterm Exam", subjectId: "2", dueDate: in7, type: "exam" },
   ];
 
@@ -69,8 +75,82 @@ const makeDefaultData = () => {
   return { subjects: defaultSubjects, tasks: demoTasks, studySessions: demoStudySessions };
 };
 
+/* -------------------- Skeleton -------------------- */
+
+function AppSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <nav className="sticky top-0 z-10 border-b border-border bg-card">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
+          <div className="flex items-center gap-8">
+            <div className="flex flex-col gap-2">
+              <div className="h-4 w-32 rounded bg-muted/70" />
+              <div className="h-3 w-44 rounded bg-muted/50" />
+            </div>
+
+            <div className="hidden md:flex gap-2">
+              <div className="h-9 w-24 rounded-lg bg-muted/50" />
+              <div className="h-9 w-24 rounded-lg bg-muted/50" />
+              <div className="h-9 w-24 rounded-lg bg-muted/50" />
+              <div className="h-9 w-28 rounded-lg bg-muted/50" />
+              <div className="h-9 w-24 rounded-lg bg-muted/50" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-muted/50" />
+            <div className="h-9 w-24 rounded-lg bg-muted/50" />
+            <div className="h-9 w-28 rounded-lg bg-muted/50" />
+          </div>
+        </div>
+      </nav>
+
+      <main className="mx-auto max-w-6xl px-6 py-8 md:px-10">
+        <div className="grid gap-6 md:grid-cols-12">
+          <div className="md:col-span-8 space-y-4">
+            <div className="h-10 w-60 rounded-xl bg-muted/60" />
+            <div className="h-28 rounded-2xl border border-border bg-card">
+              <div className="p-5 space-y-3">
+                <div className="h-4 w-40 rounded bg-muted/60" />
+                <div className="h-4 w-72 rounded bg-muted/40" />
+                <div className="h-4 w-64 rounded bg-muted/40" />
+              </div>
+            </div>
+            <div className="h-28 rounded-2xl border border-border bg-card">
+              <div className="p-5 space-y-3">
+                <div className="h-4 w-44 rounded bg-muted/60" />
+                <div className="h-4 w-80 rounded bg-muted/40" />
+                <div className="h-4 w-56 rounded bg-muted/40" />
+              </div>
+            </div>
+          </div>
+
+          <div className="md:col-span-4 space-y-4">
+            <div className="h-10 w-40 rounded-xl bg-muted/60" />
+            <div className="h-40 rounded-2xl border border-border bg-card">
+              <div className="p-5 space-y-3">
+                <div className="h-4 w-32 rounded bg-muted/60" />
+                <div className="h-4 w-44 rounded bg-muted/40" />
+                <div className="h-4 w-40 rounded bg-muted/40" />
+                <div className="h-4 w-36 rounded bg-muted/40" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div className="fixed bottom-3 right-3 z-20 pointer-events-none">
+        <span className="inline-flex items-center rounded-full border border-border bg-card/70 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
+          v1.0
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
+  const [isReady, setIsReady] = useState(false);
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
@@ -101,6 +181,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
       hydrated.current = true;
+      setIsReady(true);
       return;
     }
 
@@ -109,6 +190,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks([]);
       setStudySessions([]);
       hydrated.current = true;
+      setIsReady(true);
       return;
     }
 
@@ -148,6 +230,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       }
     } finally {
       hydrated.current = true;
+      setIsReady(true);
     }
   }, [mode, storageKey]);
 
@@ -236,6 +319,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     ["insights", "Insights"],
   ];
 
+  if (!isReady) return <AppSkeleton />;
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b border-border bg-card sticky top-0 z-10">
@@ -264,7 +349,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* ✅ Theme toggle (light default) */}
             <ThemeToggle />
 
             <button
@@ -276,7 +360,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               Settings
             </button>
 
-            {/* Account pill + themed Clerk button (no manage/signout here) */}
             <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
               <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
 
@@ -379,7 +462,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
       </main>
 
-      {/* ✅ Small version badge (non-intrusive) */}
       <div className="fixed bottom-3 right-3 z-20 pointer-events-none">
         <span className="inline-flex items-center rounded-full border border-border bg-card/70 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
           v1.0
