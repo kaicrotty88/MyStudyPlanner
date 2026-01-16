@@ -22,7 +22,6 @@ export const metadata: Metadata = {
 export default async function Page() {
   const { userId } = await auth();
 
-  // Signed-in users should go straight to the app
   if (userId) {
     redirect("/app");
   }
@@ -32,13 +31,11 @@ export default async function Page() {
       {/* Top bar */}
       <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">
-                Made by students, for students
-              </span>
-            </div>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold text-foreground">MyStudyPlanner</span>
+            <span className="text-[11px] text-muted-foreground">
+              Made by students, for students
+            </span>
           </div>
 
           <nav className="flex items-center gap-2">
@@ -62,6 +59,7 @@ export default async function Page() {
       <main className="mx-auto max-w-6xl px-6 md:px-10">
         <section className="py-14 md:py-20">
           <div className="grid gap-10 md:grid-cols-12 md:items-center">
+            {/* Left */}
             <div className="md:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
                 Calm • Focused • Minimal
@@ -76,8 +74,7 @@ export default async function Page() {
                 deadlines — with a premium, distraction-free UI built for high-school students.
               </p>
 
-              {/* CTAs */}
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/demo"
                   className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-medium text-foreground hover:bg-muted transition"
@@ -93,17 +90,19 @@ export default async function Page() {
                 </Link>
               </div>
 
-              <div className="mt-6 text-xs text-muted-foreground">
+              <p className="mt-6 text-xs text-muted-foreground">
                 No clutter. No noise. Just a clean system you’ll actually stick to.
-              </div>
+              </p>
             </div>
 
-            {/* Visual placeholder / “preview” card (static, indexable) */}
+            {/* Right – app snapshot */}
             <div className="md:col-span-5">
               <div className="rounded-2xl border border-border bg-card shadow-sm">
                 <div className="border-b border-border px-5 py-4">
                   <div className="text-sm font-semibold text-foreground">Today</div>
-                  <div className="text-xs text-muted-foreground">A quick snapshot of what matters.</div>
+                  <div className="text-xs text-muted-foreground">
+                    A quick snapshot of what matters.
+                  </div>
                 </div>
 
                 <div className="space-y-3 p-5">
@@ -112,7 +111,9 @@ export default async function Page() {
                     <div className="mt-1 text-sm font-medium text-foreground">
                       Mathematics — Chapter review
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">60 min • 4:00 PM</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      60 min • 4:00 PM
+                    </div>
                   </div>
 
                   <div className="rounded-xl border border-border bg-background/40 p-4">
@@ -122,27 +123,12 @@ export default async function Page() {
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">This week</div>
                   </div>
-
-                  <div className="rounded-xl border border-border bg-background/40 p-4">
-                    <div className="text-xs text-muted-foreground">Focus</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">
-                      Build a routine you can repeat.
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Small wins → consistent grades.
-                    </div>
-                  </div>
                 </div>
-              </div>
-
-              <div className="mt-4 text-center text-xs text-muted-foreground">
-                Built with a green/white/grey palette inspired by Apple, Notion, and Linear.
               </div>
             </div>
           </div>
         </section>
 
-        {/* Minimal footer */}
         <footer className="border-t border-border py-10">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
@@ -152,10 +138,7 @@ export default async function Page() {
               <Link href="/demo" className="text-muted-foreground hover:text-foreground transition">
                 Demo
               </Link>
-              <Link
-                href="/sign-in"
-                className="text-muted-foreground hover:text-foreground transition"
-              >
+              <Link href="/sign-in" className="text-muted-foreground hover:text-foreground transition">
                 Sign in
               </Link>
             </div>
