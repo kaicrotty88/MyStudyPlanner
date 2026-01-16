@@ -170,6 +170,12 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     });
   };
 
+  const markReadyNextPaint = () => {
+    // Ensures the “real UI” reveals in one clean paint,
+    // instead of popping in piece-by-piece.
+    requestAnimationFrame(() => setIsReady(true));
+  };
+
   /* -------------------- Persistence -------------------- */
 
   useEffect(() => {
@@ -181,7 +187,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
       hydrated.current = true;
-      setIsReady(true);
+      markReadyNextPaint();
       return;
     }
 
@@ -190,7 +196,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks([]);
       setStudySessions([]);
       hydrated.current = true;
-      setIsReady(true);
+      markReadyNextPaint();
       return;
     }
 
@@ -230,7 +236,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       }
     } finally {
       hydrated.current = true;
-      setIsReady(true);
+      markReadyNextPaint();
     }
   }, [mode, storageKey]);
 
@@ -322,7 +328,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   if (!isReady) return <AppSkeleton />;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background transition-opacity duration-200 ease-out opacity-100">
       <nav className="border-b border-border bg-card sticky top-0 z-10">
         <div className="mx-auto max-w-6xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
