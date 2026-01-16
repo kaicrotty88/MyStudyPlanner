@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Plus, Calendar, Edit2, Trash2, X } from "lucide-react";
+import { Plus, Edit2, Trash2, X } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 
 /* -------------------- Time helpers -------------------- */
@@ -57,16 +57,36 @@ const inRange = (d: Date, a: Date, b: Date) => {
   return t >= startOfDay(a).getTime() && t <= startOfDay(b).getTime();
 };
 
-/* -------------------- Dropdown helpers -------------------- */
-const buildTimeOptions = (stepMinutes = 15) => {
-  const out: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += stepMinutes) {
-      const d = new Date(2000, 0, 1, h, m);
-      out.push(d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
-    }
-  }
-  return out;
+/* -------------------- Time formatting (UI) -------------------- */
+// Convert "HH:MM" (24h) -> "h:mm AM/PM"
+const time24To12 = (t: string) => {
+  if (!t) return "";
+  const [hh, mm] = t.split(":").map((x) => Number(x));
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+};
+
+// Convert "h:mm AM/PM" -> "HH:MM" (24h)
+const time12To24 = (t: string) => {
+  if (!t) return "";
+  const s = t.trim().toUpperCase();
+
+  // Matches: "4:00 PM", "4 PM", "12:15 AM"
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  if (!m) return "";
+
+  let h = Number(m[1]);
+  const mins = Number(m[2] ?? "0");
+  const ap = m[3];
+
+  if (Number.isNaN(h) || Number.isNaN(mins)) return "";
+  h = Math.max(1, Math.min(12, h));
+
+  let hh = h % 12;
+  if (ap === "PM") hh += 12;
+  return `${String(hh).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 };
 
 const DURATION_OPTIONS = [
@@ -110,13 +130,12 @@ export function StudyPlanner({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeSubject = activeTab !== "all" ? subjects.find((s) => s.id === activeTab) : null;
-  const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
   const [sessionForm, setSessionForm] = useState({
     title: "",
     subjectId: "",
     date: "",
-    startTime: "",
+    startTime: "", // stored as "h:mm AM/PM"
     duration: "60 min",
     linkedTaskId: "",
   });
@@ -131,7 +150,8 @@ export function StudyPlanner({
   }, [tasks, sessionForm.subjectId]);
 
   const visibleSessions = useMemo(() => {
-    const base = activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
+    const base =
+      activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
     const filtered = showCompleted ? base : base.filter((s) => !s.completed);
     return filtered.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [studySessions, activeTab, showCompleted]);
@@ -145,10 +165,13 @@ export function StudyPlanner({
     return {
       count: inWeek.length,
       minutes,
-      label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })}`,
+      label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+        }
+      )}`,
     };
   }, [studySessions]);
 
@@ -191,7 +214,8 @@ export function StudyPlanner({
   };
 
   const handleSubmit = () => {
-    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime) return;
+    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime)
+      return;
 
     const payload: Omit<StudySession, "id"> = {
       title: sessionForm.title.trim(),
@@ -211,6 +235,9 @@ export function StudyPlanner({
     editingId ? onUpdateStudySession(editingId, payload) : onAddStudySession(payload);
     closePanel();
   };
+
+  // UI value for <input type="time"> needs "HH:MM"
+  const startTimeUiValue = time12To24(sessionForm.startTime);
 
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
@@ -248,9 +275,7 @@ export function StudyPlanner({
           onClick={() => setActiveTab("all")}
           className={[
             "px-3 py-1.5 rounded-full text-sm transition",
-            activeTab === "all"
-              ? "bg-primary text-primary-foreground"
-              : "text-foreground hover:bg-muted",
+            activeTab === "all" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
           ].join(" ")}
         >
           All
@@ -300,7 +325,9 @@ export function StudyPlanner({
         {visibleSessions.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-sm font-medium text-foreground">No sessions yet</div>
-            <div className="mt-1 text-xs text-muted-foreground">Log your first one to start tracking progress.</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Log your first one to start tracking progress.
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -366,7 +393,9 @@ export function StudyPlanner({
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="space-y-0.5">
-                <div className="text-sm font-semibold text-foreground">{editingId ? "Edit session" : "New session"}</div>
+                <div className="text-sm font-semibold text-foreground">
+                  {editingId ? "Edit session" : "New session"}
+                </div>
                 <div className="text-xs text-muted-foreground">Add title, subject, time, and duration.</div>
               </div>
               <button
@@ -404,22 +433,22 @@ export function StudyPlanner({
                   type="date"
                   value={sessionForm.date}
                   onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
-                  className="rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
-                <select
-                  value={sessionForm.startTime}
-                  onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
-                  className="rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  <option value="">Start</option>
-                  {timeOptions.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
+
+                <input
+                  type="time"
+                  value={startTimeUiValue}
+                  onChange={(e) =>
+                    setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) })
+                  }
+                  className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+
                 <select
                   value={sessionForm.duration}
                   onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
-                  className="rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   {DURATION_OPTIONS.map((d) => (
                     <option key={d.value} value={d.value}>

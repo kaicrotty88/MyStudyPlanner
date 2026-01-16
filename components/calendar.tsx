@@ -72,16 +72,36 @@ function typeDot(t: Task["type"]) {
   return "•";
 }
 
-/* --- time options (keeps UX consistent) --- */
-const buildTimeOptions = (stepMinutes = 15) => {
-  const out: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += stepMinutes) {
-      const d = new Date(2000, 0, 1, h, m);
-      out.push(d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
-    }
-  }
-  return out;
+/* -------------------- Time formatting (UI) -------------------- */
+// Convert "HH:MM" (24h) -> "h:mm AM/PM"
+const time24To12 = (t: string) => {
+  if (!t) return "";
+  const [hh, mm] = t.split(":").map((x) => Number(x));
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+};
+
+// Convert "h:mm AM/PM" -> "HH:MM" (24h)
+const time12To24 = (t: string) => {
+  if (!t) return "";
+  const s = t.trim().toUpperCase();
+
+  // Matches: "4:00 PM", "4 PM", "12:15 AM"
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  if (!m) return "";
+
+  let h = Number(m[1]);
+  const mins = Number(m[2] ?? "0");
+  const ap = m[3];
+
+  if (Number.isNaN(h) || Number.isNaN(mins)) return "";
+  h = Math.max(1, Math.min(12, h));
+
+  let hh = h % 12;
+  if (ap === "PM") hh += 12;
+  return `${String(hh).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 };
 
 const DURATION_OPTIONS: { label: string; value: string }[] = [
@@ -123,8 +143,6 @@ function CalendarView({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showHelperText, setShowHelperText] = useState(true);
   const popoverRef = useRef<HTMLDivElement>(null);
-
-  const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
   // tasks edit/delete
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -176,7 +194,8 @@ function CalendarView({
   const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
-  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const previousMonth = () =>
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
   const previousWeek = () => {
@@ -507,10 +526,7 @@ function CalendarView({
 
     for (let i = 0; i < firstDay; i++) {
       cells.push(
-        <div
-          key={`empty-${i}`}
-          className="min-h-[140px] p-2 bg-muted/20 border-r border-b border-border"
-        />
+        <div key={`empty-${i}`} className="min-h-[140px] p-2 bg-muted/20 border-r border-b border-border" />
       );
     }
 
@@ -585,9 +601,7 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? (
-              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
-            ) : null}
+            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
           </div>
         </div>
       );
@@ -653,9 +667,7 @@ function CalendarView({
 
               <div className="mt-3 space-y-2">
                 {dayTasks.map((t) => (
-                  <div key={t.id}>
-                    {renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}
-                  </div>
+                  <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}</div>
                 ))}
                 {daySessions.map((sess) => (
                   <div key={sess.id}>
@@ -690,9 +702,7 @@ function CalendarView({
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">
-              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
-            </div>
+            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
             <div className="mt-1 text-xl font-semibold text-foreground">
               {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
@@ -768,6 +778,9 @@ function CalendarView({
     setShowPopover(false);
     setShowAddForm(null);
   };
+
+  // UI value for <input type="time"> needs "HH:MM"
+  const startTimeUiValue = time12To24(sessionFormData.startTime);
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-4">
@@ -922,7 +935,9 @@ function CalendarView({
                     : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {selectedDate ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+                  {selectedDate
+                    ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : ""}
                 </div>
               </div>
 
@@ -949,7 +964,9 @@ function CalendarView({
 
                   <select
                     value={sessionFormData.subjectId}
-                    onChange={(e) => setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })}
+                    onChange={(e) =>
+                      setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })
+                    }
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Select subject</option>
@@ -987,23 +1004,19 @@ function CalendarView({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <select
-                      value={sessionFormData.startTime}
-                      onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    >
-                      <option value="">Select start time</option>
-                      {timeOptions.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="time"
+                      value={startTimeUiValue}
+                      onChange={(e) =>
+                        setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })
+                      }
+                      className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    />
 
                     <select
                       value={sessionFormData.duration}
                       onChange={(e) => setSessionFormData({ ...sessionFormData, duration: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     >
                       <option value="">Select duration</option>
                       {DURATION_OPTIONS.map((d) => (
