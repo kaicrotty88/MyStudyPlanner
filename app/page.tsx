@@ -61,11 +61,7 @@ export default async function Page() {
           <div className="grid gap-10 md:grid-cols-12 md:items-center">
             {/* Left */}
             <div className="md:col-span-7">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-                Calm • Focused • Minimal
-              </div>
-
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+              <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
                 Study planning that feels effortless.
               </h1>
 
