@@ -1,5 +1,6 @@
 import { SignIn } from "@clerk/nextjs";
 import AuthShell from "@/components/AuthShell";
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -36,6 +37,17 @@ export default function Page() {
             },
           }}
         />
+
+        {/* Create account link */}
+        <div className="mt-6 text-center text-sm text-muted-foreground">
+          Don’t have an account?{" "}
+          <Link
+            href="/sign-up"
+            className="font-medium text-[#7A9B7F] hover:opacity-90 transition"
+          >
+            Create one
+          </Link>
+        </div>
       </div>
     </AuthShell>
   );
