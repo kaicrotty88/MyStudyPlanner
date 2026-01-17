@@ -6,11 +6,28 @@ export interface Subject {
   color: string;
 }
 
-/* -------------------- Periods -------------------- */
+/* -------------------- Periods (Terms) -------------------- */
 
+/**
+ * In-app Period model (dates as Date objects).
+ * Used for comparisons like: startDate <= task.dueDate <= endDate
+ */
 export interface Period {
   id: string;
-  name: string; // e.g. "Term 1", "Prelims", "HSC"
+  name: string; // e.g. "Term 1", "Term 2", "Prelims", "HSC"
+  startDate: Date;
+  endDate: Date;
+}
+
+/**
+ * LocalStorage-safe Period shape (dates as ISO strings).
+ * JSON can't store Date objects, so we persist as strings and parse on load.
+ */
+export interface PeriodStored {
+  id: string;
+  name: string;
+  startDate: string; // ISO string
+  endDate: string; // ISO string
 }
 
 /* -------------------- Tasks -------------------- */
@@ -31,7 +48,7 @@ export interface Task {
 
   type: "task" | "assignment" | "exam" | "homework";
 
-  // Optional grouping label (no dates/week logic)
+  // Term grouping (auto-assigned based on dueDate once Terms exist)
   periodId?: string;
 
   // Optional mark/result (used by assignment/exam in UI)

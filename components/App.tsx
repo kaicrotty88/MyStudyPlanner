@@ -40,14 +40,26 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
-const defaultPeriods: Period[] = [
-  { id: "p1", name: "Term 1" },
-  { id: "p2", name: "Term 2" },
-  { id: "p3", name: "Term 3" },
-  { id: "p4", name: "Term 4" },
-  { id: "p5", name: "Prelims" },
-  { id: "p6", name: "HSC" },
-];
+// Simple “Term 1–4” defaults (quarterly) for the current year.
+// Later you can replace with real school dates via Settings.
+function makeDefaultPeriodsForYear(year: number): Period[] {
+  const mk = (id: string, name: string, start: [number, number, number], end: [number, number, number]) => ({
+    id,
+    name,
+    startDate: new Date(year, start[0], start[1]),
+    endDate: new Date(year, end[0], end[1]),
+  });
+
+  // Months are 0-indexed: Jan=0, Apr=3, etc.
+  return [
+    mk("p1", "Term 1", [0, 1, 1], [2, 31, 1]),   // Jan 1 – Mar 31
+    mk("p2", "Term 2", [3, 1, 1], [5, 30, 1]),   // Apr 1 – Jun 30
+    mk("p3", "Term 3", [6, 1, 1], [8, 30, 1]),   // Jul 1 – Sep 30
+    mk("p4", "Term 4", [9, 1, 1], [11, 31, 1]),  // Oct 1 – Dec 31
+  ];
+}
+
+const defaultPeriods: Period[] = makeDefaultPeriodsForYear(new Date().getFullYear());
 
 const makeDefaultData = () => {
   const today = new Date();
@@ -118,7 +130,7 @@ const makeDefaultData = () => {
 
   return {
     subjects: defaultSubjects,
-    periods: defaultPeriods,
+    periods: makeDefaultPeriodsForYear(today.getFullYear()),
     tasks: demoTasks,
     studySessions: demoStudySessions,
   };
@@ -224,6 +236,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     requestAnimationFrame(() => setIsReady(true));
   };
 
+  // Auto-assign a term based on dueDate
+  const periodIdForDate = (d: Date) => {
+    const t = d.getTime();
+    const match = periods.find((p) => t >= p.startDate.getTime() && t <= p.endDate.getTime());
+    return match?.id;
+  };
+
   /* -------------------- Persistence -------------------- */
 
   useEffect(() => {
@@ -254,7 +273,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       const parsed = JSON.parse(raw as string);
 
       setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects);
-      setPeriods(Array.isArray(parsed.periods) ? parsed.periods : defaultPeriods);
+
+      // ✅ Hydrate periods (startDate/endDate back into Date objects)
+      setPeriods(
+        Array.isArray(parsed.periods)
+          ? parsed.periods.map((p: any) => ({
+              id: String(p.id),
+              name: String(p.name),
+              startDate: p?.startDate ? new Date(p.startDate) : new Date(),
+              endDate: p?.endDate ? new Date(p.endDate) : new Date(),
+            }))
+          : defaultPeriods
+      );
 
       setTasks(
         pruneAutoDeletedCompletedTasks(
@@ -304,6 +334,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
+    // Note: JSON.stringify will store Dates as ISO strings automatically.
     localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions }));
   }, [subjects, periods, tasks, studySessions, storageKey]);
 
@@ -342,24 +373,41 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setStudySessions((p) => p.filter((s) => s.subjectId !== id));
   };
 
-  const handleAddTask = (t: Omit<Task, "id">) =>
-    setTasks((p) => [...p, { ...t, id: Date.now().toString() }]);
+  const handleAddTask = (t: Omit<Task, "id">) => {
+    const inferredPeriodId = periodIdForDate(t.dueDate);
+    setTasks((p) => [
+      ...p,
+      {
+        ...t,
+        periodId: inferredPeriodId ?? t.periodId,
+        id: Date.now().toString(),
+      },
+    ]);
+  };
 
-  const handleUpdateTask = (id: string, t: Omit<Task, "id">) =>
-    setTasks((p) => p.map((x) => (x.id === id ? { ...t, id } : x)));
+  const handleUpdateTask = (id: string, t: Omit<Task, "id">) => {
+    const inferredPeriodId = periodIdForDate(t.dueDate);
+    setTasks((p) =>
+      p.map((x) =>
+        x.id === id
+          ? {
+              ...t,
+              periodId: inferredPeriodId ?? t.periodId,
+              id,
+            }
+          : x
+      )
+    );
+  };
 
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) =>
-      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
-    );
+    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
   };
 
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) =>
-      p.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
-      )
+      p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t))
     );
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
@@ -368,14 +416,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
-  const handleDeleteStudySession = (id: string) =>
-    setStudySessions((p) => p.filter((s) => s.id !== id));
+  const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
     setStudySessions((p) =>
-      p.map((s) =>
-        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
-      )
+      p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
     );
 
   /* -------------------- Render -------------------- */
@@ -519,17 +564,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
 
-        {activeTab === "insights" && (
-          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
-        )}
+        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
 
-        {activeTab === "marks" && (
-          <Marks
-            tasks={tasks}
-            subjects={subjects}
-            onUpdateTask={handleUpdateTask}
-          />
-        )}
+        {activeTab === "marks" && <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />}
 
         {activeTab === "settings" && (
           <Settings

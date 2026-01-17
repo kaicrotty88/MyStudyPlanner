@@ -1,11 +1,28 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, ChevronDown, ChevronUp, Edit2, Plus, Trash2 } from "lucide-react";
 
 import type { Subject, Task, StudySession } from "./models";
 
 const ALL_ACCENT = "#7A9B7F";
+
+// Must match Settings key
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+type PeriodStored = {
+  id: string;
+  name: string;
+  startDate: string; // ISO
+  endDate: string; // ISO
+};
+
+type PeriodHydrated = {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+};
 
 const parseDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
@@ -64,6 +81,16 @@ const dueChip = (dueDate: Date) => {
   return `${d}d`;
 };
 
+const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
+  const t = startOfDay(dueDate).getTime();
+  for (const p of periods) {
+    const a = startOfDay(p.startDate).getTime();
+    const b = startOfDay(p.endDate).getTime();
+    if (t >= a && t <= b) return p.id;
+  }
+  return undefined;
+};
+
 interface TasksProps {
   tasks: Task[];
   subjects: Subject[];
@@ -103,6 +130,29 @@ export function Tasks({
   });
 
   const [showCompleted, setShowCompleted] = useState(false);
+
+  // ✅ Load periods from localStorage (created in Settings)
+  const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+      if (!raw) {
+        setPeriods([]);
+        return;
+      }
+      const parsed = JSON.parse(raw) as PeriodStored[];
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      }));
+      hydrated.sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+      setPeriods(hydrated);
+    } catch {
+      setPeriods([]);
+    }
+  }, []);
 
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
 
@@ -146,23 +196,40 @@ export function Tasks({
   const handleSubmit = (type: "task" | "assignment" | "exam" | "homework") => {
     if (!formData.title || !formData.subjectId || !formData.dueDate) return;
 
+    const newDueDate = new Date(formData.dueDate);
+
     if (editingId) {
       const existing = tasks.find((t) => t.id === editingId);
+
+      // Stable history: keep existing periodId unless due date changed.
+      const dueChanged =
+        existing?.dueDate && startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
+
+      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+      const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
+
       onUpdateTask(editingId, {
         title: formData.title,
         subjectId: formData.subjectId,
-        dueDate: new Date(formData.dueDate),
+        dueDate: newDueDate,
         type,
         completed: existing?.completed,
         completedAt: existing?.completedAt,
+        periodId: nextPeriodId,
+        // Preserve marks (if any) when editing from Tasks
+        result: existing?.result,
       });
+
       setEditingId(null);
     } else {
+      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+
       onAddTask({
         title: formData.title,
         subjectId: formData.subjectId,
-        dueDate: new Date(formData.dueDate),
+        dueDate: newDueDate,
         type,
+        periodId: computedPeriodId,
       });
     }
 
@@ -244,6 +311,13 @@ export function Tasks({
           Cancel
         </button>
       </div>
+
+      {/* subtle hint (no new feature, just clarity) */}
+      {periods.length === 0 ? (
+        <div className="text-[11px] text-muted-foreground">
+          Tip: add your Term dates in Settings so tasks can be grouped automatically.
+        </div>
+      ) : null}
     </div>
   );
 
@@ -453,9 +527,7 @@ export function Tasks({
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
-        <p className="text-sm text-muted-foreground">
-          Organise assessments, track deadlines, and tick things off.
-        </p>
+        <p className="text-sm text-muted-foreground">Organise assessments, track deadlines, and tick things off.</p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-2 flex flex-wrap gap-2">

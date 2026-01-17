@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, JSX, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,6 +15,23 @@ import type { Subject, Task, StudySession } from "./models";
 
 type ViewMode = "day" | "week" | "month";
 type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | null;
+
+// Must match Settings + Tasks
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+type PeriodStored = {
+  id: string;
+  name: string;
+  startDate: string; // ISO
+  endDate: string; // ISO
+};
+
+type PeriodHydrated = {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+};
 
 interface CalendarProps {
   studySessions: StudySession[];
@@ -55,6 +72,18 @@ const endOfWeek = (d: Date) => {
   const e = new Date(s);
   e.setDate(s.getDate() + 6);
   return e;
+};
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
+  const t = startOfDay(dueDate).getTime();
+  for (const p of periods) {
+    const a = startOfDay(p.startDate).getTime();
+    const b = startOfDay(p.endDate).getTime();
+    if (t >= a && t <= b) return p.id;
+  }
+  return undefined;
 };
 
 function typeLabel(t: Task["type"]) {
@@ -141,6 +170,29 @@ function CalendarView({
   const [showAddForm, setShowAddForm] = useState<AddFormType>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // ✅ Load terms/periods from localStorage
+  const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+      if (!raw) {
+        setPeriods([]);
+        return;
+      }
+      const parsed = JSON.parse(raw) as PeriodStored[];
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      }));
+      hydrated.sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+      setPeriods(hydrated);
+    } catch {
+      setPeriods([]);
+    }
+  }, []);
 
   // tasks edit/delete
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -297,15 +349,43 @@ function CalendarView({
   const handleTaskSubmit = () => {
     if (!taskFormData.title || !taskFormData.subjectId || !taskFormData.dueDate) return;
 
-    const payload: Omit<Task, "id"> = {
-      title: taskFormData.title,
-      subjectId: taskFormData.subjectId,
-      dueDate: new Date(taskFormData.dueDate),
-      type: taskFormData.type,
-    };
+    const newDueDate = new Date(taskFormData.dueDate);
 
-    if (editingTaskId && onUpdateTask) onUpdateTask(editingTaskId, payload);
-    else onAddTask(payload);
+    if (editingTaskId && onUpdateTask) {
+      const existing = tasks.find((t) => t.id === editingTaskId);
+
+      // Stable history: keep existing periodId unless due date changed.
+      const dueChanged =
+        existing?.dueDate && startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
+
+      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+      const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
+
+      const payload: Omit<Task, "id"> = {
+        title: taskFormData.title,
+        subjectId: taskFormData.subjectId,
+        dueDate: newDueDate,
+        type: taskFormData.type,
+        completed: existing?.completed,
+        completedAt: existing?.completedAt,
+        periodId: nextPeriodId,
+        result: existing?.result,
+      };
+
+      onUpdateTask(editingTaskId, payload);
+    } else {
+      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+
+      const payload: Omit<Task, "id"> = {
+        title: taskFormData.title,
+        subjectId: taskFormData.subjectId,
+        dueDate: newDueDate,
+        type: taskFormData.type,
+        periodId: computedPeriodId,
+      };
+
+      onAddTask(payload);
+    }
 
     setEditingTaskId(null);
     setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
@@ -789,9 +869,7 @@ function CalendarView({
       {/* Page header (consistent with other tabs) */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
-        <p className="text-sm text-muted-foreground">
-          Click a day to add a task or study session.
-        </p>
+        <p className="text-sm text-muted-foreground">Click a day to add a task or study session.</p>
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
