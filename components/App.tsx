@@ -81,7 +81,7 @@ function AppSkeleton() {
   return (
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-10 border-b border-border bg-card">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:px-10">
           <div className="flex items-center gap-8">
             <div className="flex flex-col gap-2">
               <div className="h-4 w-32 rounded bg-muted/70" />
@@ -105,7 +105,7 @@ function AppSkeleton() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-6xl px-6 py-8 md:px-10">
+      <main className="mx-auto max-w-7xl px-6 py-8 md:px-10">
         <div className="grid gap-6 md:grid-cols-12">
           <div className="md:col-span-8 space-y-4">
             <div className="h-10 w-60 rounded-xl bg-muted/60" />
@@ -329,8 +329,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   return (
     <div className="min-h-screen bg-background transition-opacity duration-200 ease-out opacity-100">
-      <nav className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="mx-auto max-w-6xl px-6 md:px-10 h-16 flex items-center justify-between">
+      <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex flex-col leading-tight">
               <span className="font-semibold text-foreground">MyStudyPlanner</span>
@@ -344,9 +344,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                 <button
                   key={k}
                   onClick={() => setActiveTab(k)}
-                  className={`px-4 py-2 rounded-lg transition ${
-                    activeTab === k ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
+                  className={[
+                    "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                    activeTab === k
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-foreground/90 hover:bg-muted",
+                  ].join(" ")}
                 >
                   {l}
                 </button>
@@ -359,14 +363,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
             <button
               onClick={() => setActiveTab("settings")}
-              className={`px-4 py-2 rounded-lg transition ${
-                activeTab === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-              }`}
+              className={[
+                "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                activeTab === "settings"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-foreground/90 hover:bg-muted",
+              ].join(" ")}
             >
               Settings
             </button>
 
-            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
               <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
 
               <UserButton
