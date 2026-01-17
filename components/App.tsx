@@ -9,8 +9,9 @@ import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
 import { Insights } from "./insights";
 import { ThemeToggle } from "./ThemeToggle";
+import { Marks } from "./marks";
 
-import type { Subject, Task, StudySession } from "./models";
+import type { Subject, Task, StudySession, Mark } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
 import { User } from "lucide-react";
@@ -19,7 +20,14 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-type Tab = "dashboard" | "calendar" | "tasks" | "study" | "insights" | "settings";
+type Tab =
+  | "dashboard"
+  | "calendar"
+  | "tasks"
+  | "study"
+  | "insights"
+  | "marks"
+  | "settings";
 type AppMode = "demo" | "app";
 
 /* -------------------- Defaults / Demo -------------------- */
@@ -72,7 +80,31 @@ const makeDefaultData = () => {
     },
   ];
 
-  return { subjects: defaultSubjects, tasks: demoTasks, studySessions: demoStudySessions };
+  const demoMarks: Mark[] = [
+    {
+      id: "m1",
+      subjectId: "1",
+      title: "Topic test: Trig",
+      score: 18,
+      outOf: 20,
+      date: today,
+    },
+    {
+      id: "m2",
+      subjectId: "4",
+      title: "Essay: Persuasive writing",
+      score: 23,
+      outOf: 30,
+      date: in3,
+    },
+  ];
+
+  return {
+    subjects: defaultSubjects,
+    tasks: demoTasks,
+    studySessions: demoStudySessions,
+    marks: demoMarks,
+  };
 };
 
 /* -------------------- Skeleton -------------------- */
@@ -157,6 +189,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [marks, setMarks] = useState<Mark[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
@@ -186,6 +219,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setSubjects(seeded.subjects);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
+      setMarks(seeded.marks);
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -195,6 +229,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setSubjects(defaultSubjects);
       setTasks([]);
       setStudySessions([]);
+      setMarks([]);
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -223,16 +258,28 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
         }))
       );
+
+      setMarks(
+        (parsed.marks ?? []).map((m: any) => ({
+          ...m,
+          title: m?.title?.trim() || "Assessment",
+          score: typeof m?.score === "number" ? m.score : Number(m?.score ?? 0),
+          outOf: typeof m?.outOf === "number" ? m.outOf : Number(m?.outOf ?? 100),
+          date: m?.date ? new Date(m.date) : new Date(),
+        }))
+      );
     } catch {
       if (mode === "demo") {
         const seeded = makeDefaultData();
         setSubjects(seeded.subjects);
         setTasks(seeded.tasks);
         setStudySessions(seeded.studySessions);
+        setMarks(seeded.marks);
       } else {
         setSubjects(defaultSubjects);
         setTasks([]);
         setStudySessions([]);
+        setMarks([]);
       }
     } finally {
       hydrated.current = true;
@@ -243,8 +290,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    localStorage.setItem(storageKey, JSON.stringify({ subjects, tasks, studySessions }));
-  }, [subjects, tasks, studySessions, storageKey]);
+    localStorage.setItem(storageKey, JSON.stringify({ subjects, tasks, studySessions, marks }));
+  }, [subjects, tasks, studySessions, marks, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
 
@@ -256,10 +303,12 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setSubjects(seeded.subjects);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
+      setMarks(seeded.marks);
     } else {
       setSubjects(defaultSubjects);
       setTasks([]);
       setStudySessions([]);
+      setMarks([]);
     }
 
     setActiveTab("dashboard");
@@ -277,6 +326,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setSubjects((p) => p.filter((s) => s.id !== id));
     setTasks((p) => p.filter((t) => t.subjectId !== id));
     setStudySessions((p) => p.filter((s) => s.subjectId !== id));
+    setMarks((p) => p.filter((m) => m.subjectId !== id));
   };
 
   const handleAddTask = (t: Omit<Task, "id">) =>
@@ -315,6 +365,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       )
     );
 
+  const handleAddMark = (m: Omit<Mark, "id">) =>
+    setMarks((p) => [...p, { ...m, id: Date.now().toString() }]);
+
+  const handleUpdateMark = (id: string, m: Omit<Mark, "id">) =>
+    setMarks((p) => p.map((x) => (x.id === id ? { ...m, id } : x)));
+
+  const handleDeleteMark = (id: string) => setMarks((p) => p.filter((m) => m.id !== id));
+
   /* -------------------- Render -------------------- */
 
   const tabs: Array<[Tab, string]> = [
@@ -323,6 +381,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     ["tasks", "Tasks"],
     ["study", "Study Planner"],
     ["insights", "Insights"],
+    ["marks", "Marks"],
   ];
 
   if (!isReady) return <AppSkeleton />;
@@ -334,9 +393,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-8">
             <div className="flex flex-col leading-tight">
               <span className="font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">
-                Made by students, for students
-              </span>
+              <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
             </div>
 
             <div className="hidden md:flex gap-1">
@@ -459,6 +516,16 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
         {activeTab === "insights" && (
           <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
+        )}
+
+        {activeTab === "marks" && (
+          <Marks
+            marks={marks}
+            subjects={subjects}
+            onAddMark={handleAddMark}
+            onUpdateMark={handleUpdateMark}
+            onDeleteMark={handleDeleteMark}
+          />
         )}
 
         {activeTab === "settings" && (
