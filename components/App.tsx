@@ -20,7 +20,6 @@ import { User } from "lucide-react";
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
-const AUTO_DELETE_COMPLETED_REMINDERS_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 type Tab =
   | "dashboard"
@@ -67,7 +66,9 @@ function makeDefaultPeriodsForYear(year: number): Period[] {
   ];
 }
 
-const defaultPeriods: Period[] = makeDefaultPeriodsForYear(new Date().getFullYear());
+const defaultPeriods: Period[] = makeDefaultPeriodsForYear(
+  new Date().getFullYear()
+);
 
 const makeDefaultData = () => {
   const today = new Date();
@@ -272,15 +273,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     });
   };
 
-  const pruneAutoDeletedCompletedReminders = (input: Reminder[]) => {
-    const now = Date.now();
-    return input.filter((r) => {
-      if (!r.completed) return true;
-      if (!r.completedAt) return true; // if no timestamp, keep it (safer)
-      return now - r.completedAt.getTime() < AUTO_DELETE_COMPLETED_REMINDERS_AFTER_MS;
-    });
-  };
-
   const markReadyNextPaint = () => {
     requestAnimationFrame(() => setIsReady(true));
   };
@@ -288,7 +280,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   // Auto-assign a term based on dueDate
   const periodIdForDate = (d: Date) => {
     const t = d.getTime();
-    const match = periods.find((p) => t >= p.startDate.getTime() && t <= p.endDate.getTime());
+    const match = periods.find(
+      (p) => t >= p.startDate.getTime() && t <= p.endDate.getTime()
+    );
     return match?.id;
   };
 
@@ -323,7 +317,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     try {
       const parsed = JSON.parse(raw as string);
 
-      setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects);
+      setSubjects(
+        Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects
+      );
 
       // ✅ Hydrate periods (startDate/endDate back into Date objects)
       setPeriods(
@@ -346,9 +342,17 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             result: t?.result
               ? {
                   ...t.result,
-                  score: typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
-                  outOf: typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
-                  dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
+                  score:
+                    typeof t?.result?.score === "number"
+                      ? t.result.score
+                      : Number(t?.result?.score ?? 0),
+                  outOf:
+                    typeof t?.result?.outOf === "number"
+                      ? t.result.outOf
+                      : Number(t?.result?.outOf ?? 100),
+                  dateRecorded: t?.result?.dateRecorded
+                    ? new Date(t.result.dateRecorded)
+                    : new Date(),
                 }
               : undefined,
           }))
@@ -364,16 +368,16 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         }))
       );
 
-      const hydratedReminders: Reminder[] = (parsed.reminders ?? []).map((r: any) => ({
-        ...r,
-        title: String(r?.title ?? "").trim(),
-        notes: r?.notes ? String(r.notes) : undefined,
-        dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
-        completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
-        createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
-      }));
-
-      setReminders(pruneAutoDeletedCompletedReminders(hydratedReminders));
+      setReminders(
+        (parsed.reminders ?? []).map((r: any) => ({
+          ...r,
+          title: String(r?.title ?? "").trim(),
+          notes: r?.notes ? String(r.notes) : undefined,
+          dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
+          completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
+          createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
+        }))
+      );
     } catch {
       if (mode === "demo") {
         const seeded = makeDefaultData();
@@ -399,7 +403,10 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (!hydrated.current) return;
 
     // Note: JSON.stringify will store Dates as ISO strings automatically.
-    localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ subjects, periods, tasks, studySessions, reminders })
+    );
   }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
@@ -468,12 +475,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
+    setStudySessions((p) =>
+      p.map((s) =>
+        s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s
+      )
+    );
   };
 
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) =>
-      p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t))
+      p.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
+      )
     );
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
@@ -482,11 +495,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
-  const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
+  const handleDeleteStudySession = (id: string) =>
+    setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
     setStudySessions((p) =>
-      p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
+      p.map((s) =>
+        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
+      )
     );
 
   // ✅ Reminders
@@ -504,7 +520,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
     setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
 
-  const handleDeleteReminder = (id: string) => setReminders((p) => p.filter((r) => r.id !== id));
+  const handleDeleteReminder = (id: string) =>
+    setReminders((p) => p.filter((r) => r.id !== id));
 
   const handleToggleReminderCompleted = (id: string) =>
     setReminders((p) =>
@@ -536,13 +553,19 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   return (
     <div className="min-h-screen bg-background transition-opacity duration-200 ease-out opacity-100">
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        {/* Top bar */}
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
+          <div className="flex items-center gap-8 min-w-0">
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="font-semibold text-foreground truncate">
+                MyStudyPlanner
+              </span>
+              <span className="text-[11px] text-muted-foreground truncate">
+                Made by students, for students
+              </span>
             </div>
 
+            {/* Desktop tabs */}
             <div className="hidden md:flex gap-1">
               {tabs.map(([k, l]) => (
                 <button
@@ -562,7 +585,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
 
             <button
@@ -579,7 +602,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             </button>
 
             <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
-              <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
+              <span className="hidden sm:inline text-sm text-muted-foreground">
+                Account
+              </span>
 
               <UserButton
                 afterSignOutUrl="/sign-in"
@@ -608,6 +633,29 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   />
                 </UserButton.MenuItems>
               </UserButton>
+            </div>
+          </div>
+        </div>
+
+        {/* ✅ Mobile tabs row (iOS fix) */}
+        <div className="md:hidden border-t border-border">
+          <div className="mx-auto max-w-7xl px-3 py-2">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              {tabs.map(([k, l]) => (
+                <button
+                  key={k}
+                  onClick={() => setActiveTab(k)}
+                  className={[
+                    "shrink-0 h-9 px-3 rounded-xl text-sm font-medium transition-colors",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                    activeTab === k
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-foreground/90 hover:bg-muted border border-border bg-card",
+                  ].join(" ")}
+                >
+                  {l}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -661,9 +709,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
 
-        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
+        {activeTab === "insights" && (
+          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
+        )}
 
-        {activeTab === "marks" && <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />}
+        {activeTab === "marks" && (
+          <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
+        )}
 
         {activeTab === "reminders" && (
           <Reminders
