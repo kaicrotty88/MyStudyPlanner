@@ -308,7 +308,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                         {termLabel ? (
                           <>
                             <span className="opacity-40">•</span>
-                            <span className="truncate">Term: {termLabel}</span>
+                            <span className="truncate">{termLabel}</span>
                           </>
                         ) : null}
                       </div>
