@@ -678,11 +678,6 @@ export function Settings({
                   </div>
                 )}
               </div>
-
-              <div className="text-[11px] text-muted-foreground">
-                These terms are saved on this device (local storage). Later we’ll use them to auto-assign tasks and
-                group Marks.
-              </div>
             </div>
           )}
         </div>
