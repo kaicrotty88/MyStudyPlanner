@@ -9,7 +9,6 @@ import {
   Pencil,
   Trash2,
   Plus,
-  Sparkles,
 } from "lucide-react";
 
 import type { Subject, Task, StudySession } from "./models";
@@ -141,7 +140,6 @@ function CalendarView({
   const [showPopover, setShowPopover] = useState(false);
   const [showAddForm, setShowAddForm] = useState<AddFormType>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showHelperText, setShowHelperText] = useState(true);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // tasks edit/delete
@@ -518,8 +516,8 @@ function CalendarView({
   };
 
   const renderMonthView = () => {
-    const days = daysInMonth(currentDate);
-    const firstDay = firstDayOfMonth(currentDate);
+    const days = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
     const weeks: JSX.Element[] = [];
     let cells: JSX.Element[] = [];
@@ -601,7 +599,9 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
+            {totalCount > 3 ? (
+              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
+            ) : null}
           </div>
         </div>
       );
@@ -702,7 +702,9 @@ function CalendarView({
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
+            <div className="text-xs text-muted-foreground">
+              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
+            </div>
             <div className="mt-1 text-xl font-semibold text-foreground">
               {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
@@ -783,22 +785,14 @@ function CalendarView({
   const startTimeUiValue = time12To24(sessionFormData.startTime);
 
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-4">
-      {showHelperText ? (
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
-            Click a day to add study sessions, tasks, or assessments.
-          </div>
-          <button
-            onClick={() => setShowHelperText(false)}
-            className="text-xs text-muted-foreground hover:text-foreground transition"
-            type="button"
-          >
-            Dismiss
-          </button>
-        </div>
-      ) : null}
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
+      {/* Page header (consistent with other tabs) */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
+        <p className="text-sm text-muted-foreground">
+          Click a day to add a task or study session.
+        </p>
+      </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">

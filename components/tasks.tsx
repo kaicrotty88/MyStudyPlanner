@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Calendar, ChevronDown, ChevronUp, Edit2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, Edit2, Plus, Trash2 } from "lucide-react";
 
 import type { Subject, Task, StudySession } from "./models";
 
@@ -95,7 +95,6 @@ export function Tasks({
   const [showAddForm, setShowAddForm] = useState<"task" | "assignment" | "exam" | "homework" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showHelperText, setShowHelperText] = useState(true);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -120,7 +119,8 @@ export function Tasks({
     });
   };
 
-  const filteredTasksBase = selectedSubject === "all" ? tasks : tasks.filter((task) => task.subjectId === selectedSubject);
+  const filteredTasksBase =
+    selectedSubject === "all" ? tasks : tasks.filter((task) => task.subjectId === selectedSubject);
   const filteredTasks = showCompleted ? filteredTasksBase : filteredTasksBase.filter((t) => !t.completed);
 
   const tasksByType = useMemo(
@@ -450,27 +450,13 @@ export function Tasks({
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-5">
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
-        <p className="text-sm text-muted-foreground">Organise assessments, track deadlines, and tick things off.</p>
+        <p className="text-sm text-muted-foreground">
+          Organise assessments, track deadlines, and tick things off.
+        </p>
       </div>
-
-      {showHelperText ? (
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4" />
-            Add and manage tasks, assignments, and exams.
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowHelperText(false)}
-            className="text-xs text-muted-foreground hover:text-foreground transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 rounded-lg px-2 py-1"
-          >
-            Dismiss
-          </button>
-        </div>
-      ) : null}
 
       <div className="rounded-2xl border border-border bg-card p-2 flex flex-wrap gap-2">
         <button
