@@ -1,9 +1,26 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Calendar } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { isSameDay } from "./models";
+
+// Must match Settings + Tasks + Marks
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+type PeriodStored = {
+  id: string;
+  name: string;
+  startDate: string; // ISO
+  endDate: string; // ISO
+};
+
+type PeriodHydrated = {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+};
 
 /* -------------------- Helpers -------------------- */
 
@@ -27,6 +44,31 @@ function typeLabel(t: Task["type"]) {
   if (t === "homework") return "Homework";
   return "Task";
 }
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+// Monday-start week (better for school week numbers)
+const startOfWeekMonday = (d: Date) => {
+  const x = startOfDay(d);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diff = (day + 6) % 7; // Mon=0, Tue=1, ... Sun=6
+  x.setDate(x.getDate() - diff);
+  return x;
+};
+
+const inRangeInclusive = (t: Date, a: Date, b: Date) => {
+  const tt = startOfDay(t).getTime();
+  const aa = startOfDay(a).getTime();
+  const bb = startOfDay(b).getTime();
+  return tt >= aa && tt <= bb;
+};
+
+const weekOfTerm = (today: Date, termStart: Date) => {
+  const wsToday = startOfWeekMonday(today).getTime();
+  const wsStart = startOfWeekMonday(termStart).getTime();
+  const diffWeeks = Math.floor((wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000));
+  return diffWeeks + 1; // Week 1 at start week
+};
 
 /* -------------------- Props -------------------- */
 
@@ -54,6 +96,45 @@ export function Dashboard({
     day: "numeric",
     year: "numeric",
   });
+
+  // ✅ Load Terms from localStorage (Terms 1–4)
+  const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+      if (!raw) {
+        setPeriods([]);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as PeriodStored[];
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      }));
+
+      const onlyTerms1to4 = hydrated
+        .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
+        .sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+
+      setPeriods(onlyTerms1to4);
+    } catch {
+      setPeriods([]);
+    }
+  }, []);
+
+  const termWeekLabel = useMemo(() => {
+    if (periods.length === 0) return null;
+
+    const active = periods.find((p) => inRangeInclusive(today, p.startDate, p.endDate));
+    if (!active) return null;
+
+    const wk = weekOfTerm(today, active.startDate);
+    return `${active.name} · Week ${wk}`;
+  }, [periods, today]);
 
   const subjectById = useMemo(() => {
     const map = new Map<string, Subject>();
@@ -97,9 +178,18 @@ export function Dashboard({
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             {formattedDate}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Keep it simple. Do the next right thing.
-          </p>
+
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">
+              Keep it simple. Do the next right thing.
+            </p>
+
+            {termWeekLabel ? (
+              <div className="text-xs text-muted-foreground">
+                {termWeekLabel}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {/* Status chips */}
@@ -122,9 +212,7 @@ export function Dashboard({
       {/* Subtle section wrapper (hierarchy/rhythm) */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">
-            Today
-          </div>
+          <div className="text-xs font-medium text-muted-foreground">Today</div>
         </div>
 
         {/* Main grid */}
