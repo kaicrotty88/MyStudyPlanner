@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, X, Bell, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Bell, CheckCircle2, Circle, ChevronDown, ChevronRight } from "lucide-react";
 import type { Reminder } from "./models";
 
 type Repeat = "none" | "daily" | "weekly";
@@ -38,10 +38,6 @@ function dueLabel(d: number) {
   return `In ${d}d`;
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
 function safeTimeLabel(t?: string) {
   if (!t) return "";
   // "HH:MM" -> "h:mm AM/PM"
@@ -66,6 +62,8 @@ export function Reminders({
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const [form, setForm] = useState<{
     title: string;
@@ -100,19 +98,14 @@ export function Reminders({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [showModal, deletingId]);
 
-  const sorted = useMemo(() => {
-    const copy = [...reminders];
+  const active = useMemo(() => {
+    const list = reminders.filter((r) => !r.completed);
 
     // order:
-    // 1) incomplete before complete
-    // 2) dated before undated
-    // 3) soonest date first
-    // 4) title
-    copy.sort((a, b) => {
-      const ac = a.completed ? 1 : 0;
-      const bc = b.completed ? 1 : 0;
-      if (ac !== bc) return ac - bc;
-
+    // 1) dated before undated
+    // 2) soonest date first
+    // 3) title
+    list.sort((a, b) => {
       const ad = a.dueDate ? 0 : 1;
       const bd = b.dueDate ? 0 : 1;
       if (ad !== bd) return ad - bd;
@@ -124,7 +117,20 @@ export function Reminders({
       return (a.title || "").localeCompare(b.title || "");
     });
 
-    return copy;
+    return list;
+  }, [reminders]);
+
+  const completed = useMemo(() => {
+    const list = reminders.filter((r) => r.completed);
+
+    // most recently completed first (fallback to createdAt)
+    list.sort((a, b) => {
+      const at = a.completedAt ? a.completedAt.getTime() : a.createdAt ? a.createdAt.getTime() : 0;
+      const bt = b.completedAt ? b.completedAt.getTime() : b.createdAt ? b.createdAt.getTime() : 0;
+      return bt - at;
+    });
+
+    return list;
   }, [reminders]);
 
   const dueSoonCount = useMemo(() => {
@@ -180,30 +186,31 @@ export function Reminders({
     const title = form.title.trim();
     if (!title) return;
 
+    const existing = editingId ? reminders.find((x) => x.id === editingId) : undefined;
+
     const payload: Omit<Reminder, "id"> = {
       title,
       notes: form.notes.trim() ? form.notes.trim() : undefined,
       dueDate: form.hasDate ? new Date(form.dueDate) : undefined,
       time: form.time.trim() ? form.time.trim() : undefined,
       repeat: form.repeat,
-      completed: editingId ? reminders.find((x) => x.id === editingId)?.completed ?? false : false,
-      completedAt: editingId ? reminders.find((x) => x.id === editingId)?.completedAt : undefined,
-      createdAt: editingId ? reminders.find((x) => x.id === editingId)?.createdAt : new Date(),
+      completed: existing?.completed ?? false,
+      completedAt: existing?.completedAt,
+      createdAt: existing?.createdAt ?? new Date(),
     };
 
     if (editingId) onUpdateReminder(editingId, payload);
     else onAddReminder(payload);
 
     closeModal();
-    setForm((p) => ({
-      ...p,
+    setForm({
       title: "",
       notes: "",
       dueDate: toLocalDateInputValue(today),
       hasDate: true,
       time: "",
       repeat: "none",
-    }));
+    });
   };
 
   const deleting = useMemo(() => reminders.find((r) => r.id === deletingId) || null, [reminders, deletingId]);
@@ -212,6 +219,10 @@ export function Reminders({
     if (!deletingId) return;
     onDeleteReminder(deletingId);
     setDeletingId(null);
+  };
+
+  const clearCompleted = () => {
+    completed.forEach((r) => onDeleteReminder(r.id));
   };
 
   const RepeatPill = ({ value, label }: { value: Repeat; label: string }) => (
@@ -229,6 +240,111 @@ export function Reminders({
     </button>
   );
 
+  const Row = ({ r }: { r: Reminder }) => {
+    const hasDate = Boolean(r.dueDate);
+    const d = hasDate && r.dueDate ? daysUntil(r.dueDate, today) : null;
+    const isLate = typeof d === "number" ? d < 0 : false;
+
+    const dateLabel = hasDate && r.dueDate
+      ? r.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "No date";
+
+    const rightLabel = hasDate && typeof d === "number" ? dueLabel(d) : "";
+
+    return (
+      <div
+        key={r.id}
+        className={[
+          "group px-4 py-3 hover:bg-muted/10 transition flex items-start justify-between gap-3",
+          r.completed ? "opacity-70" : "",
+        ].join(" ")}
+      >
+        <button
+          type="button"
+          onClick={() => onToggleCompleted(r.id)}
+          className="mt-0.5 h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          aria-label={r.completed ? "Mark as not done" : "Mark as done"}
+          title={r.completed ? "Mark as not done" : "Mark as done"}
+        >
+          {r.completed ? (
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+          ) : (
+            <Circle className="h-5 w-5 text-muted-foreground" />
+          )}
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-foreground">{r.title}</div>
+
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Bell className="h-3 w-3" />
+                  {dateLabel}
+                </span>
+
+                {r.time ? (
+                  <>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span>{safeTimeLabel(r.time)}</span>
+                  </>
+                ) : null}
+
+                {r.repeat && r.repeat !== "none" ? (
+                  <>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="capitalize">{r.repeat}</span>
+                  </>
+                ) : null}
+
+                {r.notes ? (
+                  <>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="truncate">{r.notes}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="shrink-0 text-right">
+              {rightLabel ? (
+                <div className={["text-xs font-semibold", isLate ? "text-destructive" : "text-foreground"].join(" ")}>
+                  {rightLabel}
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground"> </div>
+              )}
+
+              <div className="mt-1 text-xs text-muted-foreground">
+                {hasDate && r.dueDate && isSameDay(r.dueDate, today) ? "Today" : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+          <button
+            type="button"
+            onClick={() => openEdit(r)}
+            className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            aria-label="Edit"
+          >
+            <Pencil className="h-4 w-4 text-foreground" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeletingId(r.id)}
+            className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            aria-label="Delete"
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
@@ -240,12 +356,10 @@ export function Reminders({
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-            Due soon{" "}
-            <span className="ml-1 text-foreground font-medium">{dueSoonCount}</span>
+            Due soon <span className="ml-1 text-foreground font-medium">{dueSoonCount}</span>
           </div>
           <div className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-            Overdue{" "}
-            <span className="ml-1 text-foreground font-medium">{overdueCount}</span>
+            Overdue <span className="ml-1 text-foreground font-medium">{overdueCount}</span>
           </div>
 
           <button
@@ -262,17 +376,19 @@ export function Reminders({
       {/* List shell */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">All reminders</div>
+          <div className="text-xs font-medium text-muted-foreground">Reminders</div>
         </div>
 
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-          {sorted.length === 0 ? (
+          {active.length === 0 && completed.length === 0 ? (
             <div className="p-10 text-center">
               <div className="mx-auto h-12 w-12 rounded-2xl border border-border bg-muted/30 grid place-items-center">
                 <Bell className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">Nothing here yet</div>
-              <div className="mt-1 text-xs text-muted-foreground">Add a reminder for anything you don’t want to forget.</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Add a reminder for anything you don’t want to forget.
+              </div>
               <button
                 type="button"
                 onClick={openNew}
@@ -283,117 +399,68 @@ export function Reminders({
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {sorted.map((r) => {
-                const hasDate = Boolean(r.dueDate);
-                const d = hasDate && r.dueDate ? daysUntil(r.dueDate, today) : null;
-                const isLate = typeof d === "number" ? d < 0 : false;
+            <>
+              {/* Active */}
+              {active.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {active.map((r) => (
+                    <Row key={r.id} r={r} />
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center border-b border-border">
+                  <div className="text-sm font-medium text-foreground">All caught up</div>
+                  <div className="mt-1 text-xs text-muted-foreground">No active reminders right now.</div>
+                </div>
+              )}
 
-                const dateLabel = hasDate && r.dueDate
-                  ? r.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : "No date";
+              {/* Completed (collapsed) */}
+              <div className="border-t border-border bg-muted/10">
+                <button
+                  type="button"
+                  onClick={() => setShowCompleted((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/20 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  <div className="flex items-center gap-2">
+                    {showCompleted ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="text-foreground font-medium">Completed</span>
+                    <span className="text-xs text-muted-foreground">({completed.length})</span>
+                  </div>
 
-                const rightLabel = hasDate && typeof d === "number" ? dueLabel(d) : "";
-
-                return (
-                  <div
-                    key={r.id}
-                    className={[
-                      "group px-4 py-3 hover:bg-muted/10 transition flex items-start justify-between gap-3",
-                      r.completed ? "opacity-70" : "",
-                    ].join(" ")}
-                  >
+                  {completed.length > 0 ? (
                     <button
                       type="button"
-                      onClick={() => onToggleCompleted(r.id)}
-                      className="mt-0.5 h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                      aria-label={r.completed ? "Mark as not done" : "Mark as done"}
-                      title={r.completed ? "Mark as not done" : "Mark as done"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearCompleted();
+                      }}
+                      className="inline-flex items-center rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted transition"
+                      title="Delete all completed reminders"
                     >
-                      {r.completed ? (
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground" />
-                      )}
+                      Clear completed
                     </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground"> </span>
+                  )}
+                </button>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-foreground">{r.title}</div>
-
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1">
-                              <Bell className="h-3 w-3" />
-                              {dateLabel}
-                            </span>
-
-                            {r.time ? (
-                              <>
-                                <span className="text-muted-foreground/60">•</span>
-                                <span>{safeTimeLabel(r.time)}</span>
-                              </>
-                            ) : null}
-
-                            {r.repeat && r.repeat !== "none" ? (
-                              <>
-                                <span className="text-muted-foreground/60">•</span>
-                                <span className="capitalize">{r.repeat}</span>
-                              </>
-                            ) : null}
-
-                            {r.notes ? (
-                              <>
-                                <span className="text-muted-foreground/60">•</span>
-                                <span className="truncate">{r.notes}</span>
-                              </>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-right">
-                          {rightLabel ? (
-                            <div
-                              className={[
-                                "text-xs font-semibold",
-                                isLate ? "text-destructive" : "text-foreground",
-                              ].join(" ")}
-                            >
-                              {rightLabel}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-muted-foreground"> </div>
-                          )}
-
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {hasDate && r.dueDate && isSameDay(r.dueDate, today) ? "Today" : ""}
-                          </div>
-                        </div>
-                      </div>
+                {showCompleted ? (
+                  completed.length === 0 ? (
+                    <div className="px-4 pb-4 text-xs text-muted-foreground">Nothing completed yet.</div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {completed.map((r) => (
+                        <Row key={r.id} r={r} />
+                      ))}
                     </div>
-
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(r)}
-                        className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                        aria-label="Edit"
-                      >
-                        <Pencil className="h-4 w-4 text-foreground" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeletingId(r.id)}
-                        className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  )
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       </div>

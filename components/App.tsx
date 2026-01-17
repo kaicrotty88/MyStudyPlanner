@@ -20,6 +20,7 @@ import { User } from "lucide-react";
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
+const AUTO_DELETE_COMPLETED_REMINDERS_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 type Tab =
   | "dashboard"
@@ -271,6 +272,15 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     });
   };
 
+  const pruneAutoDeletedCompletedReminders = (input: Reminder[]) => {
+    const now = Date.now();
+    return input.filter((r) => {
+      if (!r.completed) return true;
+      if (!r.completedAt) return true; // if no timestamp, keep it (safer)
+      return now - r.completedAt.getTime() < AUTO_DELETE_COMPLETED_REMINDERS_AFTER_MS;
+    });
+  };
+
   const markReadyNextPaint = () => {
     requestAnimationFrame(() => setIsReady(true));
   };
@@ -354,16 +364,16 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         }))
       );
 
-      setReminders(
-        (parsed.reminders ?? []).map((r: any) => ({
-          ...r,
-          title: String(r?.title ?? "").trim(),
-          notes: r?.notes ? String(r.notes) : undefined,
-          dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
-          completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
-          createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
-        }))
-      );
+      const hydratedReminders: Reminder[] = (parsed.reminders ?? []).map((r: any) => ({
+        ...r,
+        title: String(r?.title ?? "").trim(),
+        notes: r?.notes ? String(r.notes) : undefined,
+        dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
+        completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
+        createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
+      }));
+
+      setReminders(pruneAutoDeletedCompletedReminders(hydratedReminders));
     } catch {
       if (mode === "demo") {
         const seeded = makeDefaultData();
