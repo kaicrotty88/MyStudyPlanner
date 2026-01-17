@@ -11,7 +11,7 @@ import { Insights } from "./insights";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
 
-import type { Subject, Task, StudySession, Mark } from "./models";
+import type { Subject, Task, StudySession, Period } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
 import { User } from "lucide-react";
@@ -40,6 +40,15 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
+const defaultPeriods: Period[] = [
+  { id: "p1", name: "Term 1" },
+  { id: "p2", name: "Term 2" },
+  { id: "p3", name: "Term 3" },
+  { id: "p4", name: "Term 4" },
+  { id: "p5", name: "Prelims" },
+  { id: "p6", name: "HSC" },
+];
+
 const makeDefaultData = () => {
   const today = new Date();
   const tomorrow = new Date(today);
@@ -55,16 +64,43 @@ const makeDefaultData = () => {
   in7.setDate(today.getDate() + 7);
 
   const demoTasks: Task[] = [
-    { id: "t1", title: "Read pages 120–145", subjectId: "5", dueDate: tomorrow, type: "task" },
-    { id: "t2", title: "Lab Report", subjectId: "3", dueDate: in3, type: "assignment" },
+    {
+      id: "t1",
+      title: "Read pages 120–145",
+      subjectId: "5",
+      dueDate: tomorrow,
+      type: "task",
+      periodId: "p1",
+    },
+    {
+      id: "t2",
+      title: "Lab Report",
+      subjectId: "3",
+      dueDate: in3,
+      type: "assignment",
+      periodId: "p1",
+    },
     {
       id: "t3",
       title: "Complete Chapter 5 Review",
       subjectId: "1",
       dueDate: in5,
       type: "assignment",
+      periodId: "p1",
+      result: {
+        score: 18,
+        outOf: 20,
+        dateRecorded: today,
+      },
     },
-    { id: "t4", title: "Midterm Exam", subjectId: "2", dueDate: in7, type: "exam" },
+    {
+      id: "t4",
+      title: "Midterm Exam",
+      subjectId: "2",
+      dueDate: in7,
+      type: "exam",
+      periodId: "p1",
+    },
   ];
 
   const demoStudySessions: StudySession[] = [
@@ -80,30 +116,11 @@ const makeDefaultData = () => {
     },
   ];
 
-  const demoMarks: Mark[] = [
-    {
-      id: "m1",
-      subjectId: "1",
-      title: "Topic test: Trig",
-      score: 18,
-      outOf: 20,
-      date: today,
-    },
-    {
-      id: "m2",
-      subjectId: "4",
-      title: "Essay: Persuasive writing",
-      score: 23,
-      outOf: 30,
-      date: in3,
-    },
-  ];
-
   return {
     subjects: defaultSubjects,
+    periods: defaultPeriods,
     tasks: demoTasks,
     studySessions: demoStudySessions,
-    marks: demoMarks,
   };
 };
 
@@ -187,9 +204,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
+  const [periods, setPeriods] = useState<Period[]>(defaultPeriods);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
-  const [marks, setMarks] = useState<Mark[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
@@ -204,8 +221,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   };
 
   const markReadyNextPaint = () => {
-    // Ensures the “real UI” reveals in one clean paint,
-    // instead of popping in piece-by-piece.
     requestAnimationFrame(() => setIsReady(true));
   };
 
@@ -217,9 +232,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (!raw && mode === "demo") {
       const seeded = makeDefaultData();
       setSubjects(seeded.subjects);
+      setPeriods(seeded.periods);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
-      setMarks(seeded.marks);
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -227,9 +242,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
     if (!raw && mode === "app") {
       setSubjects(defaultSubjects);
+      setPeriods(defaultPeriods);
       setTasks([]);
       setStudySessions([]);
-      setMarks([]);
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -239,6 +254,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       const parsed = JSON.parse(raw as string);
 
       setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects);
+      setPeriods(Array.isArray(parsed.periods) ? parsed.periods : defaultPeriods);
 
       setTasks(
         pruneAutoDeletedCompletedTasks(
@@ -246,6 +262,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             ...t,
             dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
             completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
+            result: t?.result
+              ? {
+                  ...t.result,
+                  score: typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
+                  outOf: typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
+                  dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
+                }
+              : undefined,
           }))
         )
       );
@@ -258,28 +282,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
         }))
       );
-
-      setMarks(
-        (parsed.marks ?? []).map((m: any) => ({
-          ...m,
-          title: m?.title?.trim() || "Assessment",
-          score: typeof m?.score === "number" ? m.score : Number(m?.score ?? 0),
-          outOf: typeof m?.outOf === "number" ? m.outOf : Number(m?.outOf ?? 100),
-          date: m?.date ? new Date(m.date) : new Date(),
-        }))
-      );
     } catch {
       if (mode === "demo") {
         const seeded = makeDefaultData();
         setSubjects(seeded.subjects);
+        setPeriods(seeded.periods);
         setTasks(seeded.tasks);
         setStudySessions(seeded.studySessions);
-        setMarks(seeded.marks);
       } else {
         setSubjects(defaultSubjects);
+        setPeriods(defaultPeriods);
         setTasks([]);
         setStudySessions([]);
-        setMarks([]);
       }
     } finally {
       hydrated.current = true;
@@ -290,8 +304,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    localStorage.setItem(storageKey, JSON.stringify({ subjects, tasks, studySessions, marks }));
-  }, [subjects, tasks, studySessions, marks, storageKey]);
+    localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions }));
+  }, [subjects, periods, tasks, studySessions, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
 
@@ -301,14 +315,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (mode === "demo") {
       const seeded = makeDefaultData();
       setSubjects(seeded.subjects);
+      setPeriods(seeded.periods);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
-      setMarks(seeded.marks);
     } else {
       setSubjects(defaultSubjects);
+      setPeriods(defaultPeriods);
       setTasks([]);
       setStudySessions([]);
-      setMarks([]);
     }
 
     setActiveTab("dashboard");
@@ -326,7 +340,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setSubjects((p) => p.filter((s) => s.id !== id));
     setTasks((p) => p.filter((t) => t.subjectId !== id));
     setStudySessions((p) => p.filter((s) => s.subjectId !== id));
-    setMarks((p) => p.filter((m) => m.subjectId !== id));
   };
 
   const handleAddTask = (t: Omit<Task, "id">) =>
@@ -364,14 +377,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
       )
     );
-
-  const handleAddMark = (m: Omit<Mark, "id">) =>
-    setMarks((p) => [...p, { ...m, id: Date.now().toString() }]);
-
-  const handleUpdateMark = (id: string, m: Omit<Mark, "id">) =>
-    setMarks((p) => p.map((x) => (x.id === id ? { ...m, id } : x)));
-
-  const handleDeleteMark = (id: string) => setMarks((p) => p.filter((m) => m.id !== id));
 
   /* -------------------- Render -------------------- */
 
@@ -520,11 +525,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
         {activeTab === "marks" && (
           <Marks
-            marks={marks}
+            tasks={tasks}
             subjects={subjects}
-            onAddMark={handleAddMark}
-            onUpdateMark={handleUpdateMark}
-            onDeleteMark={handleDeleteMark}
+            onUpdateTask={handleUpdateTask}
           />
         )}
 

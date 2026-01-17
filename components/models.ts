@@ -6,15 +6,42 @@ export interface Subject {
   color: string;
 }
 
+/* -------------------- Periods -------------------- */
+
+export interface Period {
+  id: string;
+  name: string; // e.g. "Term 1", "Prelims", "HSC"
+}
+
+/* -------------------- Tasks -------------------- */
+
+export interface TaskResult {
+  score: number; // e.g. 78
+  outOf: number; // e.g. 100
+  dateRecorded: Date; // when the result was entered/received
+  weighting?: number; // optional (%), future use
+  notes?: string; // optional
+}
+
 export interface Task {
   id: string;
   title: string;
   subjectId: string;
   dueDate: Date;
+
   type: "task" | "assignment" | "exam" | "homework";
+
+  // Optional grouping label (no dates/week logic)
+  periodId?: string;
+
+  // Optional mark/result (used by assignment/exam in UI)
+  result?: TaskResult;
+
   completed?: boolean;
   completedAt?: Date;
 }
+
+/* -------------------- Study Sessions -------------------- */
 
 export interface StudySession {
   id: string;
@@ -26,22 +53,6 @@ export interface StudySession {
   linkedTaskId?: string;
   completed?: boolean;
   completedAt?: Date;
-}
-
-/* -------------------- Marks -------------------- */
-
-export interface Mark {
-  id: string;
-  subjectId: string;
-
-  title: string; // e.g. "Midyear Exam", "Essay 1"
-  score: number; // e.g. 78
-  outOf: number; // e.g. 100
-
-  date: Date; // when the mark was received or recorded
-
-  weighting?: number; // optional, e.g. 20 (%), future use
-  notes?: string; // optional short note
 }
 
 /* -------------------- Utils -------------------- */
