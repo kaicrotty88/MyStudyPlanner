@@ -132,6 +132,14 @@ const time12To24 = (t: string) => {
   return `${String(hh).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 };
 
+const displaySessionTime = (t: string) => {
+  const s = (t ?? "").trim();
+  if (!s) return "";
+  // If stored as 24h "HH:MM", display nicely
+  if (/^\d{2}:\d{2}$/.test(s)) return time24To12(s);
+  return s;
+};
+
 const DURATION_OPTIONS: { label: string; value: string }[] = [
   { label: "15 min", value: "15 min" },
   { label: "20 min", value: "20 min" },
@@ -194,6 +202,18 @@ function CalendarView({
     }
   }, []);
 
+  const periodNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of periods) map.set(p.id, p.name);
+    return map;
+  }, [periods]);
+
+  const activeTermLabel = useMemo(() => {
+    const pid = findMatchingPeriodId(currentDate, periods);
+    if (!pid) return undefined;
+    return periodNameById.get(pid) ?? pid;
+  }, [currentDate, periods, periodNameById]);
+
   // tasks edit/delete
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
@@ -240,9 +260,6 @@ function CalendarView({
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [tasks, sessionFormData.subjectId]);
-
-  const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  const firstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
   const previousMonth = () =>
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
@@ -473,6 +490,12 @@ function CalendarView({
     </button>
   );
 
+  const TermPill = ({ label }: { label: string }) => (
+    <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground">
+      {label}
+    </span>
+  );
+
   // ✅ improved chip readability:
   const renderChip = ({
     title,
@@ -525,7 +548,7 @@ function CalendarView({
               <>
                 <span className="text-muted-foreground/60">•</span>
                 <span className="shrink-0">
-                  {session.startTime} • {session.duration}
+                  {displaySessionTime(session.startTime)} • {session.duration}
                 </span>
                 {!compact && linkedTask ? (
                   <>
@@ -604,7 +627,11 @@ function CalendarView({
 
     for (let i = 0; i < firstDay; i++) {
       cells.push(
-        <div key={`empty-${i}`} className="min-h-[140px] p-2 bg-muted/20 border-r border-b border-border" />
+        <div
+          key={`empty-${i}`}
+          className="min-h-[140px] p-2 bg-muted/20 border-r border-b border-border"
+          aria-hidden="true"
+        />
       );
     }
 
@@ -622,11 +649,18 @@ function CalendarView({
 
       const totalCount = dayTasks.length + daySessions.length;
 
+      const ariaLabel = `${date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })}. ${totalCount === 0 ? "No items." : `${totalCount} item${totalCount === 1 ? "" : "s"}.`}`;
+
       cells.push(
         <div
           key={day}
           role="button"
           tabIndex={0}
+          aria-label={ariaLabel}
           onClick={() => handleDayClick(date)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") handleDayClick(date);
@@ -713,12 +747,20 @@ function CalendarView({
         {days.map((date, i) => {
           const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(date);
           const isToday = isSameDay(new Date(), date);
+          const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
+
+          const ariaLabel = `${date.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })}. ${dayTasks.length + daySessions.length} items.`;
 
           return (
             <div
               key={i}
               role="button"
               tabIndex={0}
+              aria-label={ariaLabel}
               onClick={() => handleDayClick(date)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") handleDayClick(date);
@@ -727,6 +769,7 @@ function CalendarView({
                 "min-h-[520px] p-3 text-left border-r border-border cursor-pointer transition",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 isToday ? "bg-primary/[0.04]" : "bg-card hover:bg-muted/40",
+                isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
               ].join(" ")}
             >
               <div className="flex items-center justify-between">
@@ -862,7 +905,11 @@ function CalendarView({
   };
 
   // UI value for <input type="time"> needs "HH:MM"
-  const startTimeUiValue = time12To24(sessionFormData.startTime);
+  const startTimeUiValue = useMemo(() => {
+    const s = (sessionFormData.startTime ?? "").trim();
+    if (/^\d{2}:\d{2}$/.test(s)) return s; // already 24h format
+    return time12To24(s);
+  }, [sessionFormData.startTime]);
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
@@ -884,7 +931,10 @@ function CalendarView({
           </button>
 
           <div className="min-w-[220px] text-left md:text-center">
-            <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
+              {activeTermLabel ? <TermPill label={activeTermLabel} /> : null}
+            </div>
             <div className="text-xs text-muted-foreground">
               {viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}
             </div>
