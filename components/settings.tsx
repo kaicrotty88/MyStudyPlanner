@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, Trash, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Edit2, Trash2, Trash, ChevronDown } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -69,7 +69,9 @@ export function Settings({
   const [formData, setFormData] = useState({ name: "", color: "#7A9B7F" });
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [subjectsOpen, setSubjectsOpen] = useState(true);
+
+  // Default to collapsed for calmer Settings landing
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
 
   const colorPalette = [
     "#7A9B7F",
@@ -174,18 +176,19 @@ export function Settings({
           <button
             type="button"
             onClick={() => setSubjectsOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors"
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Subjects</div>
               <div className="text-xs text-muted-foreground">Add, edit, and organise your subjects.</div>
             </div>
 
-            {subjectsOpen ? (
-              <ChevronUp className="w-5 h-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-            )}
+            <ChevronDown
+              className={[
+                "w-5 h-5 text-muted-foreground transition-transform",
+                subjectsOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
+            />
           </button>
 
           {subjectsOpen && (
@@ -194,6 +197,7 @@ export function Settings({
                 <button
                   type="button"
                   onClick={() => {
+                    setSubjectsOpen(true);
                     setShowAddForm(true);
                     setEditingId(null);
                   }}
@@ -373,9 +377,7 @@ export function Settings({
                 </div>
               </div>
 
-              <div className="text-[11px] text-muted-foreground">
-                This action cannot be undone.
-              </div>
+              <div className="text-[11px] text-muted-foreground">This action cannot be undone.</div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">
