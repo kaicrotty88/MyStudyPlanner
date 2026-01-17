@@ -10,8 +10,9 @@ import { Settings } from "./settings";
 import { Insights } from "./insights";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
+import { Reminders } from "./reminders";
 
-import type { Subject, Task, StudySession, Period } from "./models";
+import type { Subject, Task, StudySession, Period, Reminder } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
 import { User } from "lucide-react";
@@ -27,6 +28,7 @@ type Tab =
   | "study"
   | "insights"
   | "marks"
+  | "reminders"
   | "settings";
 type AppMode = "demo" | "app";
 
@@ -43,7 +45,12 @@ const defaultSubjects: Subject[] = [
 // Simple “Term 1–4” defaults (quarterly) for the current year.
 // Later you can replace with real school dates via Settings.
 function makeDefaultPeriodsForYear(year: number): Period[] {
-  const mk = (id: string, name: string, start: [number, number, number], end: [number, number, number]) => ({
+  const mk = (
+    id: string,
+    name: string,
+    start: [number, number, number],
+    end: [number, number, number]
+  ) => ({
     id,
     name,
     startDate: new Date(year, start[0], start[1]),
@@ -52,10 +59,10 @@ function makeDefaultPeriodsForYear(year: number): Period[] {
 
   // Months are 0-indexed: Jan=0, Apr=3, etc.
   return [
-    mk("p1", "Term 1", [0, 1, 1], [2, 31, 1]),   // Jan 1 – Mar 31
-    mk("p2", "Term 2", [3, 1, 1], [5, 30, 1]),   // Apr 1 – Jun 30
-    mk("p3", "Term 3", [6, 1, 1], [8, 30, 1]),   // Jul 1 – Sep 30
-    mk("p4", "Term 4", [9, 1, 1], [11, 31, 1]),  // Oct 1 – Dec 31
+    mk("p1", "Term 1", [0, 1, 1], [2, 31, 1]), // Jan 1 – Mar 31
+    mk("p2", "Term 2", [3, 1, 1], [5, 30, 1]), // Apr 1 – Jun 30
+    mk("p3", "Term 3", [6, 1, 1], [8, 30, 1]), // Jul 1 – Sep 30
+    mk("p4", "Term 4", [9, 1, 1], [11, 31, 1]), // Oct 1 – Dec 31
   ];
 }
 
@@ -128,11 +135,42 @@ const makeDefaultData = () => {
     },
   ];
 
+  const demoReminders: Reminder[] = [
+    {
+      id: "r1",
+      title: "Pack bag tonight",
+      notes: "Laptop charger, workbook, sport kit",
+      dueDate: today,
+      time: "20:30",
+      repeat: "none",
+      completed: false,
+      createdAt: today,
+    },
+    {
+      id: "r2",
+      title: "Email teacher about extension question",
+      dueDate: tomorrow,
+      repeat: "none",
+      completed: false,
+      createdAt: today,
+    },
+    {
+      id: "r3",
+      title: "Buy new pens",
+      notes: "Black + blue",
+      // sticky reminder (no date)
+      repeat: "none",
+      completed: false,
+      createdAt: today,
+    },
+  ];
+
   return {
     subjects: defaultSubjects,
     periods: makeDefaultPeriodsForYear(today.getFullYear()),
     tasks: demoTasks,
     studySessions: demoStudySessions,
+    reminders: demoReminders,
   };
 };
 
@@ -219,6 +257,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const [periods, setPeriods] = useState<Period[]>(defaultPeriods);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
@@ -254,6 +293,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setPeriods(seeded.periods);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
+      setReminders(seeded.reminders);
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -264,6 +304,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setPeriods(defaultPeriods);
       setTasks([]);
       setStudySessions([]);
+      setReminders([]);
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -312,6 +353,17 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
         }))
       );
+
+      setReminders(
+        (parsed.reminders ?? []).map((r: any) => ({
+          ...r,
+          title: String(r?.title ?? "").trim(),
+          notes: r?.notes ? String(r.notes) : undefined,
+          dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
+          completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
+          createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
+        }))
+      );
     } catch {
       if (mode === "demo") {
         const seeded = makeDefaultData();
@@ -319,11 +371,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         setPeriods(seeded.periods);
         setTasks(seeded.tasks);
         setStudySessions(seeded.studySessions);
+        setReminders(seeded.reminders);
       } else {
         setSubjects(defaultSubjects);
         setPeriods(defaultPeriods);
         setTasks([]);
         setStudySessions([]);
+        setReminders([]);
       }
     } finally {
       hydrated.current = true;
@@ -335,8 +389,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (!hydrated.current) return;
 
     // Note: JSON.stringify will store Dates as ISO strings automatically.
-    localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions }));
-  }, [subjects, periods, tasks, studySessions, storageKey]);
+    localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
+  }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
 
@@ -349,11 +403,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setPeriods(seeded.periods);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
+      setReminders(seeded.reminders);
     } else {
       setSubjects(defaultSubjects);
       setPeriods(defaultPeriods);
       setTasks([]);
       setStudySessions([]);
+      setReminders([]);
     }
 
     setActiveTab("dashboard");
@@ -423,6 +479,36 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
     );
 
+  // ✅ Reminders
+  const handleAddReminder = (r: Omit<Reminder, "id">) =>
+    setReminders((p) => [
+      ...p,
+      {
+        ...r,
+        id: Date.now().toString(),
+        createdAt: r.createdAt ?? new Date(),
+        completed: r.completed ?? false,
+      },
+    ]);
+
+  const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
+    setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
+
+  const handleDeleteReminder = (id: string) => setReminders((p) => p.filter((r) => r.id !== id));
+
+  const handleToggleReminderCompleted = (id: string) =>
+    setReminders((p) =>
+      p.map((r) => {
+        if (r.id !== id) return r;
+        const nextCompleted = !r.completed;
+        return {
+          ...r,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? new Date() : undefined,
+        };
+      })
+    );
+
   /* -------------------- Render -------------------- */
 
   const tabs: Array<[Tab, string]> = [
@@ -432,6 +518,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     ["study", "Study Planner"],
     ["insights", "Insights"],
     ["marks", "Marks"],
+    ["reminders", "Reminders"],
   ];
 
   if (!isReady) return <AppSkeleton />;
@@ -567,6 +654,16 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
 
         {activeTab === "marks" && <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />}
+
+        {activeTab === "reminders" && (
+          <Reminders
+            reminders={reminders}
+            onAddReminder={handleAddReminder}
+            onUpdateReminder={handleUpdateReminder}
+            onDeleteReminder={handleDeleteReminder}
+            onToggleCompleted={handleToggleReminderCompleted}
+          />
+        )}
 
         {activeTab === "settings" && (
           <Settings

@@ -72,6 +72,49 @@ export interface StudySession {
   completedAt?: Date;
 }
 
+/* -------------------- Reminders -------------------- */
+
+/**
+ * A lightweight, general reminder (not tied to a subject).
+ * Optional date + time; can also be "floating" (no date) for sticky reminders.
+ */
+export interface Reminder {
+  id: string;
+  title: string;
+  notes?: string;
+
+  // If omitted, reminder is a "sticky" note-style reminder.
+  dueDate?: Date;
+
+  // Optional time label for the UI (stored as "HH:MM" 24h)
+  time?: string;
+
+  repeat?: "none" | "daily" | "weekly";
+
+  completed?: boolean;
+  completedAt?: Date;
+
+  createdAt?: Date;
+}
+
+/**
+ * LocalStorage-safe Reminder shape (dates as ISO strings).
+ */
+export interface ReminderStored {
+  id: string;
+  title: string;
+  notes?: string;
+
+  dueDate?: string; // ISO
+  time?: string;
+
+  repeat?: "none" | "daily" | "weekly";
+
+  completed?: boolean;
+  completedAt?: string; // ISO
+  createdAt?: string; // ISO
+}
+
 /* -------------------- Utils -------------------- */
 
 export const isSameDay = (a: Date, b: Date) =>
