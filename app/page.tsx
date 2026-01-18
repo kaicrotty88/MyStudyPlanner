@@ -6,8 +6,15 @@ import { redirect } from "next/navigation";
 export const metadata: Metadata = {
   title: "MyStudyPlanner",
   description:
-    "A calm, minimal study planner for high-school students. Tasks, study sessions, and deadlines — without the clutter.",
+    "A calm, minimal study planner for high-school students. Tasks, study sessions, calendars, and reminders — without the clutter.",
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "MyStudyPlanner",
+    description:
+      "A calm, minimal study planner for high-school students. Tasks, study sessions, calendars, and reminders — without the clutter.",
+    url: "https://mystudyplanner.co/",
+    type: "website",
+  },
 };
 
 export default async function Page() {
@@ -40,7 +47,7 @@ export default async function Page() {
       {/* Hero */}
       <main className="mx-auto max-w-6xl px-6 md:px-10">
         <section className="py-20 md:py-28">
-          <div className="grid gap-16 md:grid-cols-12 md:items-center">
+          <div className="grid gap-16 md:grid-cols-12 md:items-start">
             {/* Left */}
             <div className="md:col-span-6">
               <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
@@ -49,7 +56,7 @@ export default async function Page() {
 
               <p className="mt-4 max-w-lg text-base text-muted-foreground md:text-lg">
                 A calm planner for high-school students — organise tasks, plan
-                study sessions, and see your week clearly.
+                study sessions, and stay on top of school without overwhelm.
               </p>
 
               <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -66,13 +73,6 @@ export default async function Page() {
                 >
                   Create account
                 </Link>
-
-                <Link
-                  href="/sign-in"
-                  className="ml-1 text-sm text-muted-foreground hover:text-foreground transition"
-                >
-                  Sign in
-                </Link>
               </div>
 
               <p className="mt-8 text-sm text-muted-foreground">
@@ -80,47 +80,74 @@ export default async function Page() {
               </p>
             </div>
 
-            {/* Right – abstract system preview */}
+            {/* Right – full feature overview */}
             <div className="md:col-span-6">
               <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div className="space-y-4">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    How it works
+                    Everything you need
                   </div>
 
                   <div className="rounded-xl border border-border bg-background/50 p-4">
                     <div className="text-sm font-medium text-foreground">
-                      Tasks & assignments
+                      Dashboard
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Keep deadlines clear and manageable.
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Study sessions
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Plan focused time — not just to-dos.
+                      Today’s focus and what’s coming up
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-border bg-background/50 p-4">
                     <div className="text-sm font-medium text-foreground">
-                      Calendar view
+                      Calendar
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      See your week at a glance.
+                      Plan your days, weeks, and deadlines visually
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-border bg-background/50 p-4">
                     <div className="text-sm font-medium text-foreground">
-                      Progress & marks
+                      Tasks
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Track what matters over time.
+                      Track assignments, exams, and to-dos
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-background/50 p-4">
+                    <div className="text-sm font-medium text-foreground">
+                      Study Planner
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Plan, log, and review study sessions
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-background/50 p-4">
+                    <div className="text-sm font-medium text-foreground">
+                      Insights
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      See patterns and improve consistency
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-background/50 p-4">
+                    <div className="text-sm font-medium text-foreground">
+                      Marks
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Track performance over time
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-background/50 p-4">
+                    <div className="text-sm font-medium text-foreground">
+                      Reminders
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Stay on top of what matters
                     </div>
                   </div>
                 </div>
