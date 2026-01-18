@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Plus, Edit2, Trash2, Trash, ChevronDown } from "lucide-react";
 
 interface Subject {
@@ -699,6 +700,29 @@ export function Settings({
             <Trash className="w-4 h-4" />
             {clearButtonLabel}
           </button>
+        </div>
+
+        {/* Legal */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4">
+          <div className="text-sm font-semibold text-foreground">Legal</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Privacy and terms.
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link
+              href="/privacy"
+              className="text-muted-foreground hover:text-foreground transition"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="text-muted-foreground hover:text-foreground transition"
+            >
+              Terms of Use
+            </Link>
+          </div>
         </div>
       </div>
 

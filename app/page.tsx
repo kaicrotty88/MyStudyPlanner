@@ -83,8 +83,8 @@ export default async function Page() {
                     Plan your workload
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Use the calendar to plan study sessions, see your week,
-                    and organise assessments and deadlines.
+                    Use the calendar to plan study sessions, see your week, and
+                    organise assessments and deadlines.
                   </div>
                 </div>
 
@@ -126,12 +126,31 @@ export default async function Page() {
             <div className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} MyStudyPlanner
             </div>
-            <div className="flex items-center gap-4 text-xs">
-              <Link href="/demo" className="text-muted-foreground hover:text-foreground">
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+              <Link
+                href="/demo"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
                 Demo
               </Link>
-              <Link href="/sign-in" className="text-muted-foreground hover:text-foreground">
+              <Link
+                href="/sign-in"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
                 Sign in
+              </Link>
+              <Link
+                href="/privacy"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
+                Privacy
+              </Link>
+              <Link
+                href="/terms"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
+                Terms
               </Link>
             </div>
           </div>
