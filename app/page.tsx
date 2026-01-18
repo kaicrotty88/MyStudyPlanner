@@ -8,13 +8,6 @@ export const metadata: Metadata = {
   description:
     "A calm, minimal study planner for high-school students. Tasks, study sessions, calendars, and reminders — without the clutter.",
   alternates: { canonical: "/" },
-  openGraph: {
-    title: "MyStudyPlanner",
-    description:
-      "A calm, minimal study planner for high-school students. Tasks, study sessions, calendars, and reminders — without the clutter.",
-    url: "https://mystudyplanner.co/",
-    type: "website",
-  },
 };
 
 export default async function Page() {
@@ -46,20 +39,19 @@ export default async function Page() {
 
       {/* Hero */}
       <main className="mx-auto max-w-6xl px-6 md:px-10">
-        <section className="py-20 md:py-28">
-          <div className="grid gap-16 md:grid-cols-12 md:items-start">
+        <section className="py-16 md:py-20">
+          <div className="grid gap-12 md:grid-cols-12 md:items-start">
             {/* Left */}
             <div className="md:col-span-6">
               <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
                 Study planning that feels effortless.
               </h1>
 
-              <p className="mt-4 max-w-lg text-base text-muted-foreground md:text-lg">
-                A calm planner for high-school students — organise tasks, plan
-                study sessions, and stay on top of school without overwhelm.
+              <p className="mt-3 max-w-lg text-base text-muted-foreground md:text-lg">
+                A calm planner for high-school — tasks, study sessions, and deadlines in one place.
               </p>
 
-              <div className="mt-10 flex flex-wrap items-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/demo"
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
@@ -75,79 +67,53 @@ export default async function Page() {
                 </Link>
               </div>
 
-              <p className="mt-8 text-sm text-muted-foreground">
+              <p className="mt-6 text-sm text-muted-foreground">
                 No clutter. No noise. Just a system you’ll actually use.
               </p>
             </div>
 
-            {/* Right – full feature overview */}
+            {/* Right – compact feature map */}
             <div className="md:col-span-6">
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <div className="space-y-4">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Everything you need
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
+                  Everything included
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Dashboard</div>
+                    <div className="text-xs text-muted-foreground">Today & next</div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Dashboard
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Today’s focus and what’s coming up
-                    </div>
+                  <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Calendar</div>
+                    <div className="text-xs text-muted-foreground">Week & month</div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Calendar
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Plan your days, weeks, and deadlines visually
-                    </div>
+                  <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Tasks</div>
+                    <div className="text-xs text-muted-foreground">Assignments</div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Tasks
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Track assignments, exams, and to-dos
-                    </div>
+                  <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Study Planner</div>
+                    <div className="text-xs text-muted-foreground">Sessions</div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Study Planner
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Plan, log, and review study sessions
-                    </div>
+                  <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Insights</div>
+                    <div className="text-xs text-muted-foreground">Patterns</div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Insights
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      See patterns and improve consistency
-                    </div>
+                  <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Marks</div>
+                    <div className="text-xs text-muted-foreground">Progress</div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Marks
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Track performance over time
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-background/50 p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Reminders
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Stay on top of what matters
+                  <div className="col-span-2 rounded-lg border border-border bg-background/50 px-3 py-2">
+                    <div className="font-medium text-foreground">Reminders</div>
+                    <div className="text-xs text-muted-foreground">
+                      Stay on track
                     </div>
                   </div>
                 </div>
@@ -157,7 +123,7 @@ export default async function Page() {
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-border py-10">
+        <footer className="border-t border-border py-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} MyStudyPlanner
