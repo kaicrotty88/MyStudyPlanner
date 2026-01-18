@@ -39,22 +39,32 @@ export default async function Page() {
 
       {/* Hero */}
       <main className="mx-auto max-w-6xl px-6 md:px-10">
-        <section className="py-16 md:py-20">
-          <div className="grid gap-12 md:grid-cols-12 md:items-start">
+        <section className="py-14 md:py-16">
+          <div className="grid gap-10 md:grid-cols-12 md:items-start">
             {/* Left */}
             <div className="md:col-span-7">
               <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
                 A study planner that understands how school actually works.
               </h1>
 
-              <p className="mt-4 max-w-xl text-base text-muted-foreground md:text-lg">
-                Subjects, assessments, deadlines, and study sessions all pile up
-                fast. MyStudyPlanner keeps everything in one calm place — so you
-                can focus on the work, not managing tools.
+              <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
+                Subjects, assessments, deadlines, and study sessions pile up fast.
+                MyStudyPlanner keeps everything in one calm place — so you can
+                focus on the work, not managing tools.
               </p>
 
-              <div className="mt-6 inline-flex items-center rounded-full border border-border bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground">
-                Built for high school & uni · calm by design · no fluff
+              {/* Value badges */}
+              <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  Completely free
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1">
+                  No ads
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1">
+                  Calm UI · no fluff
+                </span>
               </div>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -74,60 +84,71 @@ export default async function Page() {
               </div>
 
               <div className="mt-3 text-xs text-muted-foreground">
-                Free · no ads · demo uses sample data · no account required
+                Demo uses sample data · no account required
               </div>
 
-              <p className="mt-6 text-sm text-muted-foreground">
+              <div className="mt-6 text-sm text-muted-foreground">
                 No clutter. No productivity theatre. Just what students need.
-              </p>
+              </div>
             </div>
 
             {/* Right */}
             <div className="md:col-span-5">
-              <div className="rounded-2xl border border-border bg-card shadow-sm divide-y divide-border">
-                <div className="p-5">
-                  <div className="text-sm font-medium text-foreground">
-                    What it helps with
+              <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                {/* Card header */}
+                <div className="border-b border-border px-5 py-4">
+                  <div className="text-sm font-semibold text-foreground">
+                    Built for real student life
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Planning, tasks, study sessions, marks, and insights — all
-                    working together.
+                    Everything you need — nothing you don’t.
                   </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      See your week clearly
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      One calendar for study and assessments — without things
-                      feeling “busy”.
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      Study with intention
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Log sessions and build consistency without burnout.
+                {/* Rows */}
+                <div className="px-5 py-4 space-y-4">
+                  <div className="flex gap-3">
+                    <span className="mt-2 h-2 w-2 rounded-full bg-primary/80" />
+                    <div>
+                      <div className="text-sm font-medium text-foreground">
+                        See your week clearly
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        One calendar for study + assessments, without the “busy” feeling.
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      Track what’s actually working
+                  <div className="flex gap-3">
+                    <span className="mt-2 h-2 w-2 rounded-full bg-primary/50" />
+                    <div>
+                      <div className="text-sm font-medium text-foreground">
+                        Stay consistent (without burnout)
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        Log sessions, stay focused day-to-day, and build momentum.
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Marks and insights that help you adjust early.
+                  </div>
+
+                  <div className="flex gap-3">
+                    <span className="mt-2 h-2 w-2 rounded-full bg-primary/30" />
+                    <div>
+                      <div className="text-sm font-medium text-foreground">
+                        Marks + insights that actually help
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        Track results, spot patterns early, and adjust before it’s too late.
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-5 text-sm text-muted-foreground">
-                  Built by students who wanted a planner that matched real school
-                  life — not how productivity blogs say it should work.
+                {/* Proof / ethos */}
+                <div className="border-t border-border px-5 py-4">
+                  <div className="inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
+                    Built by students who were sick of overcomplicated planners.
+                  </div>
                 </div>
               </div>
             </div>
