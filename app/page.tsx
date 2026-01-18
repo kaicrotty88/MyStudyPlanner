@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export const metadata: Metadata = {
   title: "MyStudyPlanner",
   description:
-    "A calm study planner for high school and university students. Plan your study, track assessments, manage deadlines, and stay on top of your workload.",
+    "A calm study planner for high school and university students. Plan study, manage assessments, track progress — without clutter.",
   alternates: { canonical: "/" },
 };
 
@@ -39,8 +39,8 @@ export default async function Page() {
 
       {/* Hero */}
       <main className="mx-auto max-w-6xl px-6 md:px-10">
-        <section className="py-14 md:py-18">
-          <div className="grid gap-10 md:grid-cols-12 md:items-start">
+        <section className="py-16 md:py-20">
+          <div className="grid gap-12 md:grid-cols-12 md:items-start">
             {/* Left */}
             <div className="md:col-span-7">
               <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
@@ -48,18 +48,16 @@ export default async function Page() {
               </h1>
 
               <p className="mt-4 max-w-xl text-base text-muted-foreground md:text-lg">
-                You’re juggling subjects, assessments, deadlines, and study
-                sessions — usually across random notes, apps, and tabs.
-                MyStudyPlanner brings it together so you can focus on the work,
-                not managing it.
+                Subjects, assessments, deadlines, and study sessions all pile up
+                fast. MyStudyPlanner keeps everything in one calm place — so you
+                can focus on the work, not managing tools.
               </p>
 
-              {/* Student reality / anchor */}
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-                Built for high school + uni • calm by design • no fluff
+              <div className="mt-6 inline-flex items-center rounded-full border border-border bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground">
+                Built for high school & uni · calm by design · no fluff
               </div>
 
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/demo"
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
@@ -75,13 +73,8 @@ export default async function Page() {
                 </Link>
               </div>
 
-              {/* Trust + clarity row */}
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
-                <span>Demo uses sample data</span>
-                <span className="hidden sm:inline">•</span>
-                <span>No account required</span>
-                <span className="hidden sm:inline">•</span>
-                <span>Local-only by default</span>
+              <div className="mt-3 text-xs text-muted-foreground">
+                Free · no ads · demo uses sample data · no account required
               </div>
 
               <p className="mt-6 text-sm text-muted-foreground">
@@ -89,54 +82,52 @@ export default async function Page() {
               </p>
             </div>
 
-            {/* Right – outcomes card */}
+            {/* Right */}
             <div className="md:col-span-5">
-              <div className="rounded-2xl border border-border bg-card/60 shadow-sm">
-                <div className="border-b border-border px-5 py-4">
-                  <div className="text-sm font-semibold text-foreground">
+              <div className="rounded-2xl border border-border bg-card shadow-sm divide-y divide-border">
+                <div className="p-5">
+                  <div className="text-sm font-medium text-foreground">
                     What it helps with
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Planning, tasks, study sessions, marks, and insights — in one
-                    calm system.
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Planning, tasks, study sessions, marks, and insights — all
+                    working together.
                   </div>
                 </div>
 
-                <div className="divide-y divide-border">
-                  <div className="px-5 py-4">
+                <div className="p-5 space-y-4">
+                  <div>
                     <div className="text-sm font-medium text-foreground">
-                      See exactly what you need to do this week
+                      See your week clearly
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      Plan study sessions, assessments, and deadlines in one
-                      clear calendar — without everything feeling “busy”.
+                    <div className="text-sm text-muted-foreground">
+                      One calendar for study and assessments — without things
+                      feeling “busy”.
                     </div>
                   </div>
 
-                  <div className="px-5 py-4">
+                  <div>
                     <div className="text-sm font-medium text-foreground">
-                      Stop guessing if you’re doing enough study
+                      Study with intention
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      Log sessions, stay focused day-to-day, and build
-                      consistency without overplanning or burnout.
+                    <div className="text-sm text-muted-foreground">
+                      Log sessions and build consistency without burnout.
                     </div>
                   </div>
 
-                  <div className="px-5 py-4">
+                  <div>
                     <div className="text-sm font-medium text-foreground">
-                      Understand what’s actually working
+                      Track what’s actually working
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      Track marks and insights so you can see how effort turns
-                      into results — and adjust early.
+                    <div className="text-sm text-muted-foreground">
+                      Marks and insights that help you adjust early.
                     </div>
                   </div>
+                </div>
 
-                  <div className="px-5 py-4 text-sm text-muted-foreground">
-                    Built by students who wanted a planner that matched real
-                    school life — not how productivity blogs say it should work.
-                  </div>
+                <div className="p-5 text-sm text-muted-foreground">
+                  Built by students who wanted a planner that matched real school
+                  life — not how productivity blogs say it should work.
                 </div>
               </div>
             </div>
@@ -145,7 +136,7 @@ export default async function Page() {
 
         {/* Footer */}
         <footer className="border-t border-border py-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} MyStudyPlanner
             </div>
