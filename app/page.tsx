@@ -30,12 +30,10 @@ export default async function Page() {
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6 md:px-10">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold text-foreground">MyStudyPlanner</span>
-            <span className="text-[11px] text-muted-foreground">
-              Made by students, for students
-            </span>
+            <span className="text-[11px] text-muted-foreground">Made by students, for students</span>
           </div>
 
           <nav className="flex items-center">
@@ -50,9 +48,9 @@ export default async function Page() {
       </header>
 
       {/* Hero */}
-      <main className="mx-auto max-w-6xl px-5 sm:px-6 md:px-10">
-        <section className="py-14 md:py-24">
-          <div className="grid gap-10 md:grid-cols-12 md:items-center">
+      <main className="mx-auto max-w-6xl px-6 md:px-10">
+        <section className="py-16 md:py-24">
+          <div className="grid gap-12 md:grid-cols-12 md:items-center">
             {/* Left */}
             <div className="md:col-span-7">
               <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
@@ -63,23 +61,30 @@ export default async function Page() {
                 A calm planner for high-school — tasks, study sessions, and deadlines in one place.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-9 flex flex-wrap items-center gap-3">
                 <Link
                   href="/demo"
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
                 >
                   Try the demo
                 </Link>
 
                 <Link
                   href="/sign-up"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-medium text-foreground hover:bg-muted transition"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground hover:bg-muted transition"
                 >
                   Create account
                 </Link>
+
+                <Link
+                  href="/sign-in"
+                  className="ml-1 inline-flex h-11 items-center justify-center rounded-xl px-2 text-sm text-muted-foreground hover:text-foreground transition"
+                >
+                  Sign in
+                </Link>
               </div>
 
-              <p className="mt-6 text-sm text-muted-foreground">
+              <p className="mt-7 text-sm text-muted-foreground">
                 No clutter. No noise. Just a clean system you’ll actually stick to.
               </p>
             </div>
@@ -87,113 +92,98 @@ export default async function Page() {
             {/* Right – app snapshot */}
             <div className="md:col-span-5">
               <div className="rounded-2xl border border-border bg-card shadow-sm">
-                <div className="flex items-center justify-between border-b border-border px-6 py-4">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">Today</div>
-                    <div className="text-xs text-muted-foreground">
-                      A quick snapshot of what matters.
-                    </div>
+                {/* “window” header to feel more real/premium */}
+                <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
                   </div>
-
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground">
-                      Dashboard
-                    </span>
-                    <span className="rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground">
-                      Calendar
-                    </span>
-                  </div>
+                  <span className="text-[11px] text-muted-foreground">Preview</span>
                 </div>
 
-                <div className="space-y-4 p-6">
-                  <div className="rounded-xl border border-border bg-background/40 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-muted-foreground">Next up</div>
-                      <span className="rounded-full border border-border bg-card/60 px-2 py-0.5 text-[11px] text-muted-foreground">
-                        Study session
-                      </span>
+                <div className="px-6 py-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">Today</div>
+                      <div className="text-xs text-muted-foreground">
+                        A quick snapshot of what matters.
+                      </div>
                     </div>
 
-                    <div className="mt-2 flex items-start gap-3">
-                      <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary/80" />
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          Mathematics — Chapter review
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="rounded-full border border-border bg-card/60 px-2 py-0.5">
-                            60 min
-                          </span>
-                          <span className="rounded-full border border-border bg-card/60 px-2 py-0.5">
-                            4:00 PM
-                          </span>
-                        </div>
-                      </div>
+                    <div className="hidden sm:flex items-center gap-2">
+                      <span className="rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground">
+                        Dashboard
+                      </span>
+                      <span className="rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground">
+                        Calendar
+                      </span>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-background/40 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-muted-foreground">Due soon</div>
-                      <span className="rounded-full border border-border bg-card/60 px-2 py-0.5 text-[11px] text-muted-foreground">
-                        Task
-                      </span>
-                    </div>
+                  <div className="mt-5 space-y-4">
+                    <div className="rounded-xl border border-border bg-background/40 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground">Next up</div>
+                        <span className="rounded-full border border-border bg-card/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                          Study session
+                        </span>
+                      </div>
 
-                    <div className="mt-2 flex items-start gap-3">
-                      <span className="mt-1 h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          Chemistry — Lab report draft
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="rounded-full border border-border bg-card/60 px-2 py-0.5">
-                            This week
-                          </span>
+                      <div className="mt-2 flex items-start gap-3">
+                        <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary/80" />
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-foreground">
+                            Mathematics — Chapter review
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-full border border-border bg-card/60 px-2 py-0.5">
+                              60 min
+                            </span>
+                            <span className="rounded-full border border-border bg-card/60 px-2 py-0.5">
+                              4:00 PM
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
-                    <span>Clean. Calm. Focused.</span>
-                    <span className="rounded-full border border-border bg-card/60 px-2 py-1 text-[11px]">
-                      View more →
-                    </span>
+                    <div className="rounded-xl border border-border bg-background/40 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground">Due soon</div>
+                        <span className="rounded-full border border-border bg-card/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                          Task
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-start gap-3">
+                        <span className="mt-1 h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-foreground">
+                            Chemistry — Lab report draft
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-full border border-border bg-card/60 px-2 py-0.5">
+                              This week
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+                      <span>Clean. Calm. Focused.</span>
+                      <span className="rounded-full border border-border bg-card/60 px-2 py-1 text-[11px]">
+                        View more →
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <p className="mt-4 text-xs text-muted-foreground">
-                Try the demo first — it’s the fastest way to see if it fits your style.
+                Tip: try the demo first — then create an account if you want to save your setup.
               </p>
-            </div>
-          </div>
-
-          {/* Lower CTA (kept, but intentionally quieter and lower) */}
-          <div className="mt-16 rounded-2xl border border-border bg-card/40 p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Ready to try it?</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Start with the demo. Create an account if you want to save your plan.
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/demo"
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
-                >
-                  Try the demo
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-medium text-foreground hover:bg-muted transition"
-                >
-                  Create account
-                </Link>
-              </div>
             </div>
           </div>
         </section>
