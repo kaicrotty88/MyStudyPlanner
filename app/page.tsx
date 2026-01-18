@@ -44,13 +44,14 @@ export default async function Page() {
             {/* Left */}
             <div className="md:col-span-7">
               <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
-                A study planner that actually understands school.
+                A study planner that understands how school actually works.
               </h1>
 
               <p className="mt-4 max-w-xl text-base text-muted-foreground md:text-lg">
-                MyStudyPlanner is built for high school and university students
-                to plan their study, organise assessments, manage deadlines,
-                and keep everything in one calm place.
+                You’re juggling subjects, assessments, deadlines, and study
+                sessions — usually across random notes, apps, and tabs.
+                MyStudyPlanner brings it together so you can focus on the work,
+                not managing it.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -69,51 +70,51 @@ export default async function Page() {
                 </Link>
               </div>
 
+              <p className="mt-3 text-xs text-muted-foreground">
+                Try the demo with sample data — no account required.
+              </p>
+
               <p className="mt-6 text-sm text-muted-foreground">
                 No clutter. No productivity theatre. Just what students need.
               </p>
             </div>
 
-            {/* Right – clear capability overview */}
+            {/* Right – outcome-focused overview */}
             <div className="md:col-span-5">
               <div className="space-y-8">
-                {/* Planning */}
                 <div>
                   <div className="text-sm font-medium text-foreground">
-                    Plan your workload
+                    See exactly what you need to do this week
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Use the calendar to plan study sessions, see your week, and
-                    organise assessments and deadlines.
+                    Plan study sessions, assessments, and deadlines in one clear
+                    calendar — without everything feeling “busy”.
                   </div>
                 </div>
 
-                {/* Study */}
                 <div>
                   <div className="text-sm font-medium text-foreground">
-                    Study with intention
+                    Stop guessing if you’re doing enough study
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Log study sessions, stay focused day-to-day, and build
-                    consistent habits without overplanning.
+                    Log sessions, stay focused day-to-day, and build consistent
+                    habits without overplanning or burnout.
                   </div>
                 </div>
 
-                {/* Progress */}
                 <div>
                   <div className="text-sm font-medium text-foreground">
-                    Track progress over time
+                    Understand what’s actually working
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Record marks, review insights, and understand how your
-                    effort translates into results.
+                    Track marks and insights so you can see how effort turns
+                    into results — and adjust early.
                   </div>
                 </div>
 
-                {/* Credibility */}
                 <div className="pt-4 text-sm text-muted-foreground">
-                  Built by students who were frustrated with existing planners
-                  and wanted something calmer, simpler, and actually useful.
+                  Built by students who wanted a planner that matched real
+                  school life — not how productivity blogs say it should work.
                 </div>
               </div>
             </div>
