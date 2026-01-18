@@ -48,21 +48,21 @@ export default async function Page() {
               </h1>
 
               <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-                Subjects, assessments, deadlines, and study sessions pile up fast.
-                MyStudyPlanner keeps everything in one calm place — so you can
-                focus on the work, not managing tools.
+                Subjects, assessments, deadlines, and study sessions pile up
+                fast. MyStudyPlanner keeps everything in one calm place — so you
+                can focus on the work, not managing tools.
               </p>
 
-              {/* Value badges */}
+              {/* Value badges (tight + consistent) */}
               <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   Completely free
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1">
+                <span className="inline-flex items-center rounded-full border border-border bg-card/60 px-3 py-1">
                   No ads
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1">
+                <span className="inline-flex items-center rounded-full border border-border bg-card/60 px-3 py-1">
                   Calm UI · no fluff
                 </span>
               </div>
@@ -77,7 +77,7 @@ export default async function Page() {
 
                 <Link
                   href="/sign-up"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-6 text-sm font-medium text-foreground hover:bg-muted transition"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground hover:bg-muted transition"
                 >
                   Create account
                 </Link>
@@ -95,7 +95,6 @@ export default async function Page() {
             {/* Right */}
             <div className="md:col-span-5">
               <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-                {/* Card header */}
                 <div className="border-b border-border px-5 py-4">
                   <div className="text-sm font-semibold text-foreground">
                     Built for real student life
@@ -105,50 +104,54 @@ export default async function Page() {
                   </div>
                 </div>
 
-                {/* Rows */}
-                <div className="px-5 py-4 space-y-4">
-                  <div className="flex gap-3">
-                    <span className="mt-2 h-2 w-2 rounded-full bg-primary/80" />
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        See your week clearly
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        One calendar for study + assessments, without the “busy” feeling.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <span className="mt-2 h-2 w-2 rounded-full bg-primary/50" />
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Stay consistent (without burnout)
-                      </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        Log sessions, stay focused day-to-day, and build momentum.
+                <div className="px-5 py-4">
+                  <div className="space-y-5">
+                    <div className="flex gap-3">
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/80" />
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          See your week clearly
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          One calendar for study + assessments, without the
+                          “busy” feeling.
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-3">
-                    <span className="mt-2 h-2 w-2 rounded-full bg-primary/30" />
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Marks + insights that actually help
+                    <div className="flex gap-3">
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/55" />
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          Stay consistent (without burnout)
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          Log sessions, stay focused day-to-day, and build
+                          momentum.
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        Track results, spot patterns early, and adjust before it’s too late.
+                    </div>
+
+                    <div className="flex gap-3">
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/35" />
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          Marks + insights that actually help
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          Track results, spot patterns early, and adjust before
+                          it’s too late.
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Proof / ethos */}
+                {/* Consistent footer area */}
                 <div className="border-t border-border px-5 py-4">
-                  <div className="inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center rounded-full border border-border bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
                     Built by students who were sick of overcomplicated planners.
-                  </div>
+                  </span>
                 </div>
               </div>
             </div>
