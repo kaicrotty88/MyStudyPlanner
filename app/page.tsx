@@ -39,22 +39,22 @@ export default async function Page() {
 
       {/* Hero */}
       <main className="mx-auto max-w-6xl px-6 md:px-10">
-        <section className="py-14 md:py-20">
-          <div className="grid gap-14 md:grid-cols-12 md:items-start">
-            {/* Left */}
-            <div className="md:col-span-6">
-              <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-[3.25rem] md:leading-[1.05]">
-                Study planning
+        <section className="py-16 md:py-20">
+          <div className="grid gap-12 md:grid-cols-12">
+            {/* Primary message */}
+            <div className="md:col-span-7">
+              <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-[3.5rem] md:leading-[1.04]">
+                Study planning,
                 <br />
-                that feels effortless.
+                without the friction.
               </h1>
 
-              <p className="mt-3 max-w-lg text-base text-muted-foreground md:text-lg">
-                A calm planner for high-school — tasks, study sessions, and deadlines,
-                all in one place.
+              <p className="mt-4 max-w-xl text-base text-muted-foreground md:text-lg">
+                A calm system for high-school students to manage tasks, plan
+                study sessions, and see everything clearly — without overwhelm.
               </p>
 
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/demo"
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
@@ -75,16 +75,15 @@ export default async function Page() {
               </p>
             </div>
 
-            {/* Right – refined feature system */}
-            <div className="md:col-span-6">
-              <div className="rounded-2xl bg-muted/30 p-6">
-                <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            {/* System map */}
+            <div className="md:col-span-5 md:pt-2">
+              <div className="space-y-8">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   The system
                 </div>
 
-                <div className="space-y-5">
-                  {/* Group 1 */}
+                <div className="space-y-6">
                   <div>
                     <div className="text-sm font-medium text-foreground">
                       Dashboard
@@ -94,7 +93,7 @@ export default async function Page() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                     <div>
                       <div className="text-sm font-medium text-foreground">
                         Calendar
@@ -112,9 +111,7 @@ export default async function Page() {
                         Assignments & exams
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm font-medium text-foreground">
                         Study Planner
@@ -132,15 +129,13 @@ export default async function Page() {
                         Stay on track
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm font-medium text-foreground">
                         Insights
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Spot patterns
+                        Build consistency
                       </div>
                     </div>
 
