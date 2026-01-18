@@ -76,9 +76,9 @@ export default async function Page() {
                 </Link>
               </div>
 
-              {/* Compact trust line (matches app tone) */}
+              {/* Student-readable trust line */}
               <div className="mt-3 text-xs text-muted-foreground">
-                Free · no ads · demo uses sample data · local-only by default
+                Completely free · no ads · demo uses sample data · no account needed for demo
               </div>
             </div>
 
@@ -107,7 +107,7 @@ export default async function Page() {
                     <div className="h-px bg-border/60" />
 
                     <div className="flex gap-3">
-                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/50" />
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/70" />
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground">Stay consistent</div>
                         <div className="mt-1 text-sm text-muted-foreground">
@@ -119,7 +119,7 @@ export default async function Page() {
                     <div className="h-px bg-border/60" />
 
                     <div className="flex gap-3">
-                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/35" />
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/70" />
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground">Marks + insights</div>
                         <div className="mt-1 text-sm text-muted-foreground">
