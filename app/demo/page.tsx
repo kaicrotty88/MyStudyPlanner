@@ -33,11 +33,11 @@ export default async function DemoPage() {
       <div className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex items-center gap-3">
-            <span className="rounded-full border border-border bg-accent px-2 py-1 text-xs text-foreground">
+            <span className="rounded-full border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
               Preview
             </span>
             <span className="hidden text-sm text-muted-foreground sm:block">
-              Starts with example subjects and tasks. Sign in to keep your changes.
+              Starts with example subjects and tasks. Changes won&apos;t be saved unless you sign in.
             </span>
           </div>
 
@@ -63,3 +63,4 @@ export default async function DemoPage() {
     </div>
   );
 }
+
