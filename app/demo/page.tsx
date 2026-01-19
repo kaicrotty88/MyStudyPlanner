@@ -4,8 +4,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Demo",
-  description: "Explore MyStudyPlanner with sample data.",
+  title: "Preview",
+  description: "Try MyStudyPlanner with example subjects and tasks.",
   alternates: {
     canonical: "/demo",
   },
@@ -29,15 +29,15 @@ export default async function DemoPage() {
 
   return (
     <div className="relative">
-      {/* Demo banner + CTAs */}
+      {/* Preview banner + CTAs */}
       <div className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex items-center gap-3">
             <span className="rounded-full border border-border bg-accent px-2 py-1 text-xs text-foreground">
-              Demo mode
+              Preview
             </span>
             <span className="hidden text-sm text-muted-foreground sm:block">
-              Explore the app with sample data. Save your own after you sign in.
+              Starts with example subjects and tasks. Sign in to keep your changes.
             </span>
           </div>
 
