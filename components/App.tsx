@@ -15,7 +15,7 @@ import { Reminders } from "./reminders";
 import type { Subject, Task, StudySession, Period, Reminder } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
-import { User } from "lucide-react";
+import { User, X } from "lucide-react";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -257,6 +257,26 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
+  /* -------------------- Mobile desktop hint -------------------- */
+
+  const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
+
+  useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem("msp-desktop-hint-dismissed");
+      if (!dismissed) setShowMobileDesktopHint(true);
+    } catch {
+      setShowMobileDesktopHint(true);
+    }
+  }, []);
+
+  const dismissMobileDesktopHint = () => {
+    setShowMobileDesktopHint(false);
+    try {
+      localStorage.setItem("msp-desktop-hint-dismissed", "1");
+    } catch {}
+  };
+
   /* -------------------- Helpers -------------------- */
 
   const pruneAutoDeletedCompletedTasks = (input: Task[]) => {
@@ -432,7 +452,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
-    setSubjects((p) => p.map((s) => (s.id === id ? { ...s, name, color } : s)));
+    setSubjects((p) =>
+      p.map((s) => (s.id === id ? { ...s, name, color } : s))
+    );
 
   const handleDeleteSubject = (id: string) => {
     setSubjects((p) => p.filter((s) => s.id !== id));
@@ -662,6 +684,25 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
         </div>
       </nav>
+
+      {/* ✅ Mobile note: best on desktop (shown once, dismissible) */}
+      {showMobileDesktopHint && (
+        <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
+          <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
+            <div className="text-[12px] leading-5 text-muted-foreground">
+              Best on desktop. Mobile is great for quick check-ins.
+            </div>
+
+            <button
+              onClick={dismissMobileDesktopHint}
+              className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <main>
         {activeTab === "dashboard" && (
