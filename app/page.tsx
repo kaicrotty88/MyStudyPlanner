@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export const metadata: Metadata = {
   title: "MyStudyPlanner",
   description:
-    "A calm study planner for high school and university students. Plan study, organise assessments, track progress — without clutter.",
+    "A calm study planner for high school and university students. Plan study, organise assessments, track progress without clutter.",
   alternates: { canonical: "/" },
 };
 
@@ -18,7 +18,7 @@ export default async function Page() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold text-foreground">
               MyStudyPlanner
@@ -49,13 +49,13 @@ export default async function Page() {
           <div className="grid gap-10 md:grid-cols-12 md:items-start">
             {/* Left */}
             <div className="md:col-span-7">
-              <h1 className="max-w-[18ch] text-4xl font-semibold tracking-tight text-foreground md:text-6xl md:leading-[1.03]">
+              <h1 className="max-w-[17ch] text-4xl font-semibold tracking-tight text-foreground md:text-6xl md:leading-[1.03]">
                 A study planner that understands how school actually works.
               </h1>
 
               <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
                 Subjects, assessments, deadlines, and study sessions pile up fast.
-                MyStudyPlanner keeps everything in one calm place — so you focus
+                MyStudyPlanner keeps everything in one calm place, so you focus
                 on the work, not managing tools.
               </p>
 
@@ -64,7 +64,7 @@ export default async function Page() {
                   href="/demo"
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 transition"
                 >
-                  Try the demo
+                  Try it out
                 </Link>
 
                 <Link
@@ -75,9 +75,8 @@ export default async function Page() {
                 </Link>
               </div>
 
-              <div className="mt-3 text-xs text-muted-foreground">
-                Completely free · no ads · demo uses sample data · no account
-                needed for demo
+              <div className="mt-3 text-[11px] text-muted-foreground opacity-80">
+                Completely free. No ads. Uses sample data.
               </div>
             </div>
 
@@ -101,7 +100,7 @@ export default async function Page() {
                         See your week clearly
                       </div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        One place for study + assessments, without the “busy”
+                        One place for study and assessments, without the busy
                         feeling.
                       </div>
                     </div>
@@ -116,7 +115,7 @@ export default async function Page() {
                         Stay consistent
                       </div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        Log sessions and build momentum — without overplanning.
+                        Log sessions and build momentum, without overplanning.
                       </div>
                     </div>
                   </div>
@@ -127,11 +126,11 @@ export default async function Page() {
                     <span className="mt-2 h-2 w-2 rounded-full bg-primary/70" />
                     <div>
                       <div className="text-sm font-medium text-foreground">
-                        Marks + insights
+                        Marks and insights
                       </div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        Track results, spot patterns early, and adjust before
-                        it’s too late.
+                        Track results, spot patterns early, and adjust before it
+                        is too late.
                       </div>
                     </div>
                   </div>
