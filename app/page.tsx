@@ -55,7 +55,7 @@ export default async function Page() {
 
               <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
                 Subjects, assessments, deadlines, and study sessions pile up fast.
-                MyStudyPlanner keeps everything in one calm place, so you focus
+                MyStudyPlanner keeps everything in one calm place – so you focus
                 on the work, not managing tools.
               </p>
 
@@ -76,7 +76,7 @@ export default async function Page() {
               </div>
 
               <div className="mt-3 text-[11px] text-muted-foreground opacity-80">
-                Completely free. No ads. Uses sample data.
+                Completely free. No ads. You can explore freely before adding your own data.
               </div>
             </div>
 
