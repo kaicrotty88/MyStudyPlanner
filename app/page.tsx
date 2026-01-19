@@ -20,7 +20,7 @@ export default async function Page() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-base font-semibold text-foreground">
               MyStudyPlanner
             </span>
             <span className="text-[11px] text-muted-foreground">
@@ -64,7 +64,7 @@ export default async function Page() {
                   href="/demo"
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 transition"
                 >
-                  Try it out
+                  Open planner
                 </Link>
 
                 <Link
@@ -76,7 +76,7 @@ export default async function Page() {
               </div>
 
               <div className="mt-3 text-[11px] text-muted-foreground opacity-80">
-                Completely free. No ads. You can explore freely before adding your own data.
+                Completely free. No ads. Starts with example subjects and tasks.
               </div>
             </div>
 
