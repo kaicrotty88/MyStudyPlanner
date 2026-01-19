@@ -239,12 +239,6 @@ function AppSkeleton() {
           </div>
         </div>
       </main>
-
-      <div className="fixed bottom-3 right-3 z-20 pointer-events-none">
-        <span className="inline-flex items-center rounded-full border border-border bg-card/70 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-          v1.0
-        </span>
-      </div>
     </div>
   );
 }
@@ -485,12 +479,17 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) =>
       p.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
+        t.id === id
+          ? { ...t, completed: !t.completed, completedAt: new Date() }
+          : t
       )
     );
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
+    setStudySessions((p) => [
+      ...p,
+      { ...s, id: Date.now().toString(), completed: false },
+    ]);
 
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
@@ -501,7 +500,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleToggleSessionCompleted = (id: string) =>
     setStudySessions((p) =>
       p.map((s) =>
-        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
+        s.id === id
+          ? { ...s, completed: !s.completed, completedAt: new Date() }
+          : s
       )
     );
 
@@ -620,7 +621,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   },
                   elements: {
                     userButtonAvatarBox: "ring-1 ring-border",
-                    userButtonPopoverCard: "border border-border shadow-lg bg-card",
+                    userButtonPopoverCard:
+                      "border border-border shadow-lg bg-card",
                     userButtonPopoverFooter: "hidden",
                   },
                 }}
@@ -710,11 +712,19 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
 
         {activeTab === "insights" && (
-          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
+          <Insights
+            tasks={tasks}
+            studySessions={studySessions}
+            subjects={subjects}
+          />
         )}
 
         {activeTab === "marks" && (
-          <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
+          <Marks
+            tasks={tasks}
+            subjects={subjects}
+            onUpdateTask={handleUpdateTask}
+          />
         )}
 
         {activeTab === "reminders" && (
@@ -741,12 +751,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
       </main>
-
-      <div className="fixed bottom-3 right-3 z-20 pointer-events-none">
-        <span className="inline-flex items-center rounded-full border border-border bg-card/70 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-          v1.0
-        </span>
-      </div>
     </div>
   );
 }
