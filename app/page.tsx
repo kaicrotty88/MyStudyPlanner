@@ -20,13 +20,15 @@ export default async function Page() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-card shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-primary" />
-            </span>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-card shadow-sm" />
 
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-foreground">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground">Built by students, for students</span>
+              <span className="text-sm font-semibold text-foreground">
+                MyStudyPlanner
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Built by students, for students
+              </span>
             </div>
           </div>
 
@@ -56,8 +58,9 @@ export default async function Page() {
               </h1>
 
               <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-                Subjects, assessments, deadlines, and study sessions pile up fast. MyStudyPlanner keeps everything in one
-                calm place — so you focus on the work, not managing tools.
+                Subjects, assessments, deadlines, and study sessions pile up fast.
+                MyStudyPlanner keeps everything in one calm place — so you focus
+                on the work, not managing tools.
               </p>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -76,17 +79,19 @@ export default async function Page() {
                 </Link>
               </div>
 
-              {/* Student-readable trust line */}
               <div className="mt-3 text-xs text-muted-foreground">
-                Completely free · no ads · demo uses sample data · no account needed for demo
+                Completely free · no ads · demo uses sample data · no account
+                needed for demo
               </div>
             </div>
 
-            {/* Right – feature card (app-like) */}
+            {/* Right – feature card */}
             <div className="md:col-span-5">
               <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-border">
-                  <div className="text-sm font-semibold text-foreground">Built for real student life</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    Built for real student life
+                  </div>
                   <div className="mt-1 text-sm text-muted-foreground">
                     Compact, calm, and designed around how school actually runs.
                   </div>
@@ -97,9 +102,12 @@ export default async function Page() {
                     <div className="flex gap-3">
                       <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/70" />
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground">See your week clearly</div>
+                        <div className="text-sm font-medium text-foreground">
+                          See your week clearly
+                        </div>
                         <div className="mt-1 text-sm text-muted-foreground">
-                          One place for study + assessments, without the “busy” feeling.
+                          One place for study + assessments, without the “busy”
+                          feeling.
                         </div>
                       </div>
                     </div>
@@ -109,7 +117,9 @@ export default async function Page() {
                     <div className="flex gap-3">
                       <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/70" />
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground">Stay consistent</div>
+                        <div className="text-sm font-medium text-foreground">
+                          Stay consistent
+                        </div>
                         <div className="mt-1 text-sm text-muted-foreground">
                           Log sessions and build momentum — without overplanning.
                         </div>
@@ -121,9 +131,12 @@ export default async function Page() {
                     <div className="flex gap-3">
                       <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/70" />
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground">Marks + insights</div>
+                        <div className="text-sm font-medium text-foreground">
+                          Marks + insights
+                        </div>
                         <div className="mt-1 text-sm text-muted-foreground">
-                          Track results, spot patterns early, and adjust before it’s too late.
+                          Track results, spot patterns early, and adjust before
+                          it’s too late.
                         </div>
                       </div>
                     </div>
@@ -141,19 +154,33 @@ export default async function Page() {
         {/* Footer */}
         <footer className="border-t border-border py-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} MyStudyPlanner</div>
+            <div className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} MyStudyPlanner
+            </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-              <Link href="/demo" className="text-muted-foreground hover:text-foreground transition">
+              <Link
+                href="/demo"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
                 Demo
               </Link>
-              <Link href="/sign-in" className="text-muted-foreground hover:text-foreground transition">
+              <Link
+                href="/sign-in"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
                 Sign in
               </Link>
-              <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition">
+              <Link
+                href="/privacy"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
                 Privacy
               </Link>
-              <Link href="/terms" className="text-muted-foreground hover:text-foreground transition">
+              <Link
+                href="/terms"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
                 Terms
               </Link>
             </div>
