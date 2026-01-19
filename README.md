@@ -1,1 +1,2 @@
-Live app: https://mystudyplanner.co
+MyStudyPlanner  
+https://mystudyplanner.co
