@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Calendar } from "lucide-react";
+import { ArrowUpRight, Calendar, Settings2 } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { isSameDay } from "./models";
 
@@ -79,12 +79,27 @@ const QUOTES: Array<{ quote: string; author?: string }> = [
   { quote: "Keep it simple. Do the next right thing." },
   { quote: "Small progress, every day.", author: "Unknown" },
   { quote: "Consistency beats intensity.", author: "Unknown" },
-  { quote: "You don’t rise to the goal — you fall to the system.", author: "James Clear" },
-  { quote: "Discipline is choosing what you want most over what you want now.", author: "Unknown" },
-  { quote: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
-  { quote: "The work you do today builds the results you want tomorrow.", author: "Unknown" },
+  {
+    quote: "You don’t rise to the goal — you fall to the system.",
+    author: "James Clear",
+  },
+  {
+    quote: "Discipline is choosing what you want most over what you want now.",
+    author: "Unknown",
+  },
+  {
+    quote: "Start where you are. Use what you have. Do what you can.",
+    author: "Arthur Ashe",
+  },
+  {
+    quote: "The work you do today builds the results you want tomorrow.",
+    author: "Unknown",
+  },
   { quote: "Focus on the reps, not the outcome.", author: "Unknown" },
-  { quote: "Make it obvious. Make it easy. Make it satisfying.", author: "James Clear" },
+  {
+    quote: "Make it obvious. Make it easy. Make it satisfying.",
+    author: "James Clear",
+  },
   { quote: "Done is better than perfect.", author: "Sheryl Sandberg" },
 ];
 
@@ -109,6 +124,7 @@ interface DashboardProps {
   subjects: Subject[];
   studySessions: StudySession[];
   onOpenStudyPlanner: () => void;
+  onOpenSettings: () => void;
 }
 
 /* -------------------- Dashboard -------------------- */
@@ -118,6 +134,7 @@ export function Dashboard({
   subjects,
   studySessions,
   onOpenStudyPlanner,
+  onOpenSettings,
 }: DashboardProps) {
   // Keep "today" stable so useMemo dependencies actually memoize
   const today = useMemo(() => new Date(), []);
@@ -201,6 +218,8 @@ export function Dashboard({
     [tasks]
   );
 
+  const needsSubjects = subjects.length === 0;
+
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
@@ -224,6 +243,32 @@ export function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* ✅ First-run setup nudge (only when no subjects) */}
+      {needsSubjects && (
+        <div className="rounded-2xl border border-border bg-card shadow-sm">
+          <div className="px-5 py-4 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">
+                Start by adding your subjects
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                MyStudyPlanner organises everything by subject. Add yours in Settings to get started.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="shrink-0 inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              title="Go to Settings"
+            >
+              <Settings2 className="h-4 w-4" />
+              Add subjects
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Subtle section wrapper (hierarchy/rhythm) */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">

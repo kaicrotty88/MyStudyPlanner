@@ -183,7 +183,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
-  const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
+  const [subjects, setSubjects] = useState<Subject[]>(
+    mode === "demo" ? defaultSubjects : []
+  );
   const [periods, setPeriods] = useState<Period[]>(defaultPeriods);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
@@ -252,7 +254,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     }
 
     if (!raw && mode === "app") {
-      setSubjects(defaultSubjects);
+      setSubjects([]);
       setPeriods(defaultPeriods);
       setTasks([]);
       setStudySessions([]);
@@ -335,7 +337,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         setStudySessions(seeded.studySessions);
         setReminders(seeded.reminders);
       } else {
-        setSubjects(defaultSubjects);
+        setSubjects([]);
         setPeriods(defaultPeriods);
         setTasks([]);
         setStudySessions([]);
@@ -370,7 +372,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setStudySessions(seeded.studySessions);
       setReminders(seeded.reminders);
     } else {
-      setSubjects(defaultSubjects);
+      setSubjects([]);
       setPeriods(defaultPeriods);
       setTasks([]);
       setStudySessions([]);
@@ -646,6 +648,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             subjects={subjects}
             studySessions={studySessions}
             onOpenStudyPlanner={() => setActiveTab("study")}
+            onOpenSettings={() => setActiveTab("settings")}
           />
         )}
 
