@@ -125,6 +125,7 @@ interface DashboardProps {
   studySessions: StudySession[];
   onOpenStudyPlanner: () => void;
   onOpenSettings: () => void;
+  onOpenTasks: () => void;
 }
 
 /* -------------------- Dashboard -------------------- */
@@ -135,6 +136,7 @@ export function Dashboard({
   studySessions,
   onOpenStudyPlanner,
   onOpenSettings,
+  onOpenTasks,
 }: DashboardProps) {
   // Keep "today" stable so useMemo dependencies actually memoize
   const today = useMemo(() => new Date(), []);
@@ -209,13 +211,20 @@ export function Dashboard({
     [studySessions, today]
   );
 
+  const ninetyDaysFromToday = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 90);
+    return d;
+  }, [today]);
+
   const upNext = useMemo(
     () =>
       tasks
         .filter((t) => !t.completed)
+        .filter((t) => t.dueDate.getTime() <= ninetyDaysFromToday.getTime())
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
         .slice(0, 6),
-    [tasks]
+    [tasks, ninetyDaysFromToday]
   );
 
   const needsSubjects = subjects.length === 0;
@@ -349,9 +358,20 @@ export function Dashboard({
 
           {/* Up next */}
           <section className="md:col-span-5 rounded-2xl border border-border bg-card shadow-sm">
-            <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground">Up next</h2>
-              <p className="text-xs text-muted-foreground">Upcoming deadlines</p>
+            <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-foreground">Up next</h2>
+                <p className="text-xs text-muted-foreground">Upcoming deadlines</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenTasks}
+                className="shrink-0 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                title="View all tasks"
+              >
+                View all <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
             </div>
 
             <div className="p-4">

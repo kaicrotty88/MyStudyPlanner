@@ -643,14 +643,16 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
       <main>
         {activeTab === "dashboard" && (
-          <Dashboard
-            tasks={tasks}
-            subjects={subjects}
-            studySessions={studySessions}
-            onOpenStudyPlanner={() => setActiveTab("study")}
-            onOpenSettings={() => setActiveTab("settings")}
-          />
-        )}
+  <Dashboard
+    tasks={tasks}
+    subjects={subjects}
+    studySessions={studySessions}
+    onOpenStudyPlanner={() => setActiveTab("study")}
+    onOpenSettings={() => setActiveTab("settings")}
+    onOpenTasks={() => setActiveTab("tasks")}
+  />
+)}
+
 
         {activeTab === "calendar" && (
           <Calendar
