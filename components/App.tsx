@@ -16,6 +16,7 @@ import type { Subject, Task, StudySession, Period, Reminder } from "./models";
 
 import { UserButton } from "@clerk/nextjs";
 import { User, X } from "lucide-react";
+import LoadingScreen from "@/components/LoadingScreen";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -175,73 +176,6 @@ const makeDefaultData = () => {
     reminders: demoReminders,
   };
 };
-
-/* -------------------- Skeleton -------------------- */
-
-function AppSkeleton() {
-  return (
-    <div className="min-h-screen bg-background">
-      <nav className="sticky top-0 z-10 border-b border-border bg-card">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:px-10">
-          <div className="flex items-center gap-8">
-            <div className="flex flex-col gap-2">
-              <div className="h-4 w-32 rounded bg-muted/70" />
-              <div className="h-3 w-44 rounded bg-muted/50" />
-            </div>
-
-            <div className="hidden md:flex gap-2">
-              <div className="h-9 w-24 rounded-lg bg-muted/50" />
-              <div className="h-9 w-24 rounded-lg bg-muted/50" />
-              <div className="h-9 w-24 rounded-lg bg-muted/50" />
-              <div className="h-9 w-28 rounded-lg bg-muted/50" />
-              <div className="h-9 w-24 rounded-lg bg-muted/50" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-muted/50" />
-            <div className="h-9 w-24 rounded-lg bg-muted/50" />
-            <div className="h-9 w-28 rounded-lg bg-muted/50" />
-          </div>
-        </div>
-      </nav>
-
-      <main className="mx-auto max-w-7xl px-6 py-8 md:px-10">
-        <div className="grid gap-6 md:grid-cols-12">
-          <div className="md:col-span-8 space-y-4">
-            <div className="h-10 w-60 rounded-xl bg-muted/60" />
-            <div className="h-28 rounded-2xl border border-border bg-card">
-              <div className="p-5 space-y-3">
-                <div className="h-4 w-40 rounded bg-muted/60" />
-                <div className="h-4 w-72 rounded bg-muted/40" />
-                <div className="h-4 w-64 rounded bg-muted/40" />
-              </div>
-            </div>
-            <div className="h-28 rounded-2xl border border-border bg-card">
-              <div className="p-5 space-y-3">
-                <div className="h-4 w-44 rounded bg-muted/60" />
-                <div className="h-4 w-80 rounded bg-muted/40" />
-                <div className="h-4 w-56 rounded bg-muted/40" />
-              </div>
-            </div>
-          </div>
-
-          <div className="md:col-span-4 space-y-4">
-            <div className="h-10 w-40 rounded-xl bg-muted/60" />
-            <div className="h-40 rounded-2xl border border-border bg-card">
-              <div className="p-5 space-y-3">
-                <div className="h-4 w-32 rounded bg-muted/60" />
-                <div className="h-4 w-44 rounded bg-muted/40" />
-                <div className="h-4 w-40 rounded bg-muted/40" />
-                <div className="h-4 w-36 rounded bg-muted/40" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
 
 function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
@@ -571,10 +505,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     ["reminders", "Reminders"],
   ];
 
-  if (!isReady) return <AppSkeleton />;
+  // ✅ Single, intentional loading state (no partial UI “building”)
+  if (!isReady) return <LoadingScreen label="Opening your planner…" />;
 
   return (
-    <div className="min-h-screen bg-background transition-opacity duration-200 ease-out opacity-100">
+    <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         {/* Top bar */}
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
