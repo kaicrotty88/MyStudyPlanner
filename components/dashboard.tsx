@@ -45,7 +45,8 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 // Monday-start week (better for school week numbers)
 const startOfWeekMonday = (d: Date) => {
@@ -66,9 +67,40 @@ const inRangeInclusive = (t: Date, a: Date, b: Date) => {
 const weekOfTerm = (today: Date, termStart: Date) => {
   const wsToday = startOfWeekMonday(today).getTime();
   const wsStart = startOfWeekMonday(termStart).getTime();
-  const diffWeeks = Math.floor((wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000));
+  const diffWeeks = Math.floor(
+    (wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000)
+  );
   return diffWeeks + 1; // Week 1 at start week
 };
+
+/* -------------------- Quotes -------------------- */
+
+const QUOTES: Array<{ quote: string; author?: string }> = [
+  { quote: "Keep it simple. Do the next right thing." },
+  { quote: "Small progress, every day.", author: "Unknown" },
+  { quote: "Consistency beats intensity.", author: "Unknown" },
+  { quote: "You don’t rise to the goal — you fall to the system.", author: "James Clear" },
+  { quote: "Discipline is choosing what you want most over what you want now.", author: "Unknown" },
+  { quote: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
+  { quote: "The work you do today builds the results you want tomorrow.", author: "Unknown" },
+  { quote: "Focus on the reps, not the outcome.", author: "Unknown" },
+  { quote: "Make it obvious. Make it easy. Make it satisfying.", author: "James Clear" },
+  { quote: "Done is better than perfect.", author: "Sheryl Sandberg" },
+];
+
+function daySeed(d: Date) {
+  // stable per-day (local time)
+  return Number(
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
+      d.getDate()
+    ).padStart(2, "0")}`
+  );
+}
+
+function pickDailyQuote(d: Date) {
+  const idx = daySeed(d) % QUOTES.length;
+  return QUOTES[idx];
+}
 
 /* -------------------- Props -------------------- */
 
@@ -97,6 +129,8 @@ export function Dashboard({
     year: "numeric",
   });
 
+  const dailyQuote = useMemo(() => pickDailyQuote(today), [today]);
+
   // ✅ Load Terms from localStorage (Terms 1–4)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
@@ -109,16 +143,21 @@ export function Dashboard({
       }
 
       const parsed = JSON.parse(raw) as PeriodStored[];
-      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        startDate: new Date(p.startDate),
-        endDate: new Date(p.endDate),
-      }));
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map(
+        (p) => ({
+          id: p.id,
+          name: p.name,
+          startDate: new Date(p.startDate),
+          endDate: new Date(p.endDate),
+        })
+      );
 
       const onlyTerms1to4 = hydrated
         .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
-        .sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+        .sort(
+          (a, b) =>
+            startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime()
+        );
 
       setPeriods(onlyTerms1to4);
     } catch {
@@ -129,7 +168,9 @@ export function Dashboard({
   const termWeekLabel = useMemo(() => {
     if (periods.length === 0) return null;
 
-    const active = periods.find((p) => inRangeInclusive(today, p.startDate, p.endDate));
+    const active = periods.find((p) =>
+      inRangeInclusive(today, p.startDate, p.endDate)
+    );
     if (!active) return null;
 
     const wk = weekOfTerm(today, active.startDate);
@@ -160,16 +201,6 @@ export function Dashboard({
     [tasks]
   );
 
-  const dueSoonCount = useMemo(
-    () =>
-      tasks.filter((t) => {
-        if (t.completed) return false;
-        const d = daysUntil(t.dueDate, today);
-        return d >= 0 && d <= 7;
-      }).length,
-    [tasks, today]
-  );
-
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
@@ -181,30 +212,15 @@ export function Dashboard({
 
           <div className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">
-              Keep it simple. Do the next right thing.
+              {dailyQuote.quote}
+              {dailyQuote.author ? (
+                <span className="text-muted-foreground/70"> — {dailyQuote.author}</span>
+              ) : null}
             </p>
 
             {termWeekLabel ? (
-              <div className="text-xs text-muted-foreground">
-                {termWeekLabel}
-              </div>
+              <div className="text-xs text-muted-foreground">{termWeekLabel}</div>
             ) : null}
-          </div>
-        </div>
-
-        {/* Status chips */}
-        <div className="flex flex-wrap gap-2">
-          <div className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-            Focus today{" "}
-            <span className="ml-1 text-foreground font-medium">
-              {focusToday.length}
-            </span>
-          </div>
-          <div className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-            Due in 7 days{" "}
-            <span className="ml-1 text-foreground font-medium">
-              {dueSoonCount}
-            </span>
           </div>
         </div>
       </div>
@@ -221,12 +237,8 @@ export function Dashboard({
           <section className="md:col-span-7 rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">
-                  Focus today
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Today’s study sessions
-                </p>
+                <h2 className="text-sm font-semibold text-foreground">Focus today</h2>
+                <p className="text-xs text-muted-foreground">Today’s study sessions</p>
               </div>
 
               <button
@@ -300,9 +312,7 @@ export function Dashboard({
             <div className="p-4">
               {upNext.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
-                  <div className="text-sm font-medium text-foreground">
-                    All clear
-                  </div>
+                  <div className="text-sm font-medium text-foreground">All clear</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     No upcoming tasks.
                   </div>
