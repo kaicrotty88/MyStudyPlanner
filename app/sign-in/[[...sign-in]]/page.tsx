@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default function Page() {
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to stay organsised.">
+    <AuthShell title="Welcome back" subtitle="Sign in to keep everything in sync.">
       <div className="clerk-embed">
         <SignIn
           appearance={{
@@ -38,14 +38,25 @@ export default function Page() {
           }}
         />
 
-        {/* Create account link */}
+        {/* Switch */}
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          Don’t have an account?{" "}
+          New here?{" "}
           <Link
             href="/sign-up"
             className="font-medium text-[#7A9B7F] hover:opacity-90 transition"
           >
-            Create one
+            Create an account
+          </Link>
+        </div>
+
+        {/* Small legit footer */}
+        <div className="mt-3 flex items-center justify-center gap-3 text-xs text-muted-foreground/80">
+          <Link href="/privacy" className="hover:text-muted-foreground transition">
+            Privacy
+          </Link>
+          <span className="opacity-60">•</span>
+          <Link href="/terms" className="hover:text-muted-foreground transition">
+            Terms
           </Link>
         </div>
       </div>

@@ -1,9 +1,10 @@
 import { SignUp } from "@clerk/nextjs";
 import AuthShell from "@/components/AuthShell";
+import Link from "next/link";
 
 export default function Page() {
   return (
-    <AuthShell title="Create your account" subtitle="Get more organised than ever.">
+    <AuthShell title="Create your account" subtitle="Set up once, use it every day.">
       <div className="clerk-embed">
         <SignUp
           appearance={{
@@ -36,6 +37,28 @@ export default function Page() {
             },
           }}
         />
+
+        {/* Switch */}
+        <div className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href="/sign-in"
+            className="font-medium text-[#7A9B7F] hover:opacity-90 transition"
+          >
+            Sign in
+          </Link>
+        </div>
+
+        {/* Small legit footer */}
+        <div className="mt-3 flex items-center justify-center gap-3 text-xs text-muted-foreground/80">
+          <Link href="/privacy" className="hover:text-muted-foreground transition">
+            Privacy
+          </Link>
+          <span className="opacity-60">•</span>
+          <Link href="/terms" className="hover:text-muted-foreground transition">
+            Terms
+          </Link>
+        </div>
       </div>
     </AuthShell>
   );
