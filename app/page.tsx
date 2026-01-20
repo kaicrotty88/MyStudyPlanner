@@ -4,9 +4,9 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "MyStudyPlanner | Study planner for high school students",
+  title: "MyStudyPlanner",
   description:
-    "A calm, free online study planner for high school students. Organise subjects, tasks, assessments, and study sessions in one place — without clutter.",
+    "A calm study planner for high school and university students. Plan study, organise assessments, track progress without clutter.",
   alternates: { canonical: "/" },
 };
 
@@ -56,9 +56,8 @@ export default async function Page() {
               <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
                 Subjects, assessments, deadlines, and study sessions pile up fast.
                 MyStudyPlanner keeps everything in one calm place – so you focus
-                on the work, not managing tools. It’s a free online study planner
-                built for high school students to organise subjects, tasks, and
-                study sessions without the busy feeling.
+                on the work, not managing tools. A free online study planner for
+                high school and university students.
               </p>
 
               <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -78,24 +77,7 @@ export default async function Page() {
               </div>
 
               <div className="mt-3 text-[11px] text-muted-foreground opacity-80">
-                Completely free. No ads. Demo starts with example subjects and tasks.
-              </div>
-
-              <div className="mt-8 rounded-2xl border border-border bg-card/60 shadow-sm">
-                <div className="px-5 py-4 border-b border-border">
-                  <div className="text-sm font-semibold text-foreground">
-                    Designed for
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    A simple planner that fits real school weeks and deadlines.
-                  </div>
-                </div>
-
-                <div className="px-5 py-4 space-y-3 text-sm text-muted-foreground">
-                  <div>• High school students (Years 7–12)</div>
-                  <div>• Tasks, assignments, exams, and study sessions</div>
-                  <div>• Term-based planning with a clear weekly view</div>
-                </div>
+                Completely free. No ads. Starts with example subjects and tasks.
               </div>
             </div>
 
