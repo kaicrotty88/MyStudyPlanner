@@ -76,6 +76,29 @@ const endOfWeek = (d: Date) => {
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+// Monday-start week (better for school week numbers)
+const startOfWeekMonday = (d: Date) => {
+  const x = startOfDay(d);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diff = (day + 6) % 7; // Mon=0, Tue=1, ... Sun=6
+  x.setDate(x.getDate() - diff);
+  return x;
+};
+
+const inRangeInclusive = (t: Date, a: Date, b: Date) => {
+  const tt = startOfDay(t).getTime();
+  const aa = startOfDay(a).getTime();
+  const bb = startOfDay(b).getTime();
+  return tt >= aa && tt <= bb;
+};
+
+const weekOfTerm = (today: Date, termStart: Date) => {
+  const wsToday = startOfWeekMonday(today).getTime();
+  const wsStart = startOfWeekMonday(termStart).getTime();
+  const diffWeeks = Math.floor((wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000));
+  return diffWeeks + 1; // Week 1 at start week
+};
+
 const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
   const t = startOfDay(dueDate).getTime();
   for (const p of periods) {
@@ -208,11 +231,15 @@ function CalendarView({
     return map;
   }, [periods]);
 
-  const activeTermLabel = useMemo(() => {
-    const pid = findMatchingPeriodId(currentDate, periods);
-    if (!pid) return undefined;
-    return periodNameById.get(pid) ?? pid;
-  }, [currentDate, periods, periodNameById]);
+  const termWeekLabel = useMemo(() => {
+    if (periods.length === 0) return undefined;
+
+    const active = periods.find((p) => inRangeInclusive(currentDate, p.startDate, p.endDate));
+    if (!active) return undefined;
+
+    const wk = weekOfTerm(currentDate, active.startDate);
+    return `${active.name} · Week ${wk}`;
+  }, [currentDate, periods]);
 
   // tasks edit/delete
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -931,13 +958,8 @@ function CalendarView({
           </button>
 
           <div className="min-w-[220px] text-left md:text-center">
-            <div className="flex items-center gap-2">
-              <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
-              {activeTermLabel ? <TermPill label={activeTermLabel} /> : null}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {viewMode === "month" ? "Overview" : viewMode === "week" ? "Weekly plan" : "Daily plan"}
-            </div>
+            <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
+            {termWeekLabel ? <div className="text-xs text-muted-foreground mt-0.5">{termWeekLabel}</div> : null}
           </div>
 
           <button
@@ -949,15 +971,17 @@ function CalendarView({
             <ChevronRight className="h-4 w-4 text-foreground" />
           </button>
 
-          <button
-            onClick={jumpToToday}
-            className="ml-1 hidden sm:inline-flex items-center gap-2 h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-muted transition"
-            aria-label="Jump to today"
-            type="button"
-          >
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            Today
-          </button>
+          {viewMode !== "month" ? (
+            <button
+              onClick={jumpToToday}
+              className="ml-1 hidden sm:inline-flex items-center gap-2 h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-muted transition"
+              aria-label="Jump to today"
+              type="button"
+            >
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              Today
+            </button>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">
