@@ -240,7 +240,7 @@ export function StudyPlanner({
   const startTimeUiValue = time12To24(sessionForm.startTime);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
+<div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
