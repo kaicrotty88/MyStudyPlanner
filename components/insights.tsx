@@ -343,7 +343,30 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       className={[
         "px-3 py-1.5 rounded-full text-sm transition",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-        active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+        active ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+
+  const HeaderTab = ({
+    active,
+    children,
+    onClick,
+  }: {
+    active: boolean;
+    children: React.ReactNode;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={[
+        "px-3 py-1.5 rounded-lg text-sm transition",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+        active ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
       ].join(" ")}
     >
       {children}
@@ -363,47 +386,31 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           </p>
         </div>
 
-        {/* Unified control bar */}
-        <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
-          <ControlPill active={view === "study"} onClick={() => setView("study")}>
+        {/* Tabs (lighter, calmer) */}
+        <div className="flex items-center gap-2">
+          <HeaderTab active={view === "study"} onClick={() => setView("study")}>
             Study
-          </ControlPill>
-          <ControlPill active={view === "marks"} onClick={() => setView("marks")}>
+          </HeaderTab>
+          <HeaderTab active={view === "marks"} onClick={() => setView("marks")}>
             Marks
-          </ControlPill>
+          </HeaderTab>
+        </div>
+      </div>
 
-          {view === "study" ? (
-            <>
-              <span className="mx-1 h-6 w-px bg-border/70" />
+      {view === "study" ? (
+        <>
+          {/* Study range (contextual, not in header) */}
+          <div className="flex items-center justify-end">
+            <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
               <ControlPill active={range === 7} onClick={() => setRange(7)}>
                 7 days
               </ControlPill>
               <ControlPill active={range === 30} onClick={() => setRange(30)}>
                 30 days
               </ControlPill>
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Marks period filter (only when periods exist) */}
-      {view === "marks" && periods.length > 0 ? (
-        <div className="flex items-center justify-end">
-          <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
-            <ControlPill active={selectedPeriod === "all"} onClick={() => setSelectedPeriod("all")}>
-              All periods
-            </ControlPill>
-            {periods.map((p) => (
-              <ControlPill key={p.id} active={selectedPeriod === p.id} onClick={() => setSelectedPeriod(p.id)}>
-                {p.name}
-              </ControlPill>
-            ))}
+            </div>
           </div>
-        </div>
-      ) : null}
 
-      {view === "study" ? (
-        <>
           {/* Top cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
@@ -579,6 +586,22 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
         </>
       ) : (
         <>
+          {/* Marks period filter (contextual, inside marks view) */}
+          {periods.length > 0 ? (
+            <div className="flex items-center justify-end">
+              <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+                <ControlPill active={selectedPeriod === "all"} onClick={() => setSelectedPeriod("all")}>
+                  All periods
+                </ControlPill>
+                {periods.map((p) => (
+                  <ControlPill key={p.id} active={selectedPeriod === p.id} onClick={() => setSelectedPeriod(p.id)}>
+                    {p.name}
+                  </ControlPill>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {/* Marks top cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
