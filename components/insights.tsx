@@ -379,44 +379,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
   /* -------------------- UI helpers -------------------- */
 
-  const studyScopeLabel = useMemo(() => {
-    const periodLabel =
-      selectedStudyPeriodObj?.name ?? (selectedPeriodStudy !== "all" ? "Selected period" : undefined);
-
-    if (!periodLabel) return "Last 30 days";
-    return `${periodLabel} · Last 30 days`;
-  }, [selectedStudyPeriodObj, selectedPeriodStudy]);
-
-  const marksScopeLabel = useMemo(() => {
-    if (selectedPeriodMarks === "all") return "All periods";
-    return periodById[selectedPeriodMarks]?.name ?? "Selected period";
-  }, [selectedPeriodMarks, periodById]);
-
-  const ScopeChip = ({ label }: { label: string }) => (
-    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground">
-      <span className="text-foreground font-medium">Viewing:</span>
-      <span className="truncate">{label}</span>
-    </span>
-  );
-
-  const SectionHeader = ({
-    title,
-    description,
-    right,
-  }: {
-    title: string;
-    description?: string;
-    right?: React.ReactNode;
-  }) => (
-    <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-      <div className="space-y-1">
-        <div className="text-sm font-semibold text-foreground">{title}</div>
-        {description ? <div className="text-xs text-muted-foreground">{description}</div> : null}
-      </div>
-      {right ? <div className="flex items-center justify-start md:justify-end">{right}</div> : null}
-    </div>
-  );
-
   const Card = ({
     title,
     subtitle,
@@ -512,41 +474,26 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
-          <p className="text-sm text-muted-foreground">
-            {view === "study"
-              ? "A quick view of your study and upcoming assessments."
-              : "A quick view of your recorded results."}
-          </p>
         </div>
-
         <ViewToggle />
       </div>
 
+      {/* Period filter row (only when periods exist) */}
+      {periods.length ? (
+        <div className="flex items-center justify-end">
+          {view === "study" ? (
+            <PeriodPills value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
+          ) : (
+            <PeriodPills value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
+          )}
+        </div>
+      ) : null}
+
       {view === "study" ? (
         <>
-          <SectionHeader
-            title="Study insights"
-            description="A calm summary of your recent study patterns."
-            right={<ScopeChip label={studyScopeLabel} />}
-          />
-
-          {/* Minimal control row (periods only) */}
-          {periods.length ? (
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="text-xs text-muted-foreground">Period</div>
-              <div className="flex items-center justify-start md:justify-end">
-                <PeriodPills value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
-              </div>
-            </div>
-          ) : null}
-
           {/* KPI cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card
-              title="Total study"
-              subtitle="Last 30 days"
-              icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-            >
+            <Card title="Total study" icon={<Clock className="h-4 w-4 text-muted-foreground" />}>
               <div className="text-4xl font-semibold tracking-tight text-foreground">
                 {formatMinutes(totalMinutes)}
               </div>
@@ -555,11 +502,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               </div>
             </Card>
 
-            <Card
-              title="Top subject"
-              subtitle="Last 30 days"
-              icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-            >
+            <Card title="Top subject" icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}>
               {topSubject?.subject ? (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -594,11 +537,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               )}
             </Card>
 
-            <Card
-              title="Most studied assessment"
-              subtitle="All time"
-              icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
-            >
+            <Card title="Most studied assessment" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
               {mostStudiedAssessment?.task ? (
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-foreground truncate">
@@ -623,11 +562,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           {/* Breakdown + upcoming */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-5">
-              <Card
-                title="Study breakdown"
-                subtitle="By subject (last 30 days)"
-                icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
-              >
+              <Card title="Study breakdown" icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}>
                 {subjectBreakdown.entries.length ? (
                   <div className="space-y-3">
                     {subjectBreakdown.entries.map((x) => {
@@ -668,11 +603,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             </div>
 
             <div className="lg:col-span-7">
-              <Card
-                title="Upcoming assessments"
-                subtitle="Next 5 exams/assignments"
-                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-              >
+              <Card title="Upcoming assessments" subtitle="Next 5" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
                 {upcomingAssessments.length ? (
                   <div className="space-y-2">
                     {upcomingAssessments.map((t) => {
@@ -725,27 +656,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
         </>
       ) : (
         <>
-          <SectionHeader
-            title="Marks insights"
-            description="A quick summary of your recorded results."
-            right={<ScopeChip label={marksScopeLabel} />}
-          />
-
-          {/* Minimal control row (periods only) */}
-          {periods.length ? (
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="text-xs text-muted-foreground">Period</div>
-              <div className="flex items-center justify-start md:justify-end">
-                <PeriodPills value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
-              </div>
-            </div>
-          ) : null}
-
           {/* KPI cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
               title="Overall average"
-              subtitle={recordedAssessments.length ? "Across recorded results" : "No results yet"}
+              subtitle={recordedAssessments.length ? undefined : "No results yet"}
               icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
             >
               {recordedAssessments.length ? (
@@ -769,7 +684,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
             <Card
               title="Top subject"
-              subtitle={topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : "—"}
+              subtitle={topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : undefined}
               icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
             >
               {topMarkSubject?.subject ? (
@@ -802,11 +717,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               )}
             </Card>
 
-            <Card
-              title="Best assessment"
-              subtitle="Highest result"
-              icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
-            >
+            <Card title="Best assessment" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
               {bestAssessment?.task ? (
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-foreground truncate">{bestAssessment.task.title}</div>
@@ -825,11 +736,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
           {/* Recent results */}
           <div className="grid grid-cols-1">
-            <Card
-              title="Recent results"
-              subtitle="Last 5 recorded"
-              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-            >
+            <Card title="Recent results" subtitle="Last 5" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
               {recentResults.length ? (
                 <div className="space-y-2">
                   {recentResults.map(({ task, result, date }) => {
