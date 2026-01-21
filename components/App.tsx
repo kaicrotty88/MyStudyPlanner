@@ -496,7 +496,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     ["dashboard", "Dashboard"],
     ["calendar", "Calendar"],
     ["tasks", "Tasks"],
-    ["study", "Study Planner"],
+    ["study", "Study Log"],
     ["insights", "Insights"],
     ["marks", "Marks"],
     ["reminders", "Reminders"],

@@ -167,10 +167,7 @@ export function StudyPlanner({
       minutes,
       label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString(
         "en-US",
-        {
-          month: "short",
-          day: "numeric",
-        }
+        { month: "short", day: "numeric" }
       )}`,
     };
   }, [studySessions]);
@@ -240,12 +237,26 @@ export function StudyPlanner({
   const startTimeUiValue = time12To24(sessionForm.startTime);
 
   return (
-<div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Planner</h1>
-          <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Log</h1>
+
+          {/* Subtitle + compact weekly summary (replaces the big white card) */}
+          <div className="text-sm text-muted-foreground">
+            <div>Plan, log, and review your study sessions.</div>
+            <div className="mt-1">
+              <span className="text-foreground/90 font-medium">This week</span>
+              <span className="text-muted-foreground"> • {weeklySummary.label}</span>
+              <span className="text-muted-foreground"> • </span>
+              <span className="text-muted-foreground">
+                {weeklySummary.count} session{weeklySummary.count === 1 ? "" : "s"}
+              </span>
+              <span className="text-muted-foreground"> • </span>
+              <span className="text-foreground font-semibold">{formatMinutes(weeklySummary.minutes)}</span>
+            </div>
+          </div>
         </div>
 
         <button
@@ -255,18 +266,6 @@ export function StudyPlanner({
           <Plus className="w-4 h-4" />
           Log session
         </button>
-      </div>
-
-      {/* Weekly summary */}
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm flex items-center justify-between">
-        <div className="text-sm">
-          <span className="font-medium text-foreground">This week</span>
-          <span className="text-muted-foreground"> • {weeklySummary.label}</span>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {weeklySummary.count} sessions •{" "}
-          <span className="text-foreground font-semibold">{formatMinutes(weeklySummary.minutes)}</span>
-        </div>
       </div>
 
       {/* Subject tabs — match Calendar/Insights pill system */}
