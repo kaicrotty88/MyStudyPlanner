@@ -474,6 +474,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
+          <p className="text-sm text-muted-foreground">
+            {view === "study"
+              ? "A quick view of your study habits and upcoming assessments."
+              : "A quick view of your marks and recent results."}
+          </p>
         </div>
         <ViewToggle />
       </div>
@@ -603,7 +608,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             </div>
 
             <div className="lg:col-span-7">
-              <Card title="Upcoming assessments" subtitle="Next 5" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
+              <Card
+                title="Upcoming assessments"
+                subtitle="Next 5"
+                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+              >
                 {upcomingAssessments.length ? (
                   <div className="space-y-2">
                     {upcomingAssessments.map((t) => {
@@ -684,7 +693,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
             <Card
               title="Top subject"
-              subtitle={topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : undefined}
+              subtitle={
+                topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : undefined
+              }
               icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
             >
               {topMarkSubject?.subject ? (
