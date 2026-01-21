@@ -243,17 +243,20 @@ export function StudyPlanner({
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Log</h1>
 
-          {/* Subtitle + compact weekly summary (replaces the big white card) */}
-          <div className="text-sm text-muted-foreground">
-            <div>Plan, log, and review your study sessions.</div>
-            <div className="mt-1">
+          {/* Description */}
+          <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
+
+          {/* Week line: visually separate from description */}
+          <div className="pt-2">
+            <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
               <span className="text-foreground/90 font-medium">This week</span>
-              <span className="text-muted-foreground"> • {weeklySummary.label}</span>
-              <span className="text-muted-foreground"> • </span>
-              <span className="text-muted-foreground">
+              <span className="opacity-40">•</span>
+              <span>{weeklySummary.label}</span>
+              <span className="opacity-40">•</span>
+              <span>
                 {weeklySummary.count} session{weeklySummary.count === 1 ? "" : "s"}
               </span>
-              <span className="text-muted-foreground"> • </span>
+              <span className="opacity-40">•</span>
               <span className="text-foreground font-semibold">{formatMinutes(weeklySummary.minutes)}</span>
             </div>
           </div>
@@ -301,12 +304,8 @@ export function StudyPlanner({
         })}
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {visibleSessions.length} sessions •{" "}
-          <span className="text-foreground font-semibold">{formatMinutes(totalMinutesVisible)}</span>
-        </div>
+      {/* Controls (REMOVE the left "2 sessions • 2h" line) */}
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setShowCompleted((v) => !v)}
           className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
@@ -317,8 +316,12 @@ export function StudyPlanner({
 
       {/* Sessions list */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-        <div className="px-4 py-3 border-b border-border bg-muted/30 text-sm font-semibold text-foreground">
-          Sessions
+        <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-foreground">Sessions</div>
+          <div className="text-xs text-muted-foreground">
+            {visibleSessions.length} session{visibleSessions.length === 1 ? "" : "s"} •{" "}
+            <span className="text-foreground font-semibold">{formatMinutes(totalMinutesVisible)}</span>
+          </div>
         </div>
 
         {visibleSessions.length === 0 ? (
