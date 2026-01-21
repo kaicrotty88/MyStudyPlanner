@@ -468,7 +468,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           ].join(" ")}
         >
-          <option value="all">All periods</option>
+          <option value="all">All terms</option>
           {periods.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
