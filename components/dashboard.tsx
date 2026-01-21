@@ -241,9 +241,6 @@ export function Dashboard({
           <div className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">
               {dailyQuote.quote}
-              {dailyQuote.author ? (
-                <span className="text-muted-foreground/70"> — {dailyQuote.author}</span>
-              ) : null}
             </p>
 
             {termWeekLabel ? (
