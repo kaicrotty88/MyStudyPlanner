@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import type { Subject, Task, StudySession } from "./models";
+import type { Subject, Task, StudySession, TaskResult } from "./models";
 import { Calendar, Clock, TrendingUp, Trophy, Sparkles } from "lucide-react";
 
 // --- helpers ---
@@ -41,6 +41,11 @@ const formatMinutes = (total: number): string => {
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+const safePercent = (score: number, outOf: number): number => {
+  if (!outOf || outOf <= 0) return 0;
+  return Math.round((score / outOf) * 100);
+};
+
 interface InsightsProps {
   subjects: Subject[];
   tasks: Task[];
@@ -48,6 +53,7 @@ interface InsightsProps {
 }
 
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
+  const [view, setView] = useState<"study" | "marks">("study");
   const [range, setRange] = useState<7 | 30>(7);
 
   // Stable "now" so date-based memos don't drift every render
@@ -64,6 +70,8 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     tasks.forEach((t) => (map[t.id] = t));
     return map;
   }, [tasks]);
+
+  /* -------------------- Study insights (existing) -------------------- */
 
   const cutoff = useMemo(() => {
     const t = new Date(now);
@@ -137,6 +145,108 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return { entries, max };
   }, [minutesBySubject, subjectById]);
 
+  /* -------------------- Marks insights (derived from tasks) -------------------- */
+
+  const assessableTasks = useMemo(() => {
+    return tasks.filter((t) => t.type === "exam" || t.type === "assignment");
+  }, [tasks]);
+
+  const recordedAssessments = useMemo(() => {
+    return assessableTasks.filter((t) => Boolean(t.result));
+  }, [assessableTasks]);
+
+  const marksTotals = useMemo(() => {
+    let totalScore = 0;
+    let totalOutOf = 0;
+
+    for (const t of recordedAssessments) {
+      const r: TaskResult | undefined = t.result;
+      if (!r) continue;
+      if (!Number.isFinite(r.score) || !Number.isFinite(r.outOf)) continue;
+      if (r.outOf <= 0) continue;
+      totalScore += r.score;
+      totalOutOf += r.outOf;
+    }
+
+    const overallPercent = totalOutOf > 0 ? safePercent(totalScore, totalOutOf) : 0;
+
+    return { totalScore, totalOutOf, overallPercent };
+  }, [recordedAssessments]);
+
+  const marksBySubject = useMemo(() => {
+    const map: Record<string, { score: number; outOf: number; count: number }> = {};
+
+    for (const t of recordedAssessments) {
+      const r: TaskResult | undefined = t.result;
+      if (!r) continue;
+      if (r.outOf <= 0) continue;
+
+      const sid = t.subjectId;
+      if (!map[sid]) map[sid] = { score: 0, outOf: 0, count: 0 };
+      map[sid].score += r.score;
+      map[sid].outOf += r.outOf;
+      map[sid].count += 1;
+    }
+
+    return map;
+  }, [recordedAssessments]);
+
+  const topMarkSubject = useMemo(() => {
+    const entries = Object.entries(marksBySubject)
+      .map(([subjectId, agg]) => ({
+        subjectId,
+        subject: subjectById[subjectId],
+        percent: agg.outOf > 0 ? safePercent(agg.score, agg.outOf) : 0,
+        count: agg.count,
+      }))
+      .filter((x) => x.subject && x.count > 0)
+      .sort((a, b) => b.percent - a.percent);
+
+    return entries.length ? entries[0] : null;
+  }, [marksBySubject, subjectById]);
+
+  const bestAssessment = useMemo(() => {
+    const entries = recordedAssessments
+      .map((t) => {
+        const r: TaskResult | undefined = t.result;
+        if (!r || r.outOf <= 0) return null;
+        return { task: t, percent: safePercent(r.score, r.outOf) };
+      })
+      .filter(Boolean) as { task: Task; percent: number }[];
+
+    entries.sort((a, b) => b.percent - a.percent);
+    return entries.length ? entries[0] : null;
+  }, [recordedAssessments]);
+
+  const recentResults = useMemo(() => {
+    const items: {
+      task: Task;
+      result: TaskResult;
+      date: Date;
+    }[] = recordedAssessments
+      .map((t) => {
+        const r: TaskResult | undefined = t.result;
+        if (!r) return null;
+
+        const date =
+          r.dateRecorded instanceof Date
+            ? r.dateRecorded
+            : r.dateRecorded
+            ? new Date(r.dateRecorded)
+            : t.dueDate;
+
+        return { task: t, result: r, date };
+      })
+      .filter(Boolean) as {
+      task: Task;
+      result: TaskResult;
+      date: Date;
+    }[];
+
+    items.sort((a, b) => b.date.getTime() - a.date.getTime());
+    return items.slice(0, 5);
+  }, [recordedAssessments]);
+
   const Card = ({
     title,
     subtitle,
@@ -174,173 +284,371 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
-          <p className="text-sm text-muted-foreground">A quick view of your study + upcoming assessments</p>
+          <p className="text-sm text-muted-foreground">
+            {view === "study"
+              ? "A quick view of your study + upcoming assessments"
+              : "A quick view of your recorded results"}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* View toggle */}
           <div className="rounded-full border border-border bg-card p-1 flex gap-1">
             <button
-              onClick={() => setRange(7)}
+              onClick={() => setView("study")}
               className={[
                 "px-3 py-1.5 rounded-full text-sm transition",
-                range === 7
+                view === "study"
                   ? "bg-primary text-primary-foreground"
                   : "text-foreground hover:bg-muted border border-border bg-card",
               ].join(" ")}
             >
-              7 days
+              Study
             </button>
             <button
-              onClick={() => setRange(30)}
+              onClick={() => setView("marks")}
               className={[
                 "px-3 py-1.5 rounded-full text-sm transition",
-                range === 30
+                view === "marks"
                   ? "bg-primary text-primary-foreground"
                   : "text-foreground hover:bg-muted border border-border bg-card",
               ].join(" ")}
             >
-              30 days
+              Marks
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Top cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Total study" subtitle={`Last ${range} days`} icon={<Clock className="h-4 w-4 text-muted-foreground" />}>
-          <div className="text-3xl font-semibold text-foreground">{formatMinutes(totalMinutes)}</div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            {sessionsInRange.length} session{sessionsInRange.length === 1 ? "" : "s"} logged
-          </div>
-        </Card>
-
-        <Card title="Top subject" subtitle={`Last ${range} days`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}>
-          {topSubject?.subject ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topSubject.subject.color }} />
-                  <div className="text-sm font-semibold text-foreground truncate">{topSubject.subject.name}</div>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">{formatMinutes(topSubject.minutes)}</div>
-              </div>
-
-              <span
-                className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/40 px-2 py-1 text-xs text-muted-foreground"
-                style={{ boxShadow: `0 0 0 2px ${topSubject.subject.color}22` }}
+          {/* Range toggle (study only) */}
+          {view === "study" ? (
+            <div className="rounded-full border border-border bg-card p-1 flex gap-1">
+              <button
+                onClick={() => setRange(7)}
+                className={[
+                  "px-3 py-1.5 rounded-full text-sm transition",
+                  range === 7
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-muted border border-border bg-card",
+                ].join(" ")}
               >
-                Top
-              </span>
+                7 days
+              </button>
+              <button
+                onClick={() => setRange(30)}
+                className={[
+                  "px-3 py-1.5 rounded-full text-sm transition",
+                  range === 30
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-muted border border-border bg-card",
+                ].join(" ")}
+              >
+                30 days
+              </button>
             </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
-              <div className="text-sm font-medium text-foreground">No sessions yet</div>
-              <div className="mt-1 text-xs text-muted-foreground">Log a study session to unlock insights.</div>
-            </div>
-          )}
-        </Card>
-
-        <Card title="Most studied assessment" subtitle="All time" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
-          {mostStudiedAssessment?.task ? (
-            <div className="space-y-1">
-              <div className="text-sm font-semibold text-foreground truncate">{mostStudiedAssessment.task.title}</div>
-              <div className="text-xs text-muted-foreground">
-                {mostStudiedAssessment.task.type.toUpperCase()} • {formatMinutes(mostStudiedAssessment.minutes)}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
-              <div className="text-sm font-medium text-foreground">No linked study yet</div>
-              <div className="mt-1 text-xs text-muted-foreground">Link sessions to an exam/assignment to track progress.</div>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Breakdown + upcoming */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Subject breakdown */}
-        <div className="lg:col-span-5">
-          <Card title="Study breakdown" subtitle={`By subject (last ${range} days)`} icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}>
-            {subjectBreakdown.entries.length ? (
-              <div className="space-y-3">
-                {subjectBreakdown.entries.map((x) => {
-                  const pct = Math.max(0.06, x.minutes / subjectBreakdown.max); // keep tiny bars visible
-                  return (
-                    <div key={x.subjectId} className="space-y-1">
-                      <div className="flex items-center justify-between gap-3 text-xs">
-                        <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.subject.color }} />
-                          <span className="truncate">{x.subject.name}</span>
-                        </div>
-                        <div className="shrink-0 text-foreground font-medium">{formatMinutes(x.minutes)}</div>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted/50 overflow-hidden border border-border">
-                        <div className="h-full rounded-full" style={{ width: `${pct * 100}%`, backgroundColor: x.subject.color }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
-                <div className="text-sm font-medium text-foreground">Nothing to show</div>
-                <div className="mt-1 text-xs text-muted-foreground">Log sessions in the Study Planner.</div>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Upcoming assessments */}
-        <div className="lg:col-span-7">
-          <Card title="Upcoming assessments" subtitle="Next 5 exams/assignments" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
-            {upcomingAssessments.length ? (
-              <div className="space-y-2">
-                {upcomingAssessments.map((t) => {
-                  const subj = subjectById[t.subjectId];
-                  const dot = subj?.color ?? "#94a3b8";
-
-                  return (
-                    <div
-                      key={t.id}
-                      className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
-                      style={{ borderLeftWidth: 3, borderLeftColor: dot }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-2 min-w-0">
-                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
-                              <span className="truncate">{subj?.name ?? "Unassigned"}</span>
-                            </span>
-                            <span className="text-muted-foreground/60">•</span>
-                            <span className="shrink-0">{t.type.toUpperCase()}</span>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-right">
-                          <div className="text-xs font-semibold text-foreground">
-                            {t.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </div>
-                          <div className="mt-1 text-[11px] text-muted-foreground">
-                            {t.dueDate.toLocaleDateString("en-US", { weekday: "short" })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
-                <div className="text-sm font-medium text-foreground">No upcoming exams/assignments</div>
-                <div className="mt-1 text-xs text-muted-foreground">Add one in Tasks or Calendar.</div>
-              </div>
-            )}
-          </Card>
+          ) : null}
         </div>
       </div>
+
+      {view === "study" ? (
+        <>
+          {/* Top cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card
+              title="Total study"
+              subtitle={`Last ${range} days`}
+              icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+            >
+              <div className="text-3xl font-semibold text-foreground">{formatMinutes(totalMinutes)}</div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {sessionsInRange.length} session{sessionsInRange.length === 1 ? "" : "s"} logged
+              </div>
+            </Card>
+
+            <Card
+              title="Top subject"
+              subtitle={`Last ${range} days`}
+              icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+            >
+              {topSubject?.subject ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: topSubject.subject.color }}
+                      />
+                      <div className="text-sm font-semibold text-foreground truncate">
+                        {topSubject.subject.name}
+                      </div>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{formatMinutes(topSubject.minutes)}</div>
+                  </div>
+
+                  <span
+                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/40 px-2 py-1 text-xs text-muted-foreground"
+                    style={{ boxShadow: `0 0 0 2px ${topSubject.subject.color}22` }}
+                  >
+                    Top
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                  <div className="text-sm font-medium text-foreground">No sessions yet</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Log a study session to unlock insights.</div>
+                </div>
+              )}
+            </Card>
+
+            <Card
+              title="Most studied assessment"
+              subtitle="All time"
+              icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
+            >
+              {mostStudiedAssessment?.task ? (
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {mostStudiedAssessment.task.title}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {mostStudiedAssessment.task.type.toUpperCase()} •{" "}
+                    {formatMinutes(mostStudiedAssessment.minutes)}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                  <div className="text-sm font-medium text-foreground">No linked study yet</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Link sessions to an exam/assignment to track progress.
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Breakdown + upcoming */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Subject breakdown */}
+            <div className="lg:col-span-5">
+              <Card
+                title="Study breakdown"
+                subtitle={`By subject (last ${range} days)`}
+                icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
+              >
+                {subjectBreakdown.entries.length ? (
+                  <div className="space-y-3">
+                    {subjectBreakdown.entries.map((x) => {
+                      const pct = Math.max(0.06, x.minutes / subjectBreakdown.max); // keep tiny bars visible
+                      return (
+                        <div key={x.subjectId} className="space-y-1">
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.subject.color }} />
+                              <span className="truncate">{x.subject.name}</span>
+                            </div>
+                            <div className="shrink-0 text-foreground font-medium">{formatMinutes(x.minutes)}</div>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted/50 overflow-hidden border border-border">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${pct * 100}%`, backgroundColor: x.subject.color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                    <div className="text-sm font-medium text-foreground">Nothing to show</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Log sessions in the Study Planner.</div>
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* Upcoming assessments */}
+            <div className="lg:col-span-7">
+              <Card
+                title="Upcoming assessments"
+                subtitle="Next 5 exams/assignments"
+                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+              >
+                {upcomingAssessments.length ? (
+                  <div className="space-y-2">
+                    {upcomingAssessments.map((t) => {
+                      const subj = subjectById[t.subjectId];
+                      const dot = subj?.color ?? "#94a3b8";
+
+                      return (
+                        <div
+                          key={t.id}
+                          className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
+                          style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <span className="inline-flex items-center gap-2 min-w-0">
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
+                                  <span className="truncate">{subj?.name ?? "Unassigned"}</span>
+                                </span>
+                                <span className="text-muted-foreground/60">•</span>
+                                <span className="shrink-0">{t.type.toUpperCase()}</span>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <div className="text-xs font-semibold text-foreground">
+                                {t.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                {t.dueDate.toLocaleDateString("en-US", { weekday: "short" })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
+                    <div className="text-sm font-medium text-foreground">No upcoming exams/assignments</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Add one in Tasks or Calendar.</div>
+                  </div>
+                )}
+              </Card>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Marks top cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card
+              title="Overall average"
+              subtitle={recordedAssessments.length ? "Across recorded results" : "No results yet"}
+              icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+            >
+              {recordedAssessments.length ? (
+                <>
+                  <div className="text-3xl font-semibold text-foreground">{marksTotals.overallPercent}%</div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {recordedAssessments.length} recorded result{recordedAssessments.length === 1 ? "" : "s"}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                  <div className="text-sm font-medium text-foreground">No results recorded</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Enter a result in Marks to see insights.</div>
+                </div>
+              )}
+            </Card>
+
+            <Card
+              title="Top subject"
+              subtitle={topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : "—"}
+              icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
+            >
+              {topMarkSubject?.subject ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topMarkSubject.subject.color }} />
+                      <div className="text-sm font-semibold text-foreground truncate">{topMarkSubject.subject.name}</div>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{topMarkSubject.percent}% average</div>
+                  </div>
+
+                  <span
+                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/40 px-2 py-1 text-xs text-muted-foreground"
+                    style={{ boxShadow: `0 0 0 2px ${topMarkSubject.subject.color}22` }}
+                  >
+                    Top
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                  <div className="text-sm font-medium text-foreground">Not enough data</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Record results to see subject trends.</div>
+                </div>
+              )}
+            </Card>
+
+            <Card
+              title="Best assessment"
+              subtitle="Highest result"
+              icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
+            >
+              {bestAssessment?.task ? (
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold text-foreground truncate">{bestAssessment.task.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {bestAssessment.percent}% • {(bestAssessment.task.type as string).toUpperCase()}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                  <div className="text-sm font-medium text-foreground">No results yet</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Your best result will appear here.</div>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Recent results */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-12">
+              <Card title="Recent results" subtitle="Last 5 recorded" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
+                {recentResults.length ? (
+                  <div className="space-y-2">
+                    {recentResults.map(({ task, result, date }) => {
+                      const subj = subjectById[task.subjectId];
+                      const dot = subj?.color ?? "#94a3b8";
+                      const pct = safePercent(result.score, result.outOf);
+
+                      return (
+                        <div
+                          key={task.id}
+                          className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
+                          style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-foreground truncate">{task.title}</div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <span className="inline-flex items-center gap-2 min-w-0">
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
+                                  <span className="truncate">{subj?.name ?? "Unassigned"}</span>
+                                </span>
+                                <span className="text-muted-foreground/60">•</span>
+                                <span className="shrink-0">{(task.type as string).toUpperCase()}</span>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <div className="text-xs font-semibold text-foreground">
+                                {result.score} / {result.outOf} ({pct}%)
+                              </div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
+                    <div className="text-sm font-medium text-foreground">No recent results</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Record results in Marks to populate insights.</div>
+                  </div>
+                )}
+              </Card>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
