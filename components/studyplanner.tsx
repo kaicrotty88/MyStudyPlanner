@@ -239,22 +239,25 @@ export function StudyPlanner({
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Log</h1>
+          <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
 
-          {/* Subtitle + compact weekly summary (replaces the big white card) */}
-          <div className="text-sm text-muted-foreground">
-            <div>Plan, log, and review your study sessions.</div>
-            <div className="mt-1">
+          {/* NEW: looks intentional (small meta row), not like random floating text */}
+          <div className="pt-2">
+            <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
               <span className="text-foreground/90 font-medium">This week</span>
-              <span className="text-muted-foreground"> • {weeklySummary.label}</span>
-              <span className="text-muted-foreground"> • </span>
-              <span className="text-muted-foreground">
+              <span className="opacity-40">•</span>
+              <span>{weeklySummary.label}</span>
+              <span className="opacity-40">•</span>
+              <span>
                 {weeklySummary.count} session{weeklySummary.count === 1 ? "" : "s"}
               </span>
-              <span className="text-muted-foreground"> • </span>
-              <span className="text-foreground font-semibold">{formatMinutes(weeklySummary.minutes)}</span>
+              <span className="opacity-40">•</span>
+              <span className="text-foreground font-semibold">
+                {formatMinutes(weeklySummary.minutes)}
+              </span>
             </div>
           </div>
         </div>
@@ -438,9 +441,7 @@ export function StudyPlanner({
                 <input
                   type="time"
                   value={startTimeUiValue}
-                  onChange={(e) =>
-                    setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) })
-                  }
+                  onChange={(e) => setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) })}
                   className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
 
