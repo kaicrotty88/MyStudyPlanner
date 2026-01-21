@@ -43,12 +43,11 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
-// ✅ Demo-only default periods (ONLY seeded for brand new demo users with no storage)
+// ✅ Demo-only default periods (ONLY for brand new demo users with no demo storage)
 const DEMO_PERIODS: Period[] = [
   {
     id: "p1",
     name: "Term 1",
-    // sample dates (feel free to change)
     startDate: new Date(2026, 0, 29), // Jan 29, 2026
     endDate: new Date(2026, 3, 11), // Apr 11, 2026
   },
@@ -175,13 +174,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []
   );
-
-  // ✅ App mode starts with ZERO periods (no defaults)
-  // ✅ Demo mode can start with DEMO_PERIODS (but real seeding happens below if no storage)
   const [periods, setPeriods] = useState<Period[]>(
     mode === "demo" ? DEMO_PERIODS : []
   );
-
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
