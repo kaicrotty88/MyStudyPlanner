@@ -7,6 +7,9 @@ import { Calendar, Clock, TrendingUp, Trophy, Sparkles } from "lucide-react";
 // Must match Settings + Tasks key
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
+// Local UI prefs for Insights (safe to delete anytime)
+const INSIGHTS_PREFS_KEY = "mystudyplanner-insights-prefs";
+
 type PeriodStored = {
   id: string;
   name: string;
@@ -19,6 +22,13 @@ type PeriodHydrated = {
   name: string;
   startDate: Date;
   endDate: Date;
+};
+
+type InsightsPrefs = {
+  view?: "study" | "marks";
+  range?: 7 | 30;
+  selectedPeriodStudy?: string; // "all" or periodId
+  selectedPeriodMarks?: string; // "all" or periodId
 };
 
 // --- helpers ---
@@ -63,6 +73,9 @@ const safePercent = (score: number, outOf: number): number => {
   return Math.round((score / outOf) * 100);
 };
 
+const clampDateMin = (a: Date, b: Date) => (a.getTime() >= b.getTime() ? a : b);
+const clampDateMax = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
+
 interface InsightsProps {
   subjects: Subject[];
   tasks: Task[];
@@ -70,13 +83,20 @@ interface InsightsProps {
 }
 
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
+  // Defaults
   const [view, setView] = useState<"study" | "marks">("study");
   const [range, setRange] = useState<7 | 30>(7);
 
-  // Marks period filter (only used on marks view)
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+  // Periods
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
+  // Study filters
+  const [selectedPeriodStudy, setSelectedPeriodStudy] = useState<string>("all");
+
+  // Marks filters
+  const [selectedPeriodMarks, setSelectedPeriodMarks] = useState<string>("all");
+
+  // Load periods
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
@@ -100,6 +120,37 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     }
   }, []);
 
+  // Load saved prefs once (after mount)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(INSIGHTS_PREFS_KEY);
+      if (!raw) return;
+      const prefs = JSON.parse(raw) as InsightsPrefs;
+
+      if (prefs.view === "study" || prefs.view === "marks") setView(prefs.view);
+      if (prefs.range === 7 || prefs.range === 30) setRange(prefs.range);
+      if (typeof prefs.selectedPeriodStudy === "string") setSelectedPeriodStudy(prefs.selectedPeriodStudy);
+      if (typeof prefs.selectedPeriodMarks === "string") setSelectedPeriodMarks(prefs.selectedPeriodMarks);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Persist prefs
+  useEffect(() => {
+    try {
+      const prefs: InsightsPrefs = {
+        view,
+        range,
+        selectedPeriodStudy,
+        selectedPeriodMarks,
+      };
+      localStorage.setItem(INSIGHTS_PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      // ignore
+    }
+  }, [view, range, selectedPeriodStudy, selectedPeriodMarks]);
+
   // Stable "now" so date-based memos don't drift every render
   const now = useMemo(() => new Date(), []);
 
@@ -115,7 +166,13 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return map;
   }, [tasks]);
 
-  /* -------------------- Study insights (existing) -------------------- */
+  const periodById = useMemo(() => {
+    const map: Record<string, PeriodHydrated> = {};
+    periods.forEach((p) => (map[p.id] = p));
+    return map;
+  }, [periods]);
+
+  /* -------------------- Study insights (with range + period) -------------------- */
 
   const cutoff = useMemo(() => {
     const t = new Date(now);
@@ -123,9 +180,32 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return startOfDay(t);
   }, [range, now]);
 
+  const selectedStudyPeriodObj = useMemo(() => {
+    if (selectedPeriodStudy === "all") return null;
+    return periodById[selectedPeriodStudy] ?? null;
+  }, [selectedPeriodStudy, periodById]);
+
   const sessionsInRange = useMemo(() => {
-    return studySessions.filter((s) => startOfDay(s.date) >= cutoff);
-  }, [studySessions, cutoff]);
+    const raw = studySessions;
+
+    // If a period is selected, constrain to period window
+    if (selectedStudyPeriodObj) {
+      const pStart = startOfDay(selectedStudyPeriodObj.startDate);
+      const pEnd = startOfDay(selectedStudyPeriodObj.endDate);
+
+      // Range still applies *inside* that period
+      const effectiveStart = clampDateMin(cutoff, pStart);
+      const effectiveEnd = pEnd;
+
+      return raw.filter((s) => {
+        const d = startOfDay(s.date);
+        return d.getTime() >= effectiveStart.getTime() && d.getTime() <= effectiveEnd.getTime();
+      });
+    }
+
+    // Otherwise: last N days
+    return raw.filter((s) => startOfDay(s.date) >= cutoff);
+  }, [studySessions, cutoff, selectedStudyPeriodObj]);
 
   const totalMinutes = useMemo(() => {
     return sessionsInRange.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
@@ -200,9 +280,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   }, [assessableTasks]);
 
   const recordedAssessments = useMemo(() => {
-    if (selectedPeriod === "all") return recordedAssessmentsBase;
-    return recordedAssessmentsBase.filter((t) => t.periodId === selectedPeriod);
-  }, [recordedAssessmentsBase, selectedPeriod]);
+    if (selectedPeriodMarks === "all") return recordedAssessmentsBase;
+    return recordedAssessmentsBase.filter((t) => t.periodId === selectedPeriodMarks);
+  }, [recordedAssessmentsBase, selectedPeriodMarks]);
 
   const marksTotals = useMemo(() => {
     let totalScore = 0;
@@ -281,7 +361,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           r.dateRecorded instanceof Date
             ? r.dateRecorded
             : r.dateRecorded
-            ? new Date(r.dateRecorded)
+            ? new Date(r.dateRecorded as unknown as string)
             : t.dueDate;
 
         return { task: t, result: r, date };
@@ -295,6 +375,22 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     items.sort((a, b) => b.date.getTime() - a.date.getTime());
     return items.slice(0, 5);
   }, [recordedAssessments]);
+
+  /* -------------------- UI helpers -------------------- */
+
+  const studyScopeLabel = useMemo(() => {
+    const periodLabel =
+      selectedStudyPeriodObj?.name ??
+      (selectedPeriodStudy !== "all" ? "Selected period" : undefined);
+
+    if (!periodLabel) return `Last ${range} days`;
+    return `${periodLabel} · Last ${range} days`;
+  }, [selectedStudyPeriodObj, selectedPeriodStudy, range]);
+
+  const marksScopeLabel = useMemo(() => {
+    if (selectedPeriodMarks === "all") return "All periods";
+    return periodById[selectedPeriodMarks]?.name ?? "Selected period";
+  }, [selectedPeriodMarks, periodById]);
 
   const Card = ({
     title,
@@ -364,9 +460,12 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       aria-pressed={active}
       onClick={onClick}
       className={[
-        "px-3 py-1.5 rounded-lg text-sm transition",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-        active ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+        "px-2 py-1 text-sm transition",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 rounded-md",
+        "border-b-2",
+        active
+          ? "border-primary text-foreground font-medium"
+          : "border-transparent text-muted-foreground hover:text-foreground",
       ].join(" ")}
     >
       {children}
@@ -386,8 +485,8 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           </p>
         </div>
 
-        {/* Tabs (lighter, calmer) */}
-        <div className="flex items-center gap-2">
+        {/* Tabs */}
+        <div className="flex items-center gap-3">
           <HeaderTab active={view === "study"} onClick={() => setView("study")}>
             Study
           </HeaderTab>
@@ -399,15 +498,43 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
       {view === "study" ? (
         <>
-          {/* Study range (contextual, not in header) */}
-          <div className="flex items-center justify-end">
-            <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
-              <ControlPill active={range === 7} onClick={() => setRange(7)}>
-                7 days
-              </ControlPill>
-              <ControlPill active={range === 30} onClick={() => setRange(30)}>
-                30 days
-              </ControlPill>
+          {/* Study controls */}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
+                <span className="text-foreground font-medium">Viewing:</span>
+                <span>{studyScopeLabel}</span>
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {/* Period filter (only if periods exist) */}
+              {periods.length > 0 ? (
+                <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+                  <ControlPill active={selectedPeriodStudy === "all"} onClick={() => setSelectedPeriodStudy("all")}>
+                    All periods
+                  </ControlPill>
+                  {periods.map((p) => (
+                    <ControlPill
+                      key={p.id}
+                      active={selectedPeriodStudy === p.id}
+                      onClick={() => setSelectedPeriodStudy(p.id)}
+                    >
+                      {p.name}
+                    </ControlPill>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Range filter */}
+              <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+                <ControlPill active={range === 7} onClick={() => setRange(7)}>
+                  7 days
+                </ControlPill>
+                <ControlPill active={range === 30} onClick={() => setRange(30)}>
+                  30 days
+                </ControlPill>
+              </div>
             </div>
           </div>
 
@@ -415,7 +542,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
               title="Total study"
-              subtitle={`Last ${range} days`}
+              subtitle={selectedStudyPeriodObj ? studyScopeLabel : `Last ${range} days`}
               icon={<Clock className="h-4 w-4 text-muted-foreground" />}
             >
               <div className="text-3xl font-semibold text-foreground">{formatMinutes(totalMinutes)}</div>
@@ -426,20 +553,15 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
             <Card
               title="Top subject"
-              subtitle={`Last ${range} days`}
+              subtitle={selectedStudyPeriodObj ? studyScopeLabel : `Last ${range} days`}
               icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
             >
               {topSubject?.subject ? (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: topSubject.subject.color }}
-                      />
-                      <div className="text-sm font-semibold text-foreground truncate">
-                        {topSubject.subject.name}
-                      </div>
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topSubject.subject.color }} />
+                      <div className="text-sm font-semibold text-foreground truncate">{topSubject.subject.name}</div>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">{formatMinutes(topSubject.minutes)}</div>
                   </div>
@@ -466,12 +588,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             >
               {mostStudiedAssessment?.task ? (
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground truncate">
-                    {mostStudiedAssessment.task.title}
-                  </div>
+                  <div className="text-sm font-semibold text-foreground truncate">{mostStudiedAssessment.task.title}</div>
                   <div className="text-xs text-muted-foreground">
-                    {mostStudiedAssessment.task.type.toUpperCase()} •{" "}
-                    {formatMinutes(mostStudiedAssessment.minutes)}
+                    {mostStudiedAssessment.task.type.toUpperCase()} • {formatMinutes(mostStudiedAssessment.minutes)}
                   </div>
                 </div>
               ) : (
@@ -491,7 +610,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             <div className="lg:col-span-5">
               <Card
                 title="Study breakdown"
-                subtitle={`By subject (last ${range} days)`}
+                subtitle={selectedStudyPeriodObj ? `By subject (${studyScopeLabel})` : `By subject (last ${range} days)`}
                 icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
               >
                 {subjectBreakdown.entries.length ? (
@@ -502,10 +621,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                         <div key={x.subjectId} className="space-y-1">
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: x.subject.color }}
-                              />
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.subject.color }} />
                               <span className="truncate">{x.subject.name}</span>
                             </div>
                             <div className="shrink-0 text-foreground font-medium">{formatMinutes(x.minutes)}</div>
@@ -586,21 +702,33 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
         </>
       ) : (
         <>
-          {/* Marks period filter (contextual, inside marks view) */}
-          {periods.length > 0 ? (
-            <div className="flex items-center justify-end">
-              <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
-                <ControlPill active={selectedPeriod === "all"} onClick={() => setSelectedPeriod("all")}>
+          {/* Marks controls */}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
+                <span className="text-foreground font-medium">Viewing:</span>
+                <span>{marksScopeLabel}</span>
+              </span>
+            </div>
+
+            {/* Marks period filter (contextual, inside marks view) */}
+            {periods.length > 0 ? (
+              <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1 justify-end">
+                <ControlPill active={selectedPeriodMarks === "all"} onClick={() => setSelectedPeriodMarks("all")}>
                   All periods
                 </ControlPill>
                 {periods.map((p) => (
-                  <ControlPill key={p.id} active={selectedPeriod === p.id} onClick={() => setSelectedPeriod(p.id)}>
+                  <ControlPill
+                    key={p.id}
+                    active={selectedPeriodMarks === p.id}
+                    onClick={() => setSelectedPeriodMarks(p.id)}
+                  >
                     {p.name}
                   </ControlPill>
                 ))}
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
 
           {/* Marks top cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -626,14 +754,19 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
             <Card
               title="Top subject"
-              subtitle={topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : "—"}
+              subtitle={
+                topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : "—"
+              }
               icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
             >
               {topMarkSubject?.subject ? (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topMarkSubject.subject.color }} />
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: topMarkSubject.subject.color }}
+                      />
                       <div className="text-sm font-semibold text-foreground truncate">{topMarkSubject.subject.name}</div>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">{topMarkSubject.percent}% average</div>
@@ -678,7 +811,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           {/* Recent results */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-12">
-              <Card title="Recent results" subtitle="Last 5 recorded" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
+              <Card
+                title="Recent results"
+                subtitle="Last 5 recorded"
+                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+              >
                 {recentResults.length ? (
                   <div className="space-y-2">
                     {recentResults.map(({ task, result, date }) => {
