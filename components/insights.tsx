@@ -1,8 +1,25 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { Subject, Task, StudySession, TaskResult } from "./models";
 import { Calendar, Clock, TrendingUp, Trophy, Sparkles } from "lucide-react";
+
+// Must match Settings + Tasks key
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+type PeriodStored = {
+  id: string;
+  name: string;
+  startDate: string; // ISO
+  endDate: string; // ISO
+};
+
+type PeriodHydrated = {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+};
 
 // --- helpers ---
 const parseDurationToMinutes = (duration: string): number => {
@@ -55,6 +72,33 @@ interface InsightsProps {
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   const [view, setView] = useState<"study" | "marks">("study");
   const [range, setRange] = useState<7 | 30>(7);
+
+  // Marks period filter (only used on marks view)
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+  const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+      if (!raw) {
+        setPeriods([]);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as PeriodStored[];
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      }));
+
+      hydrated.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+      setPeriods(hydrated);
+    } catch {
+      setPeriods([]);
+    }
+  }, []);
 
   // Stable "now" so date-based memos don't drift every render
   const now = useMemo(() => new Date(), []);
@@ -151,9 +195,14 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return tasks.filter((t) => t.type === "exam" || t.type === "assignment");
   }, [tasks]);
 
-  const recordedAssessments = useMemo(() => {
+  const recordedAssessmentsBase = useMemo(() => {
     return assessableTasks.filter((t) => Boolean(t.result));
   }, [assessableTasks]);
+
+  const recordedAssessments = useMemo(() => {
+    if (selectedPeriod === "all") return recordedAssessmentsBase;
+    return recordedAssessmentsBase.filter((t) => t.periodId === selectedPeriod);
+  }, [recordedAssessmentsBase, selectedPeriod]);
 
   const marksTotals = useMemo(() => {
     let totalScore = 0;
@@ -278,6 +327,29 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
+  const ControlPill = ({
+    active,
+    children,
+    onClick,
+  }: {
+    active: boolean;
+    children: React.ReactNode;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={[
+        "px-3 py-1.5 rounded-full text-sm transition",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+        active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
@@ -291,62 +363,44 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="rounded-full border border-border bg-card p-1 flex gap-1">
-            <button
-              onClick={() => setView("study")}
-              className={[
-                "px-3 py-1.5 rounded-full text-sm transition",
-                view === "study"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground hover:bg-muted border border-border bg-card",
-              ].join(" ")}
-            >
-              Study
-            </button>
-            <button
-              onClick={() => setView("marks")}
-              className={[
-                "px-3 py-1.5 rounded-full text-sm transition",
-                view === "marks"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground hover:bg-muted border border-border bg-card",
-              ].join(" ")}
-            >
-              Marks
-            </button>
-          </div>
+        {/* Unified control bar */}
+        <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+          <ControlPill active={view === "study"} onClick={() => setView("study")}>
+            Study
+          </ControlPill>
+          <ControlPill active={view === "marks"} onClick={() => setView("marks")}>
+            Marks
+          </ControlPill>
 
-          {/* Range toggle (study only) */}
           {view === "study" ? (
-            <div className="rounded-full border border-border bg-card p-1 flex gap-1">
-              <button
-                onClick={() => setRange(7)}
-                className={[
-                  "px-3 py-1.5 rounded-full text-sm transition",
-                  range === 7
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-muted border border-border bg-card",
-                ].join(" ")}
-              >
+            <>
+              <span className="mx-1 h-6 w-px bg-border/70" />
+              <ControlPill active={range === 7} onClick={() => setRange(7)}>
                 7 days
-              </button>
-              <button
-                onClick={() => setRange(30)}
-                className={[
-                  "px-3 py-1.5 rounded-full text-sm transition",
-                  range === 30
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-muted border border-border bg-card",
-                ].join(" ")}
-              >
+              </ControlPill>
+              <ControlPill active={range === 30} onClick={() => setRange(30)}>
                 30 days
-              </button>
-            </div>
+              </ControlPill>
+            </>
           ) : null}
         </div>
       </div>
+
+      {/* Marks period filter (only when periods exist) */}
+      {view === "marks" && periods.length > 0 ? (
+        <div className="flex items-center justify-end">
+          <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+            <ControlPill active={selectedPeriod === "all"} onClick={() => setSelectedPeriod("all")}>
+              All periods
+            </ControlPill>
+            {periods.map((p) => (
+              <ControlPill key={p.id} active={selectedPeriod === p.id} onClick={() => setSelectedPeriod(p.id)}>
+                {p.name}
+              </ControlPill>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {view === "study" ? (
         <>
@@ -441,7 +495,10 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                         <div key={x.subjectId} className="space-y-1">
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.subject.color }} />
+                              <span
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: x.subject.color }}
+                              />
                               <span className="truncate">{x.subject.name}</span>
                             </div>
                             <div className="shrink-0 text-foreground font-medium">{formatMinutes(x.minutes)}</div>
@@ -583,7 +640,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-foreground truncate">{bestAssessment.task.title}</div>
                   <div className="text-xs text-muted-foreground">
-                    {bestAssessment.percent}% • {(bestAssessment.task.type as string).toUpperCase()}
+                    {bestAssessment.percent}% • {bestAssessment.task.type.toUpperCase()}
                   </div>
                 </div>
               ) : (
@@ -621,7 +678,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                                   <span className="truncate">{subj?.name ?? "Unassigned"}</span>
                                 </span>
                                 <span className="text-muted-foreground/60">•</span>
-                                <span className="shrink-0">{(task.type as string).toUpperCase()}</span>
+                                <span className="shrink-0">{task.type.toUpperCase()}</span>
                               </div>
                             </div>
 
