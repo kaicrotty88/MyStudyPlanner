@@ -43,13 +43,11 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   // ✅ Load Terms (Periods) from localStorage (same as Tasks/Settings)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
-  useEffect(() => {
+  // Small helper so we can reuse the exact same read logic
+  const readPeriodsFromStorage = (): PeriodHydrated[] => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
-      if (!raw) {
-        setPeriods([]);
-        return;
-      }
+      if (!raw) return [];
 
       const parsed = JSON.parse(raw) as PeriodStored[];
       const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
@@ -59,15 +57,49 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
         endDate: new Date(p.endDate),
       }));
 
-      // ✅ ONLY Terms 1–4
-      const onlyTerms1to4 = hydrated
-        .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
-        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+      hydrated.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-      setPeriods(onlyTerms1to4);
+      // ✅ Prefer ONLY Terms 1–4 (your original intention)
+      const onlyTerms1to4 = hydrated.filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()));
+
+      // If the strict filter finds nothing (common in real data naming),
+      // fall back to showing all periods so the UI doesn’t silently disappear.
+      return onlyTerms1to4.length ? onlyTerms1to4 : hydrated;
     } catch {
-      setPeriods([]);
+      return [];
     }
+  };
+
+  // Initial load + refresh when returning to tab / when storage changes in other tabs
+  useEffect(() => {
+    const refresh = () => {
+      const next = readPeriodsFromStorage();
+      setPeriods(next);
+
+      // If current selection no longer exists, reset to all
+      if (selectedPeriod !== "all" && !next.some((p) => p.id === selectedPeriod)) {
+        setSelectedPeriod("all");
+      }
+    };
+
+    refresh();
+
+    // If periods are edited in another tab/window, this will update
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === PERIODS_STORAGE_KEY) refresh();
+    };
+
+    // If you edit periods in Settings then navigate back, focus refresh catches it
+    const onFocus = () => refresh();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const periodNameById = useMemo(() => {
