@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { Subject, Task, StudySession, TaskResult } from "./models";
-import { Calendar, Clock, TrendingUp, Trophy, Sparkles } from "lucide-react";
+import { Calendar, Clock, TrendingUp, Trophy, Sparkles, ChevronDown } from "lucide-react";
 
 // Must match Settings + Tasks key
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
@@ -51,7 +51,7 @@ const parseDurationToMinutes = (duration: string): number => {
   if (hMatch || mMatch) return Math.round(hours * 60 + minutes);
 
   const justNumber = s.match(/^\d+$/);
-  if (justNumber) return Number(s);
+  if (justNumber) return Number(justNumber[1]);
 
   const firstNum = s.match(/(\d+)/);
   return firstNum ? Number(firstNum[1]) : 0;
@@ -436,7 +436,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   );
 
   const ViewToggle = () => (
-    <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+    <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1 shadow-sm">
       <ControlPill active={view === "study"} onClick={() => setView("study")}>
         Study
       </ControlPill>
@@ -446,7 +446,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
-  // Compact selector so we keep your clean header layout (no extra row).
   const PeriodSelect = ({
     value,
     onChange,
@@ -458,14 +457,15 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
     return (
       <div className="relative">
-        <label className="sr-only">Period</label>
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={[
-            "h-[38px] rounded-full border border-border bg-card px-3 text-[13px]",
-            "text-foreground shadow-sm outline-none",
-            "focus:ring-2 focus:ring-primary/30",
+            "appearance-none rounded-full",
+            "border border-border bg-card shadow-sm",
+            "px-4 py-2 pr-9 text-sm text-foreground",
+            "hover:bg-background/60 transition",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           ].join(" ")}
         >
           <option value="all">All periods</option>
@@ -475,6 +475,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             </option>
           ))}
         </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       </div>
     );
   };
@@ -484,9 +485,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       ? "A quick view of your study habits and upcoming assessments. Switch between Study and Marks anytime."
       : "A quick view of your marks and recent results. Switch between Study and Marks anytime.";
 
+  const periodValue = view === "study" ? selectedPeriodStudy : selectedPeriodMarks;
+  const setPeriodValue = view === "study" ? setSelectedPeriodStudy : setSelectedPeriodMarks;
+
   return (
-    // ✅ CHANGE 1: max-w-7xl -> max-w-6xl to match the rest of the app (fixes the “odd one out” indent)
-    <div className="mx-auto max-w-6xl px-6 lg:px-8 py-8 space-y-8">
+    <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
       {/* Page header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
@@ -494,14 +497,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
 
-        {/* ✅ CHANGE 2: keep your header clean by placing the Period selector beside the toggle */}
-        <div className="flex items-center gap-3 justify-end">
+        <div className="flex items-center gap-3">
           <ViewToggle />
-          {view === "study" ? (
-            <PeriodSelect value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
-          ) : (
-            <PeriodSelect value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
-          )}
+          <PeriodSelect value={periodValue} onChange={setPeriodValue} />
         </div>
       </div>
 
