@@ -391,6 +391,31 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return periodById[selectedPeriodMarks]?.name ?? "Selected period";
   }, [selectedPeriodMarks, periodById]);
 
+  const ScopeChip = ({ label }: { label: string }) => (
+    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground">
+      <span className="text-foreground font-medium">Viewing:</span>
+      <span className="truncate">{label}</span>
+    </span>
+  );
+
+  const SectionHeader = ({
+    title,
+    description,
+    right,
+  }: {
+    title: string;
+    description?: string;
+    right?: React.ReactNode;
+  }) => (
+    <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+      <div className="space-y-1">
+        <div className="text-sm font-semibold text-foreground">{title}</div>
+        {description ? <div className="text-xs text-muted-foreground">{description}</div> : null}
+      </div>
+      {right ? <div className="flex items-center justify-start md:justify-end">{right}</div> : null}
+    </div>
+  );
+
   const Card = ({
     title,
     subtitle,
@@ -403,22 +428,22 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     children: React.ReactNode;
   }) => (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-border">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {icon ? (
-              <span className="h-9 w-9 rounded-xl border border-border bg-background/40 grid place-items-center">
+              <span className="h-9 w-9 rounded-xl border border-border bg-background/60 grid place-items-center">
                 {icon}
               </span>
             ) : null}
             <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">{title}</div>
-              {subtitle ? <div className="text-xs text-muted-foreground">{subtitle}</div> : null}
+              {subtitle ? <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div> : null}
             </div>
           </div>
         </div>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-6">{children}</div>
     </div>
   );
 
@@ -437,7 +462,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       aria-pressed={active}
       onClick={onClick}
       className={[
-        "px-3 py-1.5 rounded-full text-sm transition",
+        "px-3 py-1.5 rounded-full text-[13px] leading-none transition",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
         active
           ? "bg-primary text-primary-foreground shadow-sm"
@@ -460,39 +485,49 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
+  const ControlsSurface = ({ children }: { children: React.ReactNode }) => (
+    <div className="rounded-2xl border border-border bg-card shadow-sm px-4 py-3">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">{children}</div>
+    </div>
+  );
+
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
-      {/* Header */}
+    <div className="mx-auto max-w-6xl px-6 lg:px-8 py-8 space-y-8">
+      {/* Page header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
           <p className="text-sm text-muted-foreground">
             {view === "study"
-              ? "A quick view of your study + upcoming assessments"
-              : "A quick view of your recorded results"}
+              ? "A quick view of your study and upcoming assessments."
+              : "A quick view of your recorded results."}
           </p>
         </div>
 
-        {/* Green toggle (matches rest of app) */}
         <ViewToggle />
       </div>
 
       {view === "study" ? (
         <>
-          {/* Study controls */}
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
-                <span className="text-foreground font-medium">Viewing:</span>
-                <span>{studyScopeLabel}</span>
-              </span>
+          <SectionHeader
+            title="Study insights"
+            description="A calm summary of your recent study patterns."
+            right={<ScopeChip label={studyScopeLabel} />}
+          />
+
+          {/* Controls */}
+          <ControlsSurface>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-xs text-muted-foreground hidden md:block">Filters</div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {/* Period filter (only if periods exist) */}
+            <div className="flex flex-wrap items-center gap-2 md:justify-end">
               {periods.length > 0 ? (
-                <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
-                  <ControlPill active={selectedPeriodStudy === "all"} onClick={() => setSelectedPeriodStudy("all")}>
+                <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1">
+                  <ControlPill
+                    active={selectedPeriodStudy === "all"}
+                    onClick={() => setSelectedPeriodStudy("all")}
+                  >
                     All periods
                   </ControlPill>
                   {periods.map((p) => (
@@ -507,8 +542,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 </div>
               ) : null}
 
-              {/* Range filter */}
-              <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+              <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1">
                 <ControlPill active={range === 7} onClick={() => setRange(7)}>
                   7 days
                 </ControlPill>
@@ -517,16 +551,18 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 </ControlPill>
               </div>
             </div>
-          </div>
+          </ControlsSurface>
 
-          {/* Top cards */}
+          {/* KPI cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
               title="Total study"
               subtitle={selectedStudyPeriodObj ? studyScopeLabel : `Last ${range} days`}
               icon={<Clock className="h-4 w-4 text-muted-foreground" />}
             >
-              <div className="text-3xl font-semibold text-foreground">{formatMinutes(totalMinutes)}</div>
+              <div className="text-4xl font-semibold tracking-tight text-foreground">
+                {formatMinutes(totalMinutes)}
+              </div>
               <div className="mt-2 text-xs text-muted-foreground">
                 {sessionsInRange.length} session{sessionsInRange.length === 1 ? "" : "s"} logged
               </div>
@@ -541,23 +577,32 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topSubject.subject.color }} />
-                      <div className="text-sm font-semibold text-foreground truncate">{topSubject.subject.name}</div>
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: topSubject.subject.color }}
+                      />
+                      <div className="text-sm font-semibold text-foreground truncate">
+                        {topSubject.subject.name}
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{formatMinutes(topSubject.minutes)}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {formatMinutes(topSubject.minutes)}
+                    </div>
                   </div>
 
                   <span
-                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/40 px-2 py-1 text-xs text-muted-foreground"
-                    style={{ boxShadow: `0 0 0 2px ${topSubject.subject.color}22` }}
+                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
+                    style={{ boxShadow: `0 0 0 2px ${topSubject.subject.color}18` }}
                   >
                     Top
                   </span>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">No sessions yet</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Log a study session to unlock insights.</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Log a study session to unlock insights.
+                  </div>
                 </div>
               )}
             </Card>
@@ -569,13 +614,16 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             >
               {mostStudiedAssessment?.task ? (
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground truncate">{mostStudiedAssessment.task.title}</div>
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {mostStudiedAssessment.task.title}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    {mostStudiedAssessment.task.type.toUpperCase()} • {formatMinutes(mostStudiedAssessment.minutes)}
+                    {mostStudiedAssessment.task.type.toUpperCase()} •{" "}
+                    {formatMinutes(mostStudiedAssessment.minutes)}
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">No linked study yet</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Link sessions to an exam/assignment to track progress.
@@ -587,7 +635,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
           {/* Breakdown + upcoming */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Subject breakdown */}
             <div className="lg:col-span-5">
               <Card
                 title="Study breakdown"
@@ -599,15 +646,20 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                     {subjectBreakdown.entries.map((x) => {
                       const pct = Math.max(0.06, x.minutes / subjectBreakdown.max); // keep tiny bars visible
                       return (
-                        <div key={x.subjectId} className="space-y-1">
+                        <div key={x.subjectId} className="space-y-1.5">
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.subject.color }} />
+                              <span
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: x.subject.color }}
+                              />
                               <span className="truncate">{x.subject.name}</span>
                             </div>
-                            <div className="shrink-0 text-foreground font-medium">{formatMinutes(x.minutes)}</div>
+                            <div className="shrink-0 text-foreground font-medium">
+                              {formatMinutes(x.minutes)}
+                            </div>
                           </div>
-                          <div className="h-2 rounded-full bg-muted/50 overflow-hidden border border-border">
+                          <div className="h-2 rounded-full bg-muted/40 overflow-hidden border border-border">
                             <div
                               className="h-full rounded-full"
                               style={{ width: `${pct * 100}%`, backgroundColor: x.subject.color }}
@@ -618,15 +670,16 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                  <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                     <div className="text-sm font-medium text-foreground">Nothing to show</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Log sessions in the Study Planner.</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Log sessions in the Study Planner.
+                    </div>
                   </div>
                 )}
               </Card>
             </div>
 
-            {/* Upcoming assessments */}
             <div className="lg:col-span-7">
               <Card
                 title="Upcoming assessments"
@@ -642,7 +695,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                       return (
                         <div
                           key={t.id}
-                          className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
+                          className="rounded-xl border border-border bg-background/60 px-4 py-3 hover:bg-background/80 transition"
                           style={{ borderLeftWidth: 3, borderLeftColor: dot }}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -672,9 +725,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
+                  <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
                     <div className="text-sm font-medium text-foreground">No upcoming exams/assignments</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Add one in Tasks or Calendar.</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Add one in Tasks or Calendar.
+                    </div>
                   </div>
                 )}
               </Card>
@@ -683,31 +738,41 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
         </>
       ) : (
         <>
-          {/* Marks controls */}
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
-                <span className="text-foreground font-medium">Viewing:</span>
-                <span>{marksScopeLabel}</span>
-              </span>
+          <SectionHeader
+            title="Marks insights"
+            description="A quick summary of your recorded results."
+            right={<ScopeChip label={marksScopeLabel} />}
+          />
+
+          {/* Controls */}
+          <ControlsSurface>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-xs text-muted-foreground hidden md:block">Filters</div>
             </div>
 
-            {/* Marks period filter */}
             {periods.length > 0 ? (
-              <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1 justify-end">
-                <ControlPill active={selectedPeriodMarks === "all"} onClick={() => setSelectedPeriodMarks("all")}>
-                  All periods
-                </ControlPill>
-                {periods.map((p) => (
-                  <ControlPill key={p.id} active={selectedPeriodMarks === p.id} onClick={() => setSelectedPeriodMarks(p.id)}>
-                    {p.name}
+              <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1">
+                  <ControlPill active={selectedPeriodMarks === "all"} onClick={() => setSelectedPeriodMarks("all")}>
+                    All periods
                   </ControlPill>
-                ))}
+                  {periods.map((p) => (
+                    <ControlPill
+                      key={p.id}
+                      active={selectedPeriodMarks === p.id}
+                      onClick={() => setSelectedPeriodMarks(p.id)}
+                    >
+                      {p.name}
+                    </ControlPill>
+                  ))}
+                </div>
               </div>
-            ) : null}
-          </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">No periods set.</div>
+            )}
+          </ControlsSurface>
 
-          {/* Marks top cards */}
+          {/* KPI cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
               title="Overall average"
@@ -716,15 +781,19 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             >
               {recordedAssessments.length ? (
                 <>
-                  <div className="text-3xl font-semibold text-foreground">{marksTotals.overallPercent}%</div>
+                  <div className="text-4xl font-semibold tracking-tight text-foreground">
+                    {marksTotals.overallPercent}%
+                  </div>
                   <div className="mt-2 text-xs text-muted-foreground">
                     {recordedAssessments.length} recorded result{recordedAssessments.length === 1 ? "" : "s"}
                   </div>
                 </>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">No results recorded</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Enter a result in Marks to see insights.</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Enter a result in Marks to see insights.
+                  </div>
                 </div>
               )}
             </Card>
@@ -738,23 +807,28 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topMarkSubject.subject.color }} />
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: topMarkSubject.subject.color }}
+                      />
                       <div className="text-sm font-semibold text-foreground truncate">{topMarkSubject.subject.name}</div>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">{topMarkSubject.percent}% average</div>
                   </div>
 
                   <span
-                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/40 px-2 py-1 text-xs text-muted-foreground"
-                    style={{ boxShadow: `0 0 0 2px ${topMarkSubject.subject.color}22` }}
+                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
+                    style={{ boxShadow: `0 0 0 2px ${topMarkSubject.subject.color}18` }}
                   >
                     Top
                   </span>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">Not enough data</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Record results to see subject trends.</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Record results to see subject trends.
+                  </div>
                 </div>
               )}
             </Card>
@@ -772,7 +846,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">No results yet</div>
                   <div className="mt-1 text-xs text-muted-foreground">Your best result will appear here.</div>
                 </div>
@@ -781,56 +855,60 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           </div>
 
           {/* Recent results */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-12">
-              <Card title="Recent results" subtitle="Last 5 recorded" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
-                {recentResults.length ? (
-                  <div className="space-y-2">
-                    {recentResults.map(({ task, result, date }) => {
-                      const subj = subjectById[task.subjectId];
-                      const dot = subj?.color ?? "#94a3b8";
-                      const pct = safePercent(result.score, result.outOf);
+          <div className="grid grid-cols-1">
+            <Card
+              title="Recent results"
+              subtitle="Last 5 recorded"
+              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+            >
+              {recentResults.length ? (
+                <div className="space-y-2">
+                  {recentResults.map(({ task, result, date }) => {
+                    const subj = subjectById[task.subjectId];
+                    const dot = subj?.color ?? "#94a3b8";
+                    const pct = safePercent(result.score, result.outOf);
 
-                      return (
-                        <div
-                          key={task.id}
-                          className="rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
-                          style={{ borderLeftWidth: 3, borderLeftColor: dot }}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-foreground truncate">{task.title}</div>
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-2 min-w-0">
-                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
-                                  <span className="truncate">{subj?.name ?? "Unassigned"}</span>
-                                </span>
-                                <span className="text-muted-foreground/60">•</span>
-                                <span className="shrink-0">{task.type.toUpperCase()}</span>
-                              </div>
+                    return (
+                      <div
+                        key={task.id}
+                        className="rounded-xl border border-border bg-background/60 px-4 py-3 hover:bg-background/80 transition"
+                        style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-foreground truncate">{task.title}</div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="inline-flex items-center gap-2 min-w-0">
+                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
+                                <span className="truncate">{subj?.name ?? "Unassigned"}</span>
+                              </span>
+                              <span className="text-muted-foreground/60">•</span>
+                              <span className="shrink-0">{task.type.toUpperCase()}</span>
                             </div>
+                          </div>
 
-                            <div className="shrink-0 text-right">
-                              <div className="text-xs font-semibold text-foreground">
-                                {result.score} / {result.outOf} ({pct}%)
-                              </div>
-                              <div className="mt-1 text-[11px] text-muted-foreground">
-                                {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </div>
+                          <div className="shrink-0 text-right">
+                            <div className="text-xs font-semibold text-foreground">
+                              {result.score} / {result.outOf} ({pct}%)
+                            </div>
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                              {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
+                  <div className="text-sm font-medium text-foreground">No recent results</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Record results in Marks to populate insights.
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
-                    <div className="text-sm font-medium text-foreground">No recent results</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Record results in Marks to populate insights.</div>
-                  </div>
-                )}
-              </Card>
-            </div>
+                </div>
+              )}
+            </Card>
           </div>
         </>
       )}
