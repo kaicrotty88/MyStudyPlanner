@@ -74,7 +74,6 @@ const safePercent = (score: number, outOf: number): number => {
 };
 
 const clampDateMin = (a: Date, b: Date) => (a.getTime() >= b.getTime() ? a : b);
-// const clampDateMax = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
 
 interface InsightsProps {
   subjects: Subject[];
@@ -85,7 +84,9 @@ interface InsightsProps {
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   // Defaults
   const [view, setView] = useState<"study" | "marks">("study");
-  const [range, setRange] = useState<7 | 30>(7);
+
+  // Fixed range (no UI toggle)
+  const [range, setRange] = useState<7 | 30>(30);
 
   // Periods
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
@@ -128,7 +129,10 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       const prefs = JSON.parse(raw) as InsightsPrefs;
 
       if (prefs.view === "study" || prefs.view === "marks") setView(prefs.view);
-      if (prefs.range === 7 || prefs.range === 30) setRange(prefs.range);
+
+      // Range UI removed; keep this fixed to 30 even if an old pref existed.
+      setRange(30);
+
       if (typeof prefs.selectedPeriodStudy === "string") setSelectedPeriodStudy(prefs.selectedPeriodStudy);
       if (typeof prefs.selectedPeriodMarks === "string") setSelectedPeriodMarks(prefs.selectedPeriodMarks);
     } catch {
@@ -141,7 +145,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     try {
       const prefs: InsightsPrefs = {
         view,
-        range,
+        range: 30,
         selectedPeriodStudy,
         selectedPeriodMarks,
       };
@@ -149,7 +153,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     } catch {
       // ignore
     }
-  }, [view, range, selectedPeriodStudy, selectedPeriodMarks]);
+  }, [view, selectedPeriodStudy, selectedPeriodMarks]);
 
   // Stable "now" so date-based memos don't drift every render
   const now = useMemo(() => new Date(), []);
@@ -172,7 +176,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return map;
   }, [periods]);
 
-  /* -------------------- Study insights (with range + period) -------------------- */
+  /* -------------------- Study insights (fixed 30d + optional period) -------------------- */
 
   const cutoff = useMemo(() => {
     const t = new Date(now);
@@ -188,12 +192,10 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   const sessionsInRange = useMemo(() => {
     const raw = studySessions;
 
-    // If a period is selected, constrain to period window
     if (selectedStudyPeriodObj) {
       const pStart = startOfDay(selectedStudyPeriodObj.startDate);
       const pEnd = startOfDay(selectedStudyPeriodObj.endDate);
 
-      // Range still applies *inside* that period
       const effectiveStart = clampDateMin(cutoff, pStart);
       const effectiveEnd = pEnd;
 
@@ -203,7 +205,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       });
     }
 
-    // Otherwise: last N days
     return raw.filter((s) => startOfDay(s.date) >= cutoff);
   }, [studySessions, cutoff, selectedStudyPeriodObj]);
 
@@ -382,9 +383,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     const periodLabel =
       selectedStudyPeriodObj?.name ?? (selectedPeriodStudy !== "all" ? "Selected period" : undefined);
 
-    if (!periodLabel) return `Last ${range} days`;
-    return `${periodLabel} · Last ${range} days`;
-  }, [selectedStudyPeriodObj, selectedPeriodStudy, range]);
+    if (!periodLabel) return "Last 30 days";
+    return `${periodLabel} · Last 30 days`;
+  }, [selectedStudyPeriodObj, selectedPeriodStudy]);
 
   const marksScopeLabel = useMemo(() => {
     if (selectedPeriodMarks === "all") return "All periods";
@@ -447,7 +448,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
-  // Green “app standard” pill
   const ControlPill = ({
     active,
     children,
@@ -473,7 +473,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </button>
   );
 
-  // Use the SAME component style for Study/Marks toggle
   const ViewToggle = () => (
     <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
       <ControlPill active={view === "study"} onClick={() => setView("study")}>
@@ -485,11 +484,27 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
-  const ControlsSurface = ({ children }: { children: React.ReactNode }) => (
-    <div className="rounded-2xl border border-border bg-card shadow-sm px-4 py-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">{children}</div>
-    </div>
-  );
+  const PeriodPills = ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+  }) => {
+    if (!periods.length) return null;
+    return (
+      <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1 flex-wrap">
+        <ControlPill active={value === "all"} onClick={() => onChange("all")}>
+          All periods
+        </ControlPill>
+        {periods.map((p) => (
+          <ControlPill key={p.id} active={value === p.id} onClick={() => onChange(p.id)}>
+            {p.name}
+          </ControlPill>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-6 lg:px-8 py-8 space-y-8">
@@ -515,49 +530,21 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             right={<ScopeChip label={studyScopeLabel} />}
           />
 
-          {/* Controls */}
-          <ControlsSurface>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="text-xs text-muted-foreground hidden md:block">Filters</div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 md:justify-end">
-              {periods.length > 0 ? (
-                <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1">
-                  <ControlPill
-                    active={selectedPeriodStudy === "all"}
-                    onClick={() => setSelectedPeriodStudy("all")}
-                  >
-                    All periods
-                  </ControlPill>
-                  {periods.map((p) => (
-                    <ControlPill
-                      key={p.id}
-                      active={selectedPeriodStudy === p.id}
-                      onClick={() => setSelectedPeriodStudy(p.id)}
-                    >
-                      {p.name}
-                    </ControlPill>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1">
-                <ControlPill active={range === 7} onClick={() => setRange(7)}>
-                  7 days
-                </ControlPill>
-                <ControlPill active={range === 30} onClick={() => setRange(30)}>
-                  30 days
-                </ControlPill>
+          {/* Minimal control row (periods only) */}
+          {periods.length ? (
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="text-xs text-muted-foreground">Period</div>
+              <div className="flex items-center justify-start md:justify-end">
+                <PeriodPills value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
               </div>
             </div>
-          </ControlsSurface>
+          ) : null}
 
           {/* KPI cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
               title="Total study"
-              subtitle={selectedStudyPeriodObj ? studyScopeLabel : `Last ${range} days`}
+              subtitle="Last 30 days"
               icon={<Clock className="h-4 w-4 text-muted-foreground" />}
             >
               <div className="text-4xl font-semibold tracking-tight text-foreground">
@@ -570,7 +557,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
             <Card
               title="Top subject"
-              subtitle={selectedStudyPeriodObj ? studyScopeLabel : `Last ${range} days`}
+              subtitle="Last 30 days"
               icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
             >
               {topSubject?.subject ? (
@@ -638,13 +625,13 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             <div className="lg:col-span-5">
               <Card
                 title="Study breakdown"
-                subtitle={selectedStudyPeriodObj ? `By subject (${studyScopeLabel})` : `By subject (last ${range} days)`}
+                subtitle="By subject (last 30 days)"
                 icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
               >
                 {subjectBreakdown.entries.length ? (
                   <div className="space-y-3">
                     {subjectBreakdown.entries.map((x) => {
-                      const pct = Math.max(0.06, x.minutes / subjectBreakdown.max); // keep tiny bars visible
+                      const pct = Math.max(0.06, x.minutes / subjectBreakdown.max);
                       return (
                         <div key={x.subjectId} className="space-y-1.5">
                           <div className="flex items-center justify-between gap-3 text-xs">
@@ -744,33 +731,15 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             right={<ScopeChip label={marksScopeLabel} />}
           />
 
-          {/* Controls */}
-          <ControlsSurface>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="text-xs text-muted-foreground hidden md:block">Filters</div>
-            </div>
-
-            {periods.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1">
-                  <ControlPill active={selectedPeriodMarks === "all"} onClick={() => setSelectedPeriodMarks("all")}>
-                    All periods
-                  </ControlPill>
-                  {periods.map((p) => (
-                    <ControlPill
-                      key={p.id}
-                      active={selectedPeriodMarks === p.id}
-                      onClick={() => setSelectedPeriodMarks(p.id)}
-                    >
-                      {p.name}
-                    </ControlPill>
-                  ))}
-                </div>
+          {/* Minimal control row (periods only) */}
+          {periods.length ? (
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="text-xs text-muted-foreground">Period</div>
+              <div className="flex items-center justify-start md:justify-end">
+                <PeriodPills value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
               </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">No periods set.</div>
-            )}
-          </ControlsSurface>
+            </div>
+          ) : null}
 
           {/* KPI cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
