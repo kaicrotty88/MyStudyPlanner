@@ -246,7 +246,7 @@ export function StudyPlanner({
           {/* Description */}
           <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
 
-          {/* Week line: visually separate from description */}
+          {/* Week line */}
           <div className="pt-2">
             <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
               <span className="text-foreground/90 font-medium">This week</span>
@@ -262,13 +262,23 @@ export function StudyPlanner({
           </div>
         </div>
 
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        >
-          <Plus className="w-4 h-4" />
-          Log session
-        </button>
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCompleted((v) => !v)}
+            className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            {showCompleted ? "Hide completed" : "Show completed"}
+          </button>
+
+          <button
+            onClick={openNew}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            <Plus className="w-4 h-4" />
+            Log session
+          </button>
+        </div>
       </div>
 
       {/* Subject tabs — match Calendar/Insights pill system */}
@@ -302,16 +312,6 @@ export function StudyPlanner({
             </button>
           );
         })}
-      </div>
-
-      {/* Controls (REMOVE the left "2 sessions • 2h" line) */}
-      <div className="flex items-center justify-end">
-        <button
-          onClick={() => setShowCompleted((v) => !v)}
-          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        >
-          {showCompleted ? "Hide completed" : "Show completed"}
-        </button>
       </div>
 
       {/* Sessions list */}
