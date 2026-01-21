@@ -436,7 +436,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   );
 
   const ViewToggle = () => (
-    <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+    <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1 w-fit">
       <ControlPill active={view === "study"} onClick={() => setView("study")}>
         Study
       </ControlPill>
@@ -455,7 +455,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
   }) => {
     if (!periods.length) return null;
     return (
-      <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1 flex-wrap">
+      <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1 flex-wrap w-fit max-w-full">
         <ControlPill active={value === "all"} onClick={() => onChange("all")}>
           All periods
         </ControlPill>
@@ -468,31 +468,34 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     );
   };
 
+  const headerDescription =
+    view === "study"
+      ? "A quick view of your study habits and upcoming assessments."
+      : "A quick view of your marks and recent results.";
+
   return (
     <div className="mx-auto max-w-6xl px-6 lg:px-8 py-8 space-y-8">
       {/* Page header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-1">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="flex-1 min-w-0 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
-          <p className="text-sm text-muted-foreground">
-            {view === "study"
-              ? "A quick view of your study habits and upcoming assessments."
-              : "A quick view of your marks and recent results."}
-          </p>
+          <p className="text-sm text-muted-foreground">{headerDescription}</p>
         </div>
-        <ViewToggle />
-      </div>
 
-      {/* Period filter row (only when periods exist) */}
-      {periods.length ? (
-        <div className="flex items-center justify-end">
-          {view === "study" ? (
-            <PeriodPills value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
-          ) : (
-            <PeriodPills value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
-          )}
+        {/* Controls (right) */}
+        <div className="flex flex-col items-start md:items-end gap-3">
+          <ViewToggle />
+          {periods.length ? (
+            <div className="flex items-center justify-start md:justify-end">
+              {view === "study" ? (
+                <PeriodPills value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
+              ) : (
+                <PeriodPills value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
+              )}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       {view === "study" ? (
         <>
@@ -520,9 +523,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                         {topSubject.subject.name}
                       </div>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {formatMinutes(topSubject.minutes)}
-                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{formatMinutes(topSubject.minutes)}</div>
                   </div>
 
                   <span
@@ -535,9 +536,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               ) : (
                 <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">No sessions yet</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Log a study session to unlock insights.
-                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Log a study session to unlock insights.</div>
                 </div>
               )}
             </Card>
@@ -549,8 +548,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                     {mostStudiedAssessment.task.title}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {mostStudiedAssessment.task.type.toUpperCase()} •{" "}
-                    {formatMinutes(mostStudiedAssessment.minutes)}
+                    {mostStudiedAssessment.task.type.toUpperCase()} • {formatMinutes(mostStudiedAssessment.minutes)}
                   </div>
                 </div>
               ) : (
@@ -576,15 +574,10 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                         <div key={x.subjectId} className="space-y-1.5">
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: x.subject.color }}
-                              />
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.subject.color }} />
                               <span className="truncate">{x.subject.name}</span>
                             </div>
-                            <div className="shrink-0 text-foreground font-medium">
-                              {formatMinutes(x.minutes)}
-                            </div>
+                            <div className="shrink-0 text-foreground font-medium">{formatMinutes(x.minutes)}</div>
                           </div>
                           <div className="h-2 rounded-full bg-muted/40 overflow-hidden border border-border">
                             <div
@@ -599,9 +592,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 ) : (
                   <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                     <div className="text-sm font-medium text-foreground">Nothing to show</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Log sessions in the Study Planner.
-                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">Log sessions in the Study Planner.</div>
                   </div>
                 )}
               </Card>
@@ -654,9 +645,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 ) : (
                   <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
                     <div className="text-sm font-medium text-foreground">No upcoming exams/assignments</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Add one in Tasks or Calendar.
-                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">Add one in Tasks or Calendar.</div>
                   </div>
                 )}
               </Card>
@@ -674,9 +663,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             >
               {recordedAssessments.length ? (
                 <>
-                  <div className="text-4xl font-semibold tracking-tight text-foreground">
-                    {marksTotals.overallPercent}%
-                  </div>
+                  <div className="text-4xl font-semibold tracking-tight text-foreground">{marksTotals.overallPercent}%</div>
                   <div className="mt-2 text-xs text-muted-foreground">
                     {recordedAssessments.length} recorded result{recordedAssessments.length === 1 ? "" : "s"}
                   </div>
@@ -684,9 +671,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               ) : (
                 <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">No results recorded</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Enter a result in Marks to see insights.
-                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Enter a result in Marks to see insights.</div>
                 </div>
               )}
             </Card>
@@ -694,7 +679,9 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             <Card
               title="Top subject"
               subtitle={
-                topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : undefined
+                topMarkSubject
+                  ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}`
+                  : undefined
               }
               icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
             >
@@ -702,10 +689,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: topMarkSubject.subject.color }}
-                      />
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topMarkSubject.subject.color }} />
                       <div className="text-sm font-semibold text-foreground truncate">{topMarkSubject.subject.name}</div>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">{topMarkSubject.percent}% average</div>
@@ -721,9 +705,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               ) : (
                 <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
                   <div className="text-sm font-medium text-foreground">Not enough data</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Record results to see subject trends.
-                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Record results to see subject trends.</div>
                 </div>
               )}
             </Card>
@@ -790,9 +772,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               ) : (
                 <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
                   <div className="text-sm font-medium text-foreground">No recent results</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Record results in Marks to populate insights.
-                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Record results in Marks to populate insights.</div>
                 </div>
               )}
             </Card>
