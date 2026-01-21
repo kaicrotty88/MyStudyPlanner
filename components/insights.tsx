@@ -74,7 +74,7 @@ const safePercent = (score: number, outOf: number): number => {
 };
 
 const clampDateMin = (a: Date, b: Date) => (a.getTime() >= b.getTime() ? a : b);
-const clampDateMax = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
+// const clampDateMax = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b);
 
 interface InsightsProps {
   subjects: Subject[];
@@ -380,8 +380,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
   const studyScopeLabel = useMemo(() => {
     const periodLabel =
-      selectedStudyPeriodObj?.name ??
-      (selectedPeriodStudy !== "all" ? "Selected period" : undefined);
+      selectedStudyPeriodObj?.name ?? (selectedPeriodStudy !== "all" ? "Selected period" : undefined);
 
     if (!periodLabel) return `Last ${range} days`;
     return `${periodLabel} · Last ${range} days`;
@@ -423,6 +422,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
+  // Green “app standard” pill
   const ControlPill = ({
     active,
     children,
@@ -439,37 +439,25 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       className={[
         "px-3 py-1.5 rounded-full text-sm transition",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-        active ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+        active
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
       ].join(" ")}
     >
       {children}
     </button>
   );
 
-  const HeaderTab = ({
-    active,
-    children,
-    onClick,
-  }: {
-    active: boolean;
-    children: React.ReactNode;
-    onClick: () => void;
-  }) => (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={[
-        "px-2 py-1 text-sm transition",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 rounded-md",
-        "border-b-2",
-        active
-          ? "border-primary text-foreground font-medium"
-          : "border-transparent text-muted-foreground hover:text-foreground",
-      ].join(" ")}
-    >
-      {children}
-    </button>
+  // Use the SAME component style for Study/Marks toggle
+  const ViewToggle = () => (
+    <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1">
+      <ControlPill active={view === "study"} onClick={() => setView("study")}>
+        Study
+      </ControlPill>
+      <ControlPill active={view === "marks"} onClick={() => setView("marks")}>
+        Marks
+      </ControlPill>
+    </div>
   );
 
   return (
@@ -485,15 +473,8 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-3">
-          <HeaderTab active={view === "study"} onClick={() => setView("study")}>
-            Study
-          </HeaderTab>
-          <HeaderTab active={view === "marks"} onClick={() => setView("marks")}>
-            Marks
-          </HeaderTab>
-        </div>
+        {/* Green toggle (matches rest of app) */}
+        <ViewToggle />
       </div>
 
       {view === "study" ? (
@@ -711,18 +692,14 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               </span>
             </div>
 
-            {/* Marks period filter (contextual, inside marks view) */}
+            {/* Marks period filter */}
             {periods.length > 0 ? (
               <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1 justify-end">
                 <ControlPill active={selectedPeriodMarks === "all"} onClick={() => setSelectedPeriodMarks("all")}>
                   All periods
                 </ControlPill>
                 {periods.map((p) => (
-                  <ControlPill
-                    key={p.id}
-                    active={selectedPeriodMarks === p.id}
-                    onClick={() => setSelectedPeriodMarks(p.id)}
-                  >
+                  <ControlPill key={p.id} active={selectedPeriodMarks === p.id} onClick={() => setSelectedPeriodMarks(p.id)}>
                     {p.name}
                   </ControlPill>
                 ))}
@@ -754,19 +731,14 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
             <Card
               title="Top subject"
-              subtitle={
-                topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : "—"
-              }
+              subtitle={topMarkSubject ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}` : "—"}
               icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
             >
               {topMarkSubject?.subject ? (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: topMarkSubject.subject.color }}
-                      />
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: topMarkSubject.subject.color }} />
                       <div className="text-sm font-semibold text-foreground truncate">{topMarkSubject.subject.name}</div>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">{topMarkSubject.percent}% average</div>
@@ -811,11 +783,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           {/* Recent results */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-12">
-              <Card
-                title="Recent results"
-                subtitle="Last 5 recorded"
-                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-              >
+              <Card title="Recent results" subtitle="Last 5 recorded" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
                 {recentResults.length ? (
                   <div className="space-y-2">
                     {recentResults.map(({ task, result, date }) => {
