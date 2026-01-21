@@ -22,6 +22,9 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+// ✅ must match your periods UI (Insights/Settings)
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
 type Tab =
   | "dashboard"
   | "calendar"
@@ -43,7 +46,7 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
-// ✅ Demo-only default periods (ONLY for brand new demo users with no demo storage)
+// ✅ Demo-only default periods (ONLY seeded for brand new demo users with no storage)
 const DEMO_PERIODS: Period[] = [
   {
     id: "p1",
@@ -149,7 +152,6 @@ const makeDefaultData = () => {
       id: "r3",
       title: "Buy new pens",
       notes: "Black + blue",
-      // sticky reminder (no date)
       repeat: "none",
       completed: false,
       createdAt: today,
@@ -158,11 +160,30 @@ const makeDefaultData = () => {
 
   return {
     subjects: defaultSubjects,
-    periods: DEMO_PERIODS, // ✅ NEW demo users get prefilled terms
+    periods: DEMO_PERIODS,
     tasks: demoTasks,
     studySessions: demoStudySessions,
     reminders: demoReminders,
   };
+};
+
+// ✅ seed periods list for demo UI that reads PERIODS_STORAGE_KEY
+const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
+  try {
+    const existing = localStorage.getItem(PERIODS_STORAGE_KEY);
+    if (existing) return;
+
+    const stored = periods.map((p) => ({
+      id: p.id,
+      name: p.name,
+      startDate: p.startDate.toISOString(),
+      endDate: p.endDate.toISOString(),
+    }));
+
+    localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // ignore
+  }
 };
 
 function App({ mode = "app" }: { mode?: AppMode }) {
@@ -171,12 +192,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
-  const [subjects, setSubjects] = useState<Subject[]>(
-    mode === "demo" ? defaultSubjects : []
-  );
-  const [periods, setPeriods] = useState<Period[]>(
-    mode === "demo" ? DEMO_PERIODS : []
-  );
+  const [subjects, setSubjects] = useState<Subject[]>(mode === "demo" ? defaultSubjects : []);
+  const [periods, setPeriods] = useState<Period[]>(mode === "demo" ? DEMO_PERIODS : []);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -220,9 +237,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   // Auto-assign a term based on dueDate
   const periodIdForDate = (d: Date) => {
     const t = d.getTime();
-    const match = periods.find(
-      (p) => t >= p.startDate.getTime() && t <= p.endDate.getTime()
-    );
+    const match = periods.find((p) => t >= p.startDate.getTime() && t <= p.endDate.getTime());
     return match?.id;
   };
 
@@ -234,11 +249,17 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     // ✅ Seed ONLY for brand new demo users (no demo storage yet)
     if (!raw && mode === "demo") {
       const seeded = makeDefaultData();
+
+      // 🔥 THIS is the missing piece:
+      // Seed the separate "periods list" key used by your Terms UI
+      seedDemoPeriodsKeyIfMissing(seeded.periods);
+
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
       setReminders(seeded.reminders);
+
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -247,7 +268,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     // ✅ For /app mode with no storage: show NOTHING (empty everything)
     if (!raw && mode === "app") {
       setSubjects([]);
-      setPeriods([]); // ✅ no default terms for real users
+      setPeriods([]);
       setTasks([]);
       setStudySessions([]);
       setReminders([]);
@@ -261,9 +282,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
       setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
 
-      // ✅ Hydrate periods (startDate/endDate back into Date objects)
-      // App mode fallback: []
-      // Demo mode fallback: DEMO_PERIODS (only if storage is weird/missing periods)
       setPeriods(
         Array.isArray(parsed.periods)
           ? parsed.periods.map((p: any) => ({
@@ -326,6 +344,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       // If storage is corrupted:
       if (mode === "demo") {
         const seeded = makeDefaultData();
+        seedDemoPeriodsKeyIfMissing(seeded.periods);
+
         setSubjects(seeded.subjects);
         setPeriods(seeded.periods);
         setTasks(seeded.tasks);
@@ -333,7 +353,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         setReminders(seeded.reminders);
       } else {
         setSubjects([]);
-        setPeriods([]); // ✅ app stays empty
+        setPeriods([]);
         setTasks([]);
         setStudySessions([]);
         setReminders([]);
@@ -347,7 +367,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    // Note: JSON.stringify will store Dates as ISO strings automatically.
     localStorage.setItem(
       storageKey,
       JSON.stringify({ subjects, periods, tasks, studySessions, reminders })
@@ -361,6 +380,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
     if (mode === "demo") {
       const seeded = makeDefaultData();
+      seedDemoPeriodsKeyIfMissing(seeded.periods);
+
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
       setTasks(seeded.tasks);
@@ -368,7 +389,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setReminders(seeded.reminders);
     } else {
       setSubjects([]);
-      setPeriods([]); // ✅ app stays empty
+      setPeriods([]);
       setTasks([]);
       setStudySessions([]);
       setReminders([]);
@@ -383,9 +404,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
-    setSubjects((p) =>
-      p.map((s) => (s.id === id ? { ...s, name, color } : s))
-    );
+    setSubjects((p) => p.map((s) => (s.id === id ? { ...s, name, color } : s)));
 
   const handleDeleteSubject = (id: string) => {
     setSubjects((p) => p.filter((s) => s.id !== id));
@@ -397,11 +416,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     const inferredPeriodId = periodIdForDate(t.dueDate);
     setTasks((p) => [
       ...p,
-      {
-        ...t,
-        periodId: inferredPeriodId ?? t.periodId,
-        id: Date.now().toString(),
-      },
+      { ...t, periodId: inferredPeriodId ?? t.periodId, id: Date.now().toString() },
     ]);
   };
 
@@ -409,13 +424,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     const inferredPeriodId = periodIdForDate(t.dueDate);
     setTasks((p) =>
       p.map((x) =>
-        x.id === id
-          ? {
-              ...t,
-              periodId: inferredPeriodId ?? t.periodId,
-              id,
-            }
-          : x
+        x.id === id ? { ...t, periodId: inferredPeriodId ?? t.periodId, id } : x
       )
     );
   };
@@ -423,26 +432,19 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
     setStudySessions((p) =>
-      p.map((s) =>
-        s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s
-      )
+      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
     );
   };
 
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) =>
       p.map((t) =>
-        t.id === id
-          ? { ...t, completed: !t.completed, completedAt: new Date() }
-          : t
+        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
       )
     );
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => [
-      ...p,
-      { ...s, id: Date.now().toString(), completed: false },
-    ]);
+    setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
 
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
@@ -453,9 +455,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleToggleSessionCompleted = (id: string) =>
     setStudySessions((p) =>
       p.map((s) =>
-        s.id === id
-          ? { ...s, completed: !s.completed, completedAt: new Date() }
-          : s
+        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
       )
     );
 
@@ -502,25 +502,20 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     ["reminders", "Reminders"],
   ];
 
-  // ✅ Single, intentional loading state (no partial UI “building”)
   if (!isReady) return <LoadingScreen label="Opening your planner…" />;
 
   return (
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        {/* Top bar */}
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8 min-w-0">
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="font-semibold text-foreground truncate">
-                MyStudyPlanner
-              </span>
+              <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
               <span className="text-[11px] text-muted-foreground truncate">
                 Made by students, for students
               </span>
             </div>
 
-            {/* Desktop tabs */}
             <div className="hidden md:flex gap-1">
               {tabs.map(([k, l]) => (
                 <button
@@ -557,9 +552,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             </button>
 
             <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
-              <span className="hidden sm:inline text-sm text-muted-foreground">
-                Account
-              </span>
+              <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
 
               <UserButton
                 afterSignOutUrl="/sign-in"
@@ -575,8 +568,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   },
                   elements: {
                     userButtonAvatarBox: "ring-1 ring-border",
-                    userButtonPopoverCard:
-                      "border border-border shadow-lg bg-card",
+                    userButtonPopoverCard: "border border-border shadow-lg bg-card",
                     userButtonPopoverFooter: "hidden",
                   },
                 }}
@@ -593,7 +585,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
         </div>
 
-        {/* ✅ Mobile tabs row (iOS fix) */}
         <div className="md:hidden border-t border-border">
           <div className="mx-auto max-w-7xl px-3 py-2">
             <div className="flex gap-1 overflow-x-auto no-scrollbar">
@@ -617,7 +608,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         </div>
       </nav>
 
-      {/* ✅ Mobile note: best on desktop (shown once, dismissible) */}
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
