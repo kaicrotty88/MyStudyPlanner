@@ -43,33 +43,22 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
-// Simple “Term 1–4” defaults (quarterly) for the current year.
-// Later you can replace with real school dates via Settings.
-function makeDefaultPeriodsForYear(year: number): Period[] {
-  const mk = (
-    id: string,
-    name: string,
-    start: [number, number, number],
-    end: [number, number, number]
-  ) => ({
-    id,
-    name,
-    startDate: new Date(year, start[0], start[1]),
-    endDate: new Date(year, end[0], end[1]),
-  });
-
-  // Months are 0-indexed: Jan=0, Apr=3, etc.
-  return [
-    mk("p1", "Term 1", [0, 1, 1], [2, 31, 1]), // Jan 1 – Mar 31
-    mk("p2", "Term 2", [3, 1, 1], [5, 30, 1]), // Apr 1 – Jun 30
-    mk("p3", "Term 3", [6, 1, 1], [8, 30, 1]), // Jul 1 – Sep 30
-    mk("p4", "Term 4", [9, 1, 1], [11, 31, 1]), // Oct 1 – Dec 31
-  ];
-}
-
-const defaultPeriods: Period[] = makeDefaultPeriodsForYear(
-  new Date().getFullYear()
-);
+// ✅ Demo-only default periods (ONLY seeded for brand new demo users with no storage)
+const DEMO_PERIODS: Period[] = [
+  {
+    id: "p1",
+    name: "Term 1",
+    // sample dates (feel free to change)
+    startDate: new Date(2026, 0, 29), // Jan 29, 2026
+    endDate: new Date(2026, 3, 11), // Apr 11, 2026
+  },
+  {
+    id: "p2",
+    name: "Term 2",
+    startDate: new Date(2026, 3, 29), // Apr 29, 2026
+    endDate: new Date(2026, 6, 5), // Jul 5, 2026
+  },
+];
 
 const makeDefaultData = () => {
   const today = new Date();
@@ -170,7 +159,7 @@ const makeDefaultData = () => {
 
   return {
     subjects: defaultSubjects,
-    periods: makeDefaultPeriodsForYear(today.getFullYear()),
+    periods: DEMO_PERIODS, // ✅ NEW demo users get prefilled terms
     tasks: demoTasks,
     studySessions: demoStudySessions,
     reminders: demoReminders,
@@ -186,7 +175,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []
   );
-  const [periods, setPeriods] = useState<Period[]>(defaultPeriods);
+
+  // ✅ App mode starts with ZERO periods (no defaults)
+  // ✅ Demo mode can start with DEMO_PERIODS (but real seeding happens below if no storage)
+  const [periods, setPeriods] = useState<Period[]>(
+    mode === "demo" ? DEMO_PERIODS : []
+  );
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -241,6 +236,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     const raw = localStorage.getItem(storageKey);
 
+    // ✅ Seed ONLY for brand new demo users (no demo storage yet)
     if (!raw && mode === "demo") {
       const seeded = makeDefaultData();
       setSubjects(seeded.subjects);
@@ -253,9 +249,10 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       return;
     }
 
+    // ✅ For /app mode with no storage: show NOTHING (empty everything)
     if (!raw && mode === "app") {
       setSubjects([]);
-      setPeriods(defaultPeriods);
+      setPeriods([]); // ✅ no default terms for real users
       setTasks([]);
       setStudySessions([]);
       setReminders([]);
@@ -267,11 +264,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     try {
       const parsed = JSON.parse(raw as string);
 
-      setSubjects(
-        Array.isArray(parsed.subjects) ? parsed.subjects : defaultSubjects
-      );
+      setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
 
       // ✅ Hydrate periods (startDate/endDate back into Date objects)
+      // App mode fallback: []
+      // Demo mode fallback: DEMO_PERIODS (only if storage is weird/missing periods)
       setPeriods(
         Array.isArray(parsed.periods)
           ? parsed.periods.map((p: any) => ({
@@ -280,7 +277,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               startDate: p?.startDate ? new Date(p.startDate) : new Date(),
               endDate: p?.endDate ? new Date(p.endDate) : new Date(),
             }))
-          : defaultPeriods
+          : mode === "demo"
+          ? DEMO_PERIODS
+          : []
       );
 
       setTasks(
@@ -329,6 +328,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         }))
       );
     } catch {
+      // If storage is corrupted:
       if (mode === "demo") {
         const seeded = makeDefaultData();
         setSubjects(seeded.subjects);
@@ -338,7 +338,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         setReminders(seeded.reminders);
       } else {
         setSubjects([]);
-        setPeriods(defaultPeriods);
+        setPeriods([]); // ✅ app stays empty
         setTasks([]);
         setStudySessions([]);
         setReminders([]);
@@ -373,7 +373,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setReminders(seeded.reminders);
     } else {
       setSubjects([]);
-      setPeriods(defaultPeriods);
+      setPeriods([]); // ✅ app stays empty
       setTasks([]);
       setStudySessions([]);
       setReminders([]);
@@ -643,16 +643,15 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
       <main>
         {activeTab === "dashboard" && (
-  <Dashboard
-    tasks={tasks}
-    subjects={subjects}
-    studySessions={studySessions}
-    onOpenStudyPlanner={() => setActiveTab("study")}
-    onOpenSettings={() => setActiveTab("settings")}
-    onOpenTasks={() => setActiveTab("tasks")}
-  />
-)}
-
+          <Dashboard
+            tasks={tasks}
+            subjects={subjects}
+            studySessions={studySessions}
+            onOpenStudyPlanner={() => setActiveTab("study")}
+            onOpenSettings={() => setActiveTab("settings")}
+            onOpenTasks={() => setActiveTab("tasks")}
+          />
+        )}
 
         {activeTab === "calendar" && (
           <Calendar
@@ -693,19 +692,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
 
         {activeTab === "insights" && (
-          <Insights
-            tasks={tasks}
-            studySessions={studySessions}
-            subjects={subjects}
-          />
+          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
         )}
 
         {activeTab === "marks" && (
-          <Marks
-            tasks={tasks}
-            subjects={subjects}
-            onUpdateTask={handleUpdateTask}
-          />
+          <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
         )}
 
         {activeTab === "reminders" && (
