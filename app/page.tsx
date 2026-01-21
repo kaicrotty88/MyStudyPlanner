@@ -154,6 +154,12 @@ export default async function Page() {
 
             <div className="flex items-center gap-4 text-xs">
               <Link
+                href="/about"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
+                About
+              </Link>
+              <Link
                 href="/privacy"
                 className="text-muted-foreground hover:text-foreground transition"
               >
