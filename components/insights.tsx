@@ -446,7 +446,8 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     </div>
   );
 
-  const PeriodPills = ({
+  // Compact selector so we keep your clean header layout (no extra row).
+  const PeriodSelect = ({
     value,
     onChange,
   }: {
@@ -454,16 +455,26 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     onChange: (v: string) => void;
   }) => {
     if (!periods.length) return null;
+
     return (
-      <div className="rounded-full border border-border bg-background/60 p-1 flex items-center gap-1 flex-wrap">
-        <ControlPill active={value === "all"} onClick={() => onChange("all")}>
-          All periods
-        </ControlPill>
-        {periods.map((p) => (
-          <ControlPill key={p.id} active={value === p.id} onClick={() => onChange(p.id)}>
-            {p.name}
-          </ControlPill>
-        ))}
+      <div className="relative">
+        <label className="sr-only">Period</label>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={[
+            "h-[38px] rounded-full border border-border bg-card px-3 text-[13px]",
+            "text-foreground shadow-sm outline-none",
+            "focus:ring-2 focus:ring-primary/30",
+          ].join(" ")}
+        >
+          <option value="all">All periods</option>
+          {periods.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
       </div>
     );
   };
@@ -474,26 +485,25 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       : "A quick view of your marks and recent results. Switch between Study and Marks anytime.";
 
   return (
-    <div className="mx-auto max-w-7xl px-6 lg:px-8 py-8 space-y-8">
+    // ✅ CHANGE 1: max-w-7xl -> max-w-6xl to match the rest of the app (fixes the “odd one out” indent)
+    <div className="mx-auto max-w-6xl px-6 lg:px-8 py-8 space-y-8">
       {/* Page header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <ViewToggle />
-      </div>
 
-      {/* Period filter row (only when periods exist) */}
-      {periods.length ? (
-        <div className="flex items-center justify-end">
+        {/* ✅ CHANGE 2: keep your header clean by placing the Period selector beside the toggle */}
+        <div className="flex items-center gap-3 justify-end">
+          <ViewToggle />
           {view === "study" ? (
-            <PeriodPills value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
+            <PeriodSelect value={selectedPeriodStudy} onChange={setSelectedPeriodStudy} />
           ) : (
-            <PeriodPills value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
+            <PeriodSelect value={selectedPeriodMarks} onChange={setSelectedPeriodMarks} />
           )}
         </div>
-      ) : null}
+      </div>
 
       {view === "study" ? (
         <>
