@@ -125,31 +125,79 @@ export function Settings({
   });
   const [periodFormError, setPeriodFormError] = useState<string>("");
 
+  /**
+   * Curated palette:
+   * - Wider range (so subjects feel distinct)
+   * - Still muted / premium (no neon)
+   * - Includes a couple of neutrals for "General" / "Other"
+   */
   const colorPalette = [
+    // Greens (calm / default lane)
     "#7A9B7F",
     "#6B8E73",
     "#8BA888",
     "#9CAF88",
-    "#758E6F",
     "#668C6A",
     "#7FA582",
     "#92B894",
+    "#4F7E62",
+    "#6F9A7B",
+    "#5C8F6E",
+
+    // Teals / Aquas
+    "#5E9D9A",
+    "#4D8E8A",
+    "#78B7B3",
+    "#3F7F7C",
+    "#6FAEAA",
+    "#2F6F6C",
+
+    // Blues
     "#6B9BC3",
     "#5A8AAA",
     "#7BA5C7",
     "#4A7A9E",
+    "#3E6F93",
+    "#84B2D6",
+    "#587EA5",
+    "#4B6F8E",
+
+    // Purples / Lavenders
     "#9B7FA8",
     "#8B73A0",
     "#A888B5",
     "#7A6B92",
+    "#B39BC6",
+    "#6F5F86",
+    "#8F7AB2",
+
+    // Warm neutrals / Oranges
     "#C4956E",
     "#B8885C",
     "#D4A574",
     "#A67C52",
+    "#D9B08C",
+    "#B57F55",
+    "#C98B5F",
+
+    // Yellows / Golds (muted)
+    "#C8B36A",
+    "#BDA85C",
+    "#D6C27A",
+
+    // Reds / Pinks (muted, not loud)
     "#B87B7B",
     "#A66B6B",
     "#C88A8A",
     "#9E5F5F",
+    "#C27C99",
+    "#B36B88",
+    "#A85F77",
+
+    // Neutrals (useful for “General”, “Other”)
+    "#8E8E8E",
+    "#6F6F6F",
+    "#A3A3A3",
   ];
 
   // -------- Periods: load + persist --------
@@ -426,16 +474,18 @@ export function Settings({
                   />
 
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">Colour</label>
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Colour <span className="opacity-70">(or pick a custom one below)</span>
+                    </label>
 
-                    <div className="grid grid-cols-8 gap-2">
+                    <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-2">
                       {colorPalette.map((color) => (
                         <button
                           type="button"
                           key={color}
                           onClick={() => setFormData({ ...formData, color })}
                           className={[
-                            "h-10 w-10 rounded-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                            "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                             formData.color === color ? "ring-2 ring-primary scale-105" : "hover:scale-105",
                           ].join(" ")}
                           style={{ backgroundColor: color }}
@@ -705,21 +755,13 @@ export function Settings({
         {/* Legal */}
         <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4">
           <div className="text-sm font-semibold text-foreground">Legal</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            Privacy and terms.
-          </div>
+          <div className="mt-1 text-xs text-muted-foreground">Privacy and terms.</div>
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <Link
-              href="/privacy"
-              className="text-muted-foreground hover:text-foreground transition"
-            >
+            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition">
               Privacy Policy
             </Link>
-            <Link
-              href="/terms"
-              className="text-muted-foreground hover:text-foreground transition"
-            >
+            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition">
               Terms of Use
             </Link>
           </div>
@@ -839,8 +881,14 @@ export function Settings({
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowClearConfirm(false)} />
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">{clearTitle}</div>
-              <div className="text-xs text-muted-foreground mt-1">{clearBody}</div>
+              <div className="text-sm font-semibold text-foreground">
+                {appMode === "demo" ? "Reset demo data?" : "Clear all data?"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {appMode === "demo"
+                  ? "This will reset the demo back to the original sample subjects, tasks, and sessions."
+                  : "This will permanently delete all your subjects, tasks, and study sessions from this device."}
+              </div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">
@@ -856,7 +904,7 @@ export function Settings({
                 onClick={handleConfirmClear}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
               >
-                {clearButtonLabel}
+                {appMode === "demo" ? "Reset demo" : "Clear all data"}
               </button>
             </div>
           </div>
