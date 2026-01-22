@@ -1,8 +1,26 @@
-export const metadata = {
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://mystudyplanner.co"),
   title: "How it works | MyStudyPlanner",
   description:
-    "How MyStudyPlanner works: set up subjects, add assessments, plan study sessions, and track progress in a calm, minimal way.",
+    "How MyStudyPlanner works: set up subjects, add assessments, plan study sessions, and track progress in a calm, minimal online study planner for students.",
   alternates: { canonical: "/how-it-works" },
+  openGraph: {
+    title: "How it works | MyStudyPlanner",
+    description:
+      "Set up subjects, add assessments, plan study sessions, and track progress — in a calm, minimal online study planner for students.",
+    url: "/how-it-works",
+    siteName: "MyStudyPlanner",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "How it works | MyStudyPlanner",
+    description:
+      "A calm, minimal online study planner for high school and university students.",
+  },
 };
 
 export default function HowItWorksPage() {
@@ -10,12 +28,12 @@ export default function HowItWorksPage() {
     {
       k: "01",
       title: "Set up your subjects",
-      desc: "Add subjects with colours so everything stays clear at a glance.",
+      desc: "Add subjects with colours so your week stays clear at a glance.",
     },
     {
       k: "02",
       title: "Add assessments and deadlines",
-      desc: "Keep exams and assignments visible — not buried — so you know what matters most.",
+      desc: "Keep exams and assignments visible — not buried — so you always know what matters next.",
     },
     {
       k: "03",
@@ -25,7 +43,7 @@ export default function HowItWorksPage() {
     {
       k: "04",
       title: "Review your week",
-      desc: "See what you’ve done, what’s next, and stay consistent without a loud dashboard.",
+      desc: "See what you’ve done, what’s coming up, and stay consistent without a loud dashboard.",
     },
   ];
 
@@ -48,18 +66,58 @@ export default function HowItWorksPage() {
     },
   ];
 
+  const faqs = [
+    {
+      q: "Is MyStudyPlanner free?",
+      a: "Yes — you can use the planner for free. You can also explore with demo data before creating an account.",
+    },
+    {
+      q: "Is this a study planner for high school students?",
+      a: "Yes. It’s designed around subjects, assessments, and weekly planning — the way school actually runs. It also works well for university.",
+    },
+    {
+      q: "Do I need to plan everything in advance?",
+      a: "No. MyStudyPlanner is built for consistency: add what’s due, then log study sessions as you go.",
+    },
+    {
+      q: "What should I do first?",
+      a: "Add 4–6 subjects, add your next two assessments, then start logging sessions. Keep it simple and build momentum.",
+    },
+  ];
+
   return (
     <main className="mx-auto max-w-5xl px-6 md:px-10 py-12 md:py-14">
       {/* Header */}
       <header className="space-y-3">
         <p className="text-sm text-muted-foreground">How it works</p>
         <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
-          A simple workflow that matches school.
+          A simple workflow for students — built around real school structure.
         </h1>
         <p className="max-w-2xl text-base md:text-lg text-muted-foreground leading-relaxed">
-          MyStudyPlanner is designed to feel obvious: what’s due, what’s next, and what you’ve actually
-          studied — without clutter.
+          MyStudyPlanner is a calm online study planner for high school and university students. It’s designed to feel
+          obvious: what’s due, what’s next, and what you’ve actually studied — without clutter.
         </p>
+
+        <div className="pt-2 flex flex-wrap items-center gap-3">
+          <Link
+            href="/demo"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 transition"
+          >
+            Open planner
+          </Link>
+          <Link
+            href="/sign-up"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm hover:bg-muted/60 transition"
+          >
+            Create account
+          </Link>
+          <Link
+            href="/about"
+            className="text-sm text-muted-foreground hover:text-foreground transition"
+          >
+            Read the story →
+          </Link>
+        </div>
       </header>
 
       {/* Steps */}
@@ -68,7 +126,8 @@ export default function HowItWorksPage() {
           <div className="rounded-2xl border border-border bg-card shadow-sm p-6 md:p-7">
             <h2 className="text-lg font-semibold text-foreground">The flow</h2>
             <p className="mt-2 text-sm md:text-base text-muted-foreground leading-relaxed">
-              You don’t need a complicated system. Just capture what matters and keep moving.
+              You don’t need a complicated system. Capture what matters, stay consistent, and let the planner stay out
+              of your way.
             </p>
 
             <div className="mt-6 space-y-3">
@@ -93,7 +152,7 @@ export default function HowItWorksPage() {
             </div>
 
             <div className="mt-5 rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-              Tip: start small. Add 4–6 subjects and the next two assessments — then log sessions as you go.
+              Tip: start small. Add your subjects and the next two assessments — then log sessions as you go.
             </div>
           </div>
 
@@ -110,18 +169,31 @@ export default function HowItWorksPage() {
               <li className="flex gap-3">
                 <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary/70 shrink-0" />
                 <span>
-                  <span className="text-foreground font-medium">High signal:</span> everything is compact and
-                  readable, especially on desktop.
+                  <span className="text-foreground font-medium">High signal:</span> compact and readable so you can
+                  see your week clearly.
                 </span>
               </li>
               <li className="flex gap-3">
                 <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary/70 shrink-0" />
                 <span>
-                  <span className="text-foreground font-medium">Built for consistency:</span> logging stays quick,
-                  so you actually keep doing it.
+                  <span className="text-foreground font-medium">Built for consistency:</span> logging stays quick, so
+                  you actually keep doing it.
                 </span>
               </li>
             </ul>
+          </div>
+
+          {/* FAQ (SEO booster) */}
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-6 md:p-7">
+            <h2 className="text-lg font-semibold text-foreground">FAQ</h2>
+            <div className="mt-4 space-y-3">
+              {faqs.map((f) => (
+                <div key={f.q} className="rounded-xl border border-border bg-background/60 p-4">
+                  <div className="text-sm font-semibold text-foreground">{f.q}</div>
+                  <div className="mt-1 text-sm text-muted-foreground leading-relaxed">{f.a}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -145,6 +217,19 @@ export default function HowItWorksPage() {
 
               <div className="pt-1 text-xs text-muted-foreground">
                 A calm online study planner for high school and university students.
+              </div>
+
+              <div className="pt-3">
+                <Link
+                  href="/demo"
+                  className="inline-flex w-full h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 transition"
+                >
+                  Try it now
+                </Link>
+                <div className="mt-2 text-center text-[11px] text-muted-foreground">
+                  Or <Link className="underline hover:text-foreground transition" href="/sign-up">create an account</Link>{" "}
+                  to save your data.
+                </div>
               </div>
             </div>
           </div>
