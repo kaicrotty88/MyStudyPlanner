@@ -28,21 +28,12 @@ export default async function Page() {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <Link
-              href="/how-it-works"
-              className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
-            >
-              How it works
-            </Link>
-
-            <Link
-              href="/sign-in"
-              className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
-            >
-              Sign in
-            </Link>
-          </div>
+          <Link
+            href="/sign-in"
+            className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
+          >
+            Sign in
+          </Link>
         </div>
       </header>
 
@@ -200,3 +191,4 @@ export default async function Page() {
     </div>
   );
 }
+
