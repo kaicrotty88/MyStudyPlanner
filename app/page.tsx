@@ -74,13 +74,6 @@ export default async function Page() {
                 >
                   Create account
                 </Link>
-
-                <Link
-                  href="/how-it-works"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-background px-6 text-sm font-medium text-foreground/80 hover:bg-muted/50 hover:text-foreground transition"
-                >
-                  How it works
-                </Link>
               </div>
 
               <div className="mt-3 text-[11px] text-muted-foreground opacity-80">
@@ -161,12 +154,6 @@ export default async function Page() {
 
             <div className="flex items-center gap-4 text-xs">
               <Link
-                href="/how-it-works"
-                className="text-muted-foreground hover:text-foreground transition"
-              >
-                How it works
-              </Link>
-              <Link
                 href="/about"
                 className="text-muted-foreground hover:text-foreground transition"
               >
@@ -191,4 +178,3 @@ export default async function Page() {
     </div>
   );
 }
-
