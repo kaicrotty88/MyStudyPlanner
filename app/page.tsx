@@ -160,6 +160,12 @@ export default async function Page() {
                 About
               </Link>
               <Link
+                href="/how-it-works"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
+                How it works
+              </Link>
+              <Link
                 href="/privacy"
                 className="text-muted-foreground hover:text-foreground transition"
               >
