@@ -28,12 +28,21 @@ export default async function Page() {
             </span>
           </div>
 
-          <Link
-            href="/sign-in"
-            className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/how-it-works"
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
+            >
+              How it works
+            </Link>
+
+            <Link
+              href="/sign-in"
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -73,6 +82,13 @@ export default async function Page() {
                   className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm hover:bg-muted/60 transition"
                 >
                   Create account
+                </Link>
+
+                <Link
+                  href="/how-it-works"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-background px-6 text-sm font-medium text-foreground/80 hover:bg-muted/50 hover:text-foreground transition"
+                >
+                  How it works
                 </Link>
               </div>
 
@@ -153,6 +169,12 @@ export default async function Page() {
             </div>
 
             <div className="flex items-center gap-4 text-xs">
+              <Link
+                href="/how-it-works"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
+                How it works
+              </Link>
               <Link
                 href="/about"
                 className="text-muted-foreground hover:text-foreground transition"
