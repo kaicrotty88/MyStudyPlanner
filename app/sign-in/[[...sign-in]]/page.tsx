@@ -10,17 +10,22 @@ export default function Page() {
           appearance={{
             elements: {
               rootBox: "w-full",
-              card: "!bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full",
+              // ✅ Prevent any horizontal clipping of Clerk’s internal badges (like “Last used”)
+              // and make sure the card’s contents can breathe on the right edge.
+              card: "!overflow-visible !bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full",
               cardBox:
-                "!bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full",
-              main: "w-full",
+                "!overflow-visible !bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full",
+              main: "w-full !overflow-visible",
 
               headerTitle: "hidden",
               headerSubtitle: "hidden",
 
               socialButtonsBlockButton:
-                "!h-10 !rounded-xl !border !border-gray-200 !bg-white hover:!bg-gray-50 transition",
+                "!h-10 !rounded-xl !border !border-gray-200 !bg-white hover:!bg-gray-50 transition !px-4",
               socialButtonsBlockButtonText: "text-sm text-gray-700",
+
+              // ✅ Give the social area a tiny bit of horizontal padding so the badge never hits the edge
+              socialButtonsBlock: "!px-1",
 
               dividerLine: "bg-gray-200",
               dividerText: "text-xs text-gray-500",
