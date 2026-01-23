@@ -923,14 +923,6 @@ function CalendarView({
     else direction === "prev" ? previousDay() : nextDay();
   };
 
-  const jumpToToday = () => {
-    const now = new Date();
-    setCurrentDate(now);
-    setSelectedDate(null);
-    setShowPopover(false);
-    setShowAddForm(null);
-  };
-
   // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = useMemo(() => {
     const s = (sessionFormData.startTime ?? "").trim();
@@ -970,18 +962,6 @@ function CalendarView({
           >
             <ChevronRight className="h-4 w-4 text-foreground" />
           </button>
-
-          {viewMode !== "month" ? (
-            <button
-              onClick={jumpToToday}
-              className="ml-1 hidden sm:inline-flex items-center gap-2 h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground hover:bg-muted transition"
-              aria-label="Jump to today"
-              type="button"
-            >
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              Today
-            </button>
-          ) : null}
         </div>
 
         <div className="flex items-center gap-2">

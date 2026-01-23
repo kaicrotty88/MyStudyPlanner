@@ -56,6 +56,10 @@ export interface Task {
 
   completed?: boolean;
   completedAt?: Date;
+
+  /* -------- NEW (simple repeats) -------- */
+  repeat?: "none" | "daily" | "weekly";
+  repeatUntil?: Date;
 }
 
 /* -------------------- Study Sessions -------------------- */
@@ -113,6 +117,35 @@ export interface ReminderStored {
   completed?: boolean;
   completedAt?: string; // ISO
   createdAt?: string; // ISO
+}
+
+/* -------------------- Calendar Events (NEW) -------------------- */
+
+/**
+ * General calendar events (not tasks or reminders).
+ * Examples: excursions, sport, tutoring, school events.
+ */
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: Date;
+  time?: string;
+
+  repeat?: "none" | "daily" | "weekly";
+  repeatUntil?: Date;
+}
+
+/**
+ * LocalStorage-safe CalendarEvent shape.
+ */
+export interface CalendarEventStored {
+  id: string;
+  title: string;
+  date: string; // ISO
+  time?: string;
+
+  repeat?: "none" | "daily" | "weekly";
+  repeatUntil?: string; // ISO
 }
 
 /* -------------------- Utils -------------------- */
