@@ -121,13 +121,6 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
-function typeDot(t: Task["type"]) {
-  if (t === "exam") return "●";
-  if (t === "assignment") return "◆";
-  if (t === "homework") return "■";
-  return "•";
-}
-
 /* -------------------- Time formatting (UI) -------------------- */
 // Convert "HH:MM" (24h) -> "h:mm AM/PM"
 const time24To12 = (t: string) => {
@@ -609,11 +602,9 @@ function CalendarView({
     </span>
   );
 
-  // ✅ improved chip readability:
   const renderChip = ({
     title,
     subjectId,
-    isStudy,
     task,
     session,
     reminder,
@@ -621,7 +612,6 @@ function CalendarView({
   }: {
     title: string;
     subjectId?: string;
-    isStudy?: boolean;
     task?: Task;
     session?: StudySession;
     reminder?: Reminder;
@@ -641,49 +631,48 @@ function CalendarView({
       >
         <div className="min-w-0 flex-1 pr-9">
           <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
-            {isStudy ? "📚 " : ""}
-            {reminder ? "⏰ " : ""}
-            {task ? `${typeDot(task.type)} ` : ""}
             {title}
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             {reminder ? (
               <>
-                <span className="inline-flex items-center gap-1 min-w-0">
+                <span className="inline-flex items-center gap-1 min-w-0 flex-1">
                   <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-                  <span className="shrink-0">{compact ? "Rem." : "Reminder"}</span>
+                  <span className="truncate">Reminder</span>
                 </span>
+
                 {reminder.time ? (
                   <>
-                    <span className="text-muted-foreground/60">•</span>
+                    <span className="text-muted-foreground/60 shrink-0">•</span>
                     <span className="shrink-0">{time24To12(reminder.time)}</span>
                   </>
                 ) : null}
               </>
             ) : (
               <>
-                <span className="inline-flex items-center gap-1 min-w-0">
+                <span className="inline-flex items-center gap-1 min-w-0 flex-1">
                   <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
                   <span className="truncate">{subject?.name ?? "Unassigned"}</span>
                 </span>
 
                 {task ? (
                   <>
-                    <span className="text-muted-foreground/60">•</span>
+                    <span className="text-muted-foreground/60 shrink-0">•</span>
                     <span className="shrink-0">{typeLabel(task.type)}</span>
                   </>
                 ) : null}
 
                 {session ? (
                   <>
-                    <span className="text-muted-foreground/60">•</span>
+                    <span className="text-muted-foreground/60 shrink-0">•</span>
                     <span className="shrink-0">
                       {displaySessionTime(session.startTime)} • {session.duration}
                     </span>
+
                     {!compact && linkedTask ? (
                       <>
-                        <span className="text-muted-foreground/60">•</span>
+                        <span className="text-muted-foreground/60 shrink-0">•</span>
                         <span className="truncate">Linked: {linkedTask.title}</span>
                       </>
                     ) : null}
@@ -837,7 +826,7 @@ function CalendarView({
           <div className="flex items-center justify-between gap-2 min-w-0">
             <div
               className={[
-                "h-7 w-7 shrink-0 grid place-items-center rounded-full text-sm",
+                "h-7 w-7 grid place-items-center rounded-full text-sm shrink-0",
                 isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground",
                 isSelected ? "ring-1 ring-primary/30" : "",
               ].join(" ")}
@@ -867,7 +856,6 @@ function CalendarView({
                     {renderChip({
                       title: x.s.title || "Study session",
                       subjectId: x.s.subjectId,
-                      isStudy: true,
                       session: x.s,
                       compact: true,
                     })}
@@ -969,7 +957,6 @@ function CalendarView({
                     {renderChip({
                       title: sess.title || "Study session",
                       subjectId: sess.subjectId,
-                      isStudy: true,
                       session: sess,
                       compact: false,
                     })}
@@ -1044,7 +1031,6 @@ function CalendarView({
                   {renderChip({
                     title: sess.title || "Study session",
                     subjectId: sess.subjectId,
-                    isStudy: true,
                     session: sess,
                     compact: false,
                   })}
@@ -1095,7 +1081,6 @@ function CalendarView({
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
-      {/* Page header (consistent with other tabs) */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
         <p className="text-sm text-muted-foreground">Click a day to add a task, reminder, or study session.</p>
@@ -1160,7 +1145,6 @@ function CalendarView({
         </SectionShell>
       </div>
 
-      {/* Popover */}
       {showPopover && selectedDate ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowPopover(false)} />
