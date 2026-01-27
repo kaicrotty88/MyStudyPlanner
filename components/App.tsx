@@ -503,7 +503,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   ];
 
   if (!isReady) return <LoadingScreen label="Opening your planner…" />;
-
   return (
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -619,6 +618,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               onClick={dismissMobileDesktopHint}
               className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
               aria-label="Dismiss"
+              type="button"
             >
               <X className="h-4 w-4" />
             </button>
@@ -642,6 +642,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <Calendar
             studySessions={studySessions}
             tasks={tasks}
+            reminders={reminders}
             subjects={subjects}
             onAddTask={handleAddTask}
             onUpdateTask={handleUpdateTask}
