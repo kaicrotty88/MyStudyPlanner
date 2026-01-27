@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
-import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Pencil, Trash2, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Plus } from "lucide-react";
 
 import type { Subject, Task, StudySession, Reminder } from "./models";
 
@@ -53,7 +53,9 @@ const toLocalDateInputValue = (d: Date) => {
 };
 
 const isSameDay = (date1: Date, date2: Date) =>
-  date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear();
+  date1.getDate() === date2.getDate() &&
+  date1.getMonth() === date2.getMonth() &&
+  date1.getFullYear() === date2.getFullYear();
 
 const startOfWeek = (d: Date) => {
   const x = new Date(d);
@@ -109,13 +111,6 @@ function typeLabel(t: Task["type"]) {
   if (t === "exam") return "Exam";
   if (t === "homework") return "Homework";
   return "Task";
-}
-
-function typeDot(t: Task["type"]) {
-  if (t === "exam") return "●";
-  if (t === "assignment") return "◆";
-  if (t === "homework") return "■";
-  return "•";
 }
 
 /* -------------------- Time formatting (UI) -------------------- */
@@ -240,17 +235,14 @@ function CalendarView({
     return `${active.name} · Week ${wk}`;
   }, [currentDate, periods]);
 
-  // tasks edit/delete
+  // tasks edit
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
-  // sessions edit/delete
+  // sessions edit
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
-  // reminders edit/delete
+  // reminders edit
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
-  const [deletingReminderId, setDeletingReminderId] = useState<string | null>(null);
 
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
   const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
@@ -299,7 +291,8 @@ function CalendarView({
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [tasks, sessionFormData.subjectId]);
 
-  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const previousMonth = () =>
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
   const previousWeek = () => {
@@ -555,13 +548,8 @@ function CalendarView({
     setSelectedDate(null);
 
     setEditingTaskId(null);
-    setDeletingTaskId(null);
-
     setEditingSessionId(null);
-    setDeletingSessionId(null);
-
     setEditingReminderId(null);
-    setDeletingReminderId(null);
 
     setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
     setSessionFormData({
@@ -592,16 +580,10 @@ function CalendarView({
     </button>
   );
 
-  const TermPill = ({ label }: { label: string }) => (
-    <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground">
-      {label}
-    </span>
-  );
-
+  // ✅ card (chip)
   const renderChip = ({
     title,
     subjectId,
-    isStudy,
     task,
     session,
     reminder,
@@ -609,7 +591,6 @@ function CalendarView({
   }: {
     title: string;
     subjectId?: string;
-    isStudy?: boolean;
     task?: Task;
     session?: StudySession;
     reminder?: Reminder;
@@ -617,155 +598,65 @@ function CalendarView({
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
     const dot = subject?.color ?? "#94a3b8";
-    const linkedTask = session?.linkedTaskId ? taskById.get(session.linkedTaskId) : undefined;
 
     const titleLines = compact ? 2 : 3;
 
-    const showTaskActions = Boolean(task && canEditDeleteTasks);
-    const showSessionActions = Boolean(session && canEditDeleteSessions);
-    const showReminderActions = Boolean(reminder && canEditDeleteReminders);
-    const reserveRight = showTaskActions || showSessionActions || showReminderActions;
+    const timeLabel = session
+      ? `${displaySessionTime(session.startTime)} ${session.duration}`.trim()
+      : reminder?.time
+        ? time24To12(reminder.time)
+        : "";
 
-    const sessionTime = session?.startTime ? displaySessionTime(session.startTime) : "";
-    const sessionDuration = session?.duration ? session.duration : "";
-    const reminderTime = reminder?.time ? time24To12(reminder.time) : "";
+    const handleOpen = () => {
+      if (task) openEditTask(task);
+      else if (session) openEditSession(session);
+      else if (reminder) openEditReminder(reminder);
+    };
 
-    const timeBlock =
-      session && (sessionTime || sessionDuration) ? (
-        <div className="pointer-events-none select-none absolute right-1.5 top-1.5 flex flex-col items-end text-[10px] leading-tight text-muted-foreground/80">
-          {sessionTime ? <div className="tabular-nums">{sessionTime}</div> : null}
-          {sessionDuration ? <div className="tabular-nums">{sessionDuration}</div> : null}
-        </div>
-      ) : reminder && reminderTime ? (
-        <div className="pointer-events-none select-none absolute right-1.5 top-1.5 text-[10px] leading-tight text-muted-foreground/80 tabular-nums">
-          {reminderTime}
-        </div>
-      ) : null;
+    const canOpen = Boolean((task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders));
+
+    const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
+    const bottomRight = task ? typeLabel(task.type) : session ? "Study" : "";
 
     return (
       <div
+        role={canOpen ? "button" : undefined}
+        tabIndex={canOpen ? 0 : undefined}
+        onClick={(e) => {
+          if (!canOpen) return;
+          e.stopPropagation();
+          handleOpen();
+        }}
+        onKeyDown={(e) => {
+          if (!canOpen) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            handleOpen();
+          }
+        }}
         className={[
           "group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition",
-          reserveRight ? "pr-8" : "pr-2",
+          canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
         ].join(" ")}
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
         title={title}
       >
-        <div className="min-w-0 flex-1">
+        {/* Reserve space on the right for time to prevent overlap */}
+        <div className="min-w-0 flex-1 pr-12">
           <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
-            {task ? `${typeDot(task.type)} ` : ""}
             {title}
           </div>
 
-          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
-            {reminder ? (
-              <>
-                <span className="inline-flex items-center gap-1 min-w-0 flex-1">
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-                  <span className="truncate">Reminder</span>
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="inline-flex items-center gap-1 min-w-0 flex-1">
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-                  <span className="truncate">{subject?.name ?? "Unassigned"}</span>
-                </span>
-
-                <span className="text-muted-foreground/60 shrink-0">•</span>
-
-                {task ? <span className="shrink-0">{typeLabel(task.type)}</span> : null}
-
-                {session ? <span className="shrink-0">Study</span> : null}
-              </>
-            )}
+          <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground min-w-0">
+            <div className="min-w-0 flex-1 truncate">{bottomLeft}</div>
+            {bottomRight ? <div className="shrink-0">{bottomRight}</div> : null}
           </div>
-
-          {!compact && session && linkedTask ? (
-            <div className="mt-1 text-[11px] text-muted-foreground truncate">Linked: {linkedTask.title}</div>
-          ) : null}
         </div>
 
-        {timeBlock}
-
-        {task && canEditDeleteTasks ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditTask(task);
-              }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-label="Edit task"
-              type="button"
-            >
-              <Pencil className="h-3.5 w-3.5 text-foreground" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeletingTaskId(task.id);
-              }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-label="Delete task"
-              type="button"
-            >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-          </div>
-        ) : null}
-
-        {session && canEditDeleteSessions ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditSession(session);
-              }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-label="Edit session"
-              type="button"
-            >
-              <Pencil className="h-3.5 w-3.5 text-foreground" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeletingSessionId(session.id);
-              }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-label="Delete session"
-              type="button"
-            >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-          </div>
-        ) : null}
-
-        {reminder && canEditDeleteReminders ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditReminder(reminder);
-              }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-label="Edit reminder"
-              type="button"
-            >
-              <Pencil className="h-3.5 w-3.5 text-foreground" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeletingReminderId(reminder.id);
-              }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-label="Delete reminder"
-              type="button"
-            >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
+        {timeLabel ? (
+          <div className="absolute top-1 right-2 w-[44px] text-right text-[10px] leading-3 text-muted-foreground">
+            {timeLabel}
           </div>
         ) : null}
       </div>
@@ -831,8 +722,8 @@ function CalendarView({
           <div className="flex items-center justify-between">
             <div
               className={[
-                "h-7 w-7 grid place-items-center rounded-full text-sm tabular-nums",
-                isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground font-medium",
+                "h-7 w-7 grid place-items-center rounded-full text-sm",
+                isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground",
                 isSelected ? "ring-1 ring-primary/30" : "",
               ].join(" ")}
             >
@@ -861,7 +752,6 @@ function CalendarView({
                     {renderChip({
                       title: x.s.title || "Study session",
                       subjectId: x.s.subjectId,
-                      isStudy: true,
                       session: x.s,
                       compact: true,
                     })}
@@ -879,7 +769,9 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
+            {totalCount > 3 ? (
+              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
+            ) : null}
           </div>
         </div>
       );
@@ -941,7 +833,7 @@ function CalendarView({
                   <div className="text-[11px] text-muted-foreground">
                     {date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
                   </div>
-                  <div className={["text-lg font-semibold tabular-nums", isToday ? "text-primary" : "text-foreground"].join(" ")}>
+                  <div className={["text-lg font-semibold", isToday ? "text-primary" : "text-foreground"].join(" ")}>
                     {date.getDate()}
                   </div>
                 </div>
@@ -961,7 +853,6 @@ function CalendarView({
                     {renderChip({
                       title: sess.title || "Study session",
                       subjectId: sess.subjectId,
-                      isStudy: true,
                       session: sess,
                       compact: false,
                     })}
@@ -1034,7 +925,6 @@ function CalendarView({
                   {renderChip({
                     title: sess.title || "Study session",
                     subjectId: sess.subjectId,
-                    isStudy: true,
                     session: sess,
                     compact: false,
                   })}
@@ -1221,8 +1111,8 @@ function CalendarView({
                   {showAddForm === "study"
                     ? `${editingSessionId ? "Edit" : "Add"} study session`
                     : showAddForm === "reminder"
-                    ? `${editingReminderId ? "Edit" : "Add"} reminder`
-                    : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
+                      ? `${editingReminderId ? "Edit" : "Add"} reminder`
+                      : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {selectedDate
@@ -1254,7 +1144,9 @@ function CalendarView({
 
                   <select
                     value={sessionFormData.subjectId}
-                    onChange={(e) => setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })}
+                    onChange={(e) =>
+                      setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })
+                    }
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Select subject</option>
@@ -1295,7 +1187,9 @@ function CalendarView({
                     <input
                       type="time"
                       value={startTimeUiValue}
-                      onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })}
+                      onChange={(e) =>
+                        setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })
+                      }
                       className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     />
 
@@ -1314,6 +1208,19 @@ function CalendarView({
                   </div>
 
                   <div className="flex gap-2 pt-1">
+                    {editingSessionId && onDeleteStudySession ? (
+                      <button
+                        onClick={() => {
+                          onDeleteStudySession(editingSessionId);
+                          handleCancel();
+                        }}
+                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+
                     <button
                       onClick={handleSessionSubmit}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
@@ -1364,6 +1271,19 @@ function CalendarView({
                   </div>
 
                   <div className="flex gap-2 pt-1">
+                    {editingReminderId && onDeleteReminder ? (
+                      <button
+                        onClick={() => {
+                          onDeleteReminder(editingReminderId);
+                          handleCancel();
+                        }}
+                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+
                     <button
                       onClick={handleReminderSubmit}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
@@ -1411,6 +1331,19 @@ function CalendarView({
                   />
 
                   <div className="flex gap-2 pt-1">
+                    {editingTaskId && onDeleteTask ? (
+                      <button
+                        onClick={() => {
+                          onDeleteTask(editingTaskId);
+                          handleCancel();
+                        }}
+                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+
                     <button
                       onClick={handleTaskSubmit}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
@@ -1428,102 +1361,6 @@ function CalendarView({
                   </div>
                 </>
               )}
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {/* Delete task confirm modal */}
-      {deletingTaskId ? (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingTaskId(null)} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">Delete this task?</div>
-              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
-            </div>
-            <div className="p-5 flex gap-2 justify-end">
-              <button
-                onClick={() => setDeletingTaskId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (onDeleteTask) onDeleteTask(deletingTaskId);
-                  setDeletingTaskId(null);
-                }}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
-                type="button"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {/* Delete session confirm modal */}
-      {deletingSessionId ? (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingSessionId(null)} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">Delete this study session?</div>
-              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
-            </div>
-            <div className="p-5 flex gap-2 justify-end">
-              <button
-                onClick={() => setDeletingSessionId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (onDeleteStudySession) onDeleteStudySession(deletingSessionId);
-                  setDeletingSessionId(null);
-                }}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
-                type="button"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {/* Delete reminder confirm modal */}
-      {deletingReminderId ? (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingReminderId(null)} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">Delete this reminder?</div>
-              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
-            </div>
-            <div className="p-5 flex gap-2 justify-end">
-              <button
-                onClick={() => setDeletingReminderId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (onDeleteReminder) onDeleteReminder(deletingReminderId);
-                  setDeletingReminderId(null);
-                }}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
-                type="button"
-              >
-                Delete
-              </button>
             </div>
           </div>
         </>
