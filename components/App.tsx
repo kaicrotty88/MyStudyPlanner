@@ -291,8 +291,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               endDate: p?.endDate ? new Date(p.endDate) : new Date(),
             }))
           : mode === "demo"
-          ? DEMO_PERIODS
-          : []
+            ? DEMO_PERIODS
+            : []
       );
 
       setTasks(
@@ -312,9 +312,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                     typeof t?.result?.outOf === "number"
                       ? t.result.outOf
                       : Number(t?.result?.outOf ?? 100),
-                  dateRecorded: t?.result?.dateRecorded
-                    ? new Date(t.result.dateRecorded)
-                    : new Date(),
+                  dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
                 }
               : undefined,
           }))
@@ -367,10 +365,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({ subjects, periods, tasks, studySessions, reminders })
-    );
+    localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
   }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
@@ -414,34 +409,21 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleAddTask = (t: Omit<Task, "id">) => {
     const inferredPeriodId = periodIdForDate(t.dueDate);
-    setTasks((p) => [
-      ...p,
-      { ...t, periodId: inferredPeriodId ?? t.periodId, id: Date.now().toString() },
-    ]);
+    setTasks((p) => [...p, { ...t, periodId: inferredPeriodId ?? t.periodId, id: Date.now().toString() }]);
   };
 
   const handleUpdateTask = (id: string, t: Omit<Task, "id">) => {
     const inferredPeriodId = periodIdForDate(t.dueDate);
-    setTasks((p) =>
-      p.map((x) =>
-        x.id === id ? { ...t, periodId: inferredPeriodId ?? t.periodId, id } : x
-      )
-    );
+    setTasks((p) => p.map((x) => (x.id === id ? { ...t, periodId: inferredPeriodId ?? t.periodId, id } : x)));
   };
 
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) =>
-      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
-    );
+    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
   };
 
   const toggleTaskCompleted = (id: string) =>
-    setTasks((p) =>
-      p.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
-      )
-    );
+    setTasks((p) => p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t)));
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
     setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
@@ -449,15 +431,10 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
-  const handleDeleteStudySession = (id: string) =>
-    setStudySessions((p) => p.filter((s) => s.id !== id));
+  const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((p) =>
-      p.map((s) =>
-        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
-      )
-    );
+    setStudySessions((p) => p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s)));
 
   // ✅ Reminders
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
@@ -474,8 +451,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
     setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
 
-  const handleDeleteReminder = (id: string) =>
-    setReminders((p) => p.filter((r) => r.id !== id));
+  const handleDeleteReminder = (id: string) => setReminders((p) => p.filter((r) => r.id !== id));
 
   const handleToggleReminderCompleted = (id: string) =>
     setReminders((p) =>
@@ -511,9 +487,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-8 min-w-0">
             <div className="flex flex-col leading-tight min-w-0">
               <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground truncate">
-                Made by students, for students
-              </span>
+              <span className="text-[11px] text-muted-foreground truncate">Made by students, for students</span>
             </div>
 
             <div className="hidden md:flex gap-1">
@@ -524,9 +498,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                   className={[
                     "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                    activeTab === k
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-foreground/90 hover:bg-muted",
+                    activeTab === k ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
                   ].join(" ")}
                 >
                   {l}
@@ -574,11 +546,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                 }}
               >
                 <UserButton.MenuItems>
-                  <UserButton.Action
-                    label="Account"
-                    labelIcon={<User className="h-4 w-4" />}
-                    onClick={() => setActiveTab("settings")}
-                  />
+                  <UserButton.Action label="Account" labelIcon={<User className="h-4 w-4" />} onClick={() => setActiveTab("settings")} />
                 </UserButton.MenuItems>
               </UserButton>
             </div>
@@ -611,9 +579,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
-            <div className="text-[12px] leading-5 text-muted-foreground">
-              Best on desktop. Mobile is great for quick check-ins.
-            </div>
+            <div className="text-[12px] leading-5 text-muted-foreground">Best on desktop. Mobile is great for quick check-ins.</div>
 
             <button
               onClick={dismissMobileDesktopHint}
@@ -642,6 +608,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <Calendar
             studySessions={studySessions}
             tasks={tasks}
+            reminders={reminders}
             subjects={subjects}
             onAddTask={handleAddTask}
             onUpdateTask={handleUpdateTask}
@@ -649,6 +616,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             onAddStudySession={handleAddStudySession}
             onUpdateStudySession={handleUpdateStudySession}
             onDeleteStudySession={handleDeleteStudySession}
+            onAddReminder={handleAddReminder}
+            onUpdateReminder={handleUpdateReminder}
+            onDeleteReminder={handleDeleteReminder}
           />
         )}
 
@@ -676,13 +646,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
 
-        {activeTab === "insights" && (
-          <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
-        )}
+        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
 
-        {activeTab === "marks" && (
-          <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
-        )}
+        {activeTab === "marks" && <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />}
 
         {activeTab === "reminders" && (
           <Reminders

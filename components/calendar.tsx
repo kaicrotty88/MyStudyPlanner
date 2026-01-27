@@ -11,10 +11,10 @@ import {
   Plus,
 } from "lucide-react";
 
-import type { Subject, Task, StudySession } from "./models";
+import type { Subject, Task, StudySession, Reminder } from "./models";
 
 type ViewMode = "day" | "week" | "month";
-type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | null;
+type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | "reminder" | null;
 
 // Must match Settings + Tasks
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
@@ -36,6 +36,7 @@ type PeriodHydrated = {
 interface CalendarProps {
   studySessions: StudySession[];
   tasks: Task[];
+  reminders: Reminder[];
   subjects: Subject[];
 
   onAddTask: (task: Omit<Task, "id">) => void;
@@ -45,6 +46,10 @@ interface CalendarProps {
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession?: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession?: (id: string) => void;
+
+  onAddReminder: (reminder: Omit<Reminder, "id">) => void;
+  onUpdateReminder?: (id: string, reminder: Omit<Reminder, "id">) => void;
+  onDeleteReminder?: (id: string) => void;
 }
 
 /* -------------------- helpers -------------------- */
@@ -187,6 +192,7 @@ const lineClampStyle = (lines: number) => ({
 function CalendarView({
   studySessions,
   tasks,
+  reminders,
   subjects,
   onAddTask,
   onUpdateTask,
@@ -194,6 +200,9 @@ function CalendarView({
   onAddStudySession,
   onUpdateStudySession,
   onDeleteStudySession,
+  onAddReminder,
+  onUpdateReminder,
+  onDeleteReminder,
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -249,8 +258,13 @@ function CalendarView({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
+  // reminders edit/delete
+  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
+  const [deletingReminderId, setDeletingReminderId] = useState<string | null>(null);
+
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
   const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
+  const canEditDeleteReminders = Boolean(onUpdateReminder && onDeleteReminder);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -267,6 +281,13 @@ function CalendarView({
     startTime: "",
     duration: "60 min",
     linkedTaskId: "",
+  });
+
+  // ✅ Reminders form
+  const [reminderFormData, setReminderFormData] = useState({
+    title: "",
+    dueDate: "",
+    time: "",
   });
 
   const subjectById = useMemo(() => {
@@ -317,7 +338,11 @@ function CalendarView({
   const getItemsForDate = (date: Date) => {
     const dateTasks = tasks.filter((task) => isSameDay(task.dueDate, date));
     const dateSessions = studySessions.filter((session) => isSameDay(session.date, date));
-    return { tasks: dateTasks, sessions: dateSessions };
+    const dateReminders = reminders
+      .filter((r) => !r.completed)
+      .filter((r) => (r.dueDate ? isSameDay(r.dueDate, date) : false));
+
+    return { tasks: dateTasks, sessions: dateSessions, reminders: dateReminders };
   };
 
   const handleDayClick = (date: Date) => {
@@ -331,6 +356,7 @@ function CalendarView({
 
     setEditingTaskId(null);
     setEditingSessionId(null);
+    setEditingReminderId(null);
 
     if (type === "study") {
       setSessionFormData({
@@ -340,6 +366,12 @@ function CalendarView({
         startTime: "",
         duration: "60 min",
         linkedTaskId: "",
+      });
+    } else if (type === "reminder") {
+      setReminderFormData({
+        title: "",
+        dueDate: dateStr,
+        time: "",
       });
     } else {
       setTaskFormData({
@@ -387,6 +419,23 @@ function CalendarView({
     });
 
     setShowAddForm("study");
+    setShowPopover(false);
+  };
+
+  const openEditReminder = (reminder: Reminder) => {
+    if (!canEditDeleteReminders) return;
+    if (!reminder.dueDate) return;
+
+    setEditingReminderId(reminder.id);
+    setSelectedDate(reminder.dueDate);
+
+    setReminderFormData({
+      title: reminder.title ?? "",
+      dueDate: toLocalDateInputValue(reminder.dueDate),
+      time: reminder.time ?? "",
+    });
+
+    setShowAddForm("reminder");
     setShowPopover(false);
   };
 
@@ -478,6 +527,39 @@ function CalendarView({
     setSelectedDate(null);
   };
 
+  const handleReminderSubmit = () => {
+    if (!reminderFormData.title || !reminderFormData.dueDate) return;
+
+    const newDueDate = new Date(reminderFormData.dueDate);
+    const trimmedTitle = reminderFormData.title.trim();
+    if (!trimmedTitle) return;
+
+    const existing = editingReminderId ? reminders.find((r) => r.id === editingReminderId) : undefined;
+
+    const payloadBase: Omit<Reminder, "id"> = {
+      title: trimmedTitle,
+      dueDate: newDueDate,
+      time: reminderFormData.time?.trim() ? reminderFormData.time.trim() : undefined,
+      ...(editingReminderId
+        ? {
+            notes: existing?.notes,
+            repeat: existing?.repeat,
+            completed: existing?.completed,
+            completedAt: existing?.completedAt,
+            createdAt: existing?.createdAt,
+          }
+        : {}),
+    };
+
+    if (editingReminderId && onUpdateReminder) onUpdateReminder(editingReminderId, payloadBase);
+    else onAddReminder(payloadBase);
+
+    setEditingReminderId(null);
+    setReminderFormData({ title: "", dueDate: "", time: "" });
+    setShowAddForm(null);
+    setSelectedDate(null);
+  };
+
   const handleCancel = () => {
     setShowAddForm(null);
     setShowPopover(false);
@@ -489,6 +571,9 @@ function CalendarView({
     setEditingSessionId(null);
     setDeletingSessionId(null);
 
+    setEditingReminderId(null);
+    setDeletingReminderId(null);
+
     setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
     setSessionFormData({
       title: "",
@@ -498,6 +583,7 @@ function CalendarView({
       duration: "60 min",
       linkedTaskId: "",
     });
+    setReminderFormData({ title: "", dueDate: "", time: "" });
   };
 
   const SectionShell = ({ children }: { children: React.ReactNode }) => (
@@ -530,6 +616,7 @@ function CalendarView({
     isStudy,
     task,
     session,
+    reminder,
     compact,
   }: {
     title: string;
@@ -537,6 +624,7 @@ function CalendarView({
     isStudy?: boolean;
     task?: Task;
     session?: StudySession;
+    reminder?: Reminder;
     compact?: boolean;
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
@@ -554,37 +642,55 @@ function CalendarView({
         <div className="min-w-0 flex-1 pr-9">
           <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
             {isStudy ? "📚 " : ""}
+            {reminder ? "⏰ " : ""}
             {task ? `${typeDot(task.type)} ` : ""}
             {title}
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
-            <span className="inline-flex items-center gap-1 min-w-0">
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-              <span className="truncate">{subject?.name ?? "Unassigned"}</span>
-            </span>
-
-            {task ? (
+            {reminder ? (
               <>
-                <span className="text-muted-foreground/60">•</span>
-                <span className="shrink-0">{typeLabel(task.type)}</span>
-              </>
-            ) : null}
-
-            {session ? (
-              <>
-                <span className="text-muted-foreground/60">•</span>
-                <span className="shrink-0">
-                  {displaySessionTime(session.startTime)} • {session.duration}
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+                  <span className="truncate">Reminder</span>
                 </span>
-                {!compact && linkedTask ? (
+                {reminder.time ? (
                   <>
                     <span className="text-muted-foreground/60">•</span>
-                    <span className="truncate">Linked: {linkedTask.title}</span>
+                    <span className="shrink-0">{time24To12(reminder.time)}</span>
                   </>
                 ) : null}
               </>
-            ) : null}
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+                  <span className="truncate">{subject?.name ?? "Unassigned"}</span>
+                </span>
+
+                {task ? (
+                  <>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="shrink-0">{typeLabel(task.type)}</span>
+                  </>
+                ) : null}
+
+                {session ? (
+                  <>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span className="shrink-0">
+                      {displaySessionTime(session.startTime)} • {session.duration}
+                    </span>
+                    {!compact && linkedTask ? (
+                      <>
+                        <span className="text-muted-foreground/60">•</span>
+                        <span className="truncate">Linked: {linkedTask.title}</span>
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
 
@@ -641,6 +747,33 @@ function CalendarView({
             </button>
           </div>
         ) : null}
+
+        {reminder && canEditDeleteReminders ? (
+          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditReminder(reminder);
+              }}
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              aria-label="Edit reminder"
+              type="button"
+            >
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingReminderId(reminder.id);
+              }}
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              aria-label="Delete reminder"
+              type="button"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -664,17 +797,18 @@ function CalendarView({
 
     for (let day = 1; day <= days; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(date);
+      const { tasks: dayTasks, sessions: daySessions, reminders: dayReminders } = getItemsForDate(date);
 
       const isToday = isSameDay(new Date(), date);
       const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
 
       const previewItems = [
-        ...dayTasks.slice(0, 2).map((t) => ({ kind: "task" as const, t })),
-        ...daySessions.slice(0, 1).map((s) => ({ kind: "session" as const, s })),
-      ];
+        ...dayTasks.map((t) => ({ kind: "task" as const, t })),
+        ...daySessions.map((s) => ({ kind: "session" as const, s })),
+        ...dayReminders.map((r) => ({ kind: "reminder" as const, r })),
+      ].slice(0, 3);
 
-      const totalCount = dayTasks.length + daySessions.length;
+      const totalCount = dayTasks.length + daySessions.length + dayReminders.length;
 
       const ariaLabel = `${date.toLocaleDateString("en-US", {
         weekday: "long",
@@ -727,13 +861,24 @@ function CalendarView({
                   </div>
                 );
               }
+              if (x.kind === "session") {
+                return (
+                  <div key={x.s.id + idx} className="min-w-0">
+                    {renderChip({
+                      title: x.s.title || "Study session",
+                      subjectId: x.s.subjectId,
+                      isStudy: true,
+                      session: x.s,
+                      compact: true,
+                    })}
+                  </div>
+                );
+              }
               return (
-                <div key={x.s.id + idx} className="min-w-0">
+                <div key={x.r.id + idx} className="min-w-0">
                   {renderChip({
-                    title: x.s.title || "Study session",
-                    subjectId: x.s.subjectId,
-                    isStudy: true,
-                    session: x.s,
+                    title: x.r.title || "Reminder",
+                    reminder: x.r,
                     compact: true,
                   })}
                 </div>
@@ -772,7 +917,7 @@ function CalendarView({
     return (
       <div className="grid grid-cols-7 border-t border-border">
         {days.map((date, i) => {
-          const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(date);
+          const { tasks: dayTasks, sessions: daySessions, reminders: dayReminders } = getItemsForDate(date);
           const isToday = isSameDay(new Date(), date);
           const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
 
@@ -780,7 +925,7 @@ function CalendarView({
             weekday: "long",
             month: "long",
             day: "numeric",
-          })}. ${dayTasks.length + daySessions.length} items.`;
+          })}. ${dayTasks.length + daySessions.length + dayReminders.length} items.`;
 
           return (
             <div
@@ -830,8 +975,17 @@ function CalendarView({
                     })}
                   </div>
                 ))}
+                {dayReminders.map((r) => (
+                  <div key={r.id}>
+                    {renderChip({
+                      title: r.title || "Reminder",
+                      reminder: r,
+                      compact: false,
+                    })}
+                  </div>
+                ))}
 
-                {dayTasks.length === 0 && daySessions.length === 0 ? (
+                {dayTasks.length === 0 && daySessions.length === 0 && dayReminders.length === 0 ? (
                   <div className="mt-6 text-xs text-muted-foreground border border-dashed border-border rounded-xl p-3 bg-background/30">
                     Empty
                   </div>
@@ -845,7 +999,7 @@ function CalendarView({
   };
 
   const renderDayView = () => {
-    const { tasks: dayTasks, sessions: daySessions } = getItemsForDate(currentDate);
+    const { tasks: dayTasks, sessions: daySessions, reminders: dayReminders } = getItemsForDate(currentDate);
     const isToday = isSameDay(new Date(), currentDate);
 
     return (
@@ -867,7 +1021,7 @@ function CalendarView({
         </div>
 
         <div className="mt-4 space-y-3">
-          {dayTasks.length === 0 && daySessions.length === 0 ? (
+          {dayTasks.length === 0 && daySessions.length === 0 && dayReminders.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-background/40 px-4 py-12 text-center">
               <div className="text-sm font-medium text-foreground">No items planned</div>
               <div className="mt-1 text-xs text-muted-foreground">Click below to add something to this day.</div>
@@ -892,6 +1046,15 @@ function CalendarView({
                     subjectId: sess.subjectId,
                     isStudy: true,
                     session: sess,
+                    compact: false,
+                  })}
+                </div>
+              ))}
+              {dayReminders.map((r) => (
+                <div key={r.id}>
+                  {renderChip({
+                    title: r.title || "Reminder",
+                    reminder: r,
                     compact: false,
                   })}
                 </div>
@@ -1032,6 +1195,15 @@ function CalendarView({
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
 
+              <button
+                onClick={() => handleAddOption("reminder")}
+                className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
+                type="button"
+              >
+                <span className="text-sm text-foreground">⏰ Add reminder</span>
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </button>
+
               {(["task", "assignment", "exam", "homework"] as const).map((t) => (
                 <button
                   key={t}
@@ -1058,7 +1230,9 @@ function CalendarView({
                 <div className="text-sm font-semibold text-foreground">
                   {showAddForm === "study"
                     ? `${editingSessionId ? "Edit" : "Add"} study session`
-                    : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
+                    : showAddForm === "reminder"
+                      ? `${editingReminderId ? "Edit" : "Add"} reminder`
+                      : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {selectedDate
@@ -1160,6 +1334,56 @@ function CalendarView({
                       type="button"
                     >
                       {editingSessionId ? "Save" : "Add"}
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : showAddForm === "reminder" ? (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Reminder title (e.g. Pack calculator)"
+                    value={reminderFormData.title}
+                    onChange={(e) => setReminderFormData({ ...reminderFormData, title: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  />
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="text-xs text-muted-foreground flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={reminderFormData.dueDate}
+                      onChange={(e) => setReminderFormData({ ...reminderFormData, dueDate: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="text-xs text-muted-foreground">Time (optional)</label>
+                    <input
+                      type="time"
+                      value={reminderFormData.time}
+                      onChange={(e) => setReminderFormData({ ...reminderFormData, time: e.target.value })}
+                      className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleReminderSubmit}
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                      type="button"
+                    >
+                      {editingReminderId ? "Save" : "Add"}
                     </button>
                     <button
                       onClick={handleCancel}
@@ -1276,6 +1500,38 @@ function CalendarView({
                 onClick={() => {
                   if (onDeleteStudySession) onDeleteStudySession(deletingSessionId);
                   setDeletingSessionId(null);
+                }}
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {/* Delete reminder confirm modal */}
+      {deletingReminderId ? (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingReminderId(null)} />
+          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">Delete this reminder?</div>
+              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
+            </div>
+            <div className="p-5 flex gap-2 justify-end">
+              <button
+                onClick={() => setDeletingReminderId(null)}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (onDeleteReminder) onDeleteReminder(deletingReminderId);
+                  setDeletingReminderId(null);
                 }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
                 type="button"
