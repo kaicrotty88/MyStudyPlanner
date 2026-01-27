@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Calendar as CalendarIcon,
-  Pencil,
-  Trash2,
-  Plus,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Pencil, Trash2, Plus } from "lucide-react";
 
 import type { Subject, Task, StudySession, Reminder } from "./models";
 
@@ -61,9 +53,7 @@ const toLocalDateInputValue = (d: Date) => {
 };
 
 const isSameDay = (date1: Date, date2: Date) =>
-  date1.getDate() === date2.getDate() &&
-  date1.getMonth() === date2.getMonth() &&
-  date1.getFullYear() === date2.getFullYear();
+  date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear();
 
 const startOfWeek = (d: Date) => {
   const x = new Date(d);
@@ -119,6 +109,13 @@ function typeLabel(t: Task["type"]) {
   if (t === "exam") return "Exam";
   if (t === "homework") return "Homework";
   return "Task";
+}
+
+function typeDot(t: Task["type"]) {
+  if (t === "exam") return "●";
+  if (t === "assignment") return "◆";
+  if (t === "homework") return "■";
+  return "•";
 }
 
 /* -------------------- Time formatting (UI) -------------------- */
@@ -302,8 +299,7 @@ function CalendarView({
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [tasks, sessionFormData.subjectId]);
 
-  const previousMonth = () =>
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
   const previousWeek = () => {
@@ -620,157 +616,155 @@ function CalendarView({
     compact?: boolean;
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
+    const dot = subject?.color ?? "#94a3b8";
+    const linkedTask = session?.linkedTaskId ? taskById.get(session.linkedTaskId) : undefined;
 
-    const dot = reminder ? "#94a3b8" : subject?.color ?? "#94a3b8";
     const titleLines = compact ? 2 : 3;
 
-    const metaLeft = (() => {
-      if (reminder) return [{ text: "Reminder", truncate: false }];
-      const subj = subject?.name ?? "Unassigned";
-      if (session || isStudy) {
-        return [
-          { text: subj, truncate: true },
-          { text: "Study", truncate: false },
-        ];
-      }
-      if (task) {
-        return [
-          { text: subj, truncate: true },
-          { text: typeLabel(task.type), truncate: false },
-        ];
-      }
-      return [{ text: subj, truncate: true }];
-    })();
+    const showTaskActions = Boolean(task && canEditDeleteTasks);
+    const showSessionActions = Boolean(session && canEditDeleteSessions);
+    const showReminderActions = Boolean(reminder && canEditDeleteReminders);
+    const reserveRight = showTaskActions || showSessionActions || showReminderActions;
 
-    const timeBlock = (() => {
-      if (session) {
-        const t = (session.startTime ?? "").trim();
-        const d = (session.duration ?? "").trim();
-        if (!t && !d) return null;
-        return (
-          <div className="space-y-0.5">
-            {t ? <div className="truncate">{displaySessionTime(t)}</div> : null}
-            {d ? <div className="truncate">{d}</div> : null}
-          </div>
-        );
-      }
-      if (reminder?.time) {
-        return <div className="truncate">{time24To12(reminder.time)}</div>;
-      }
-      return null;
-    })();
+    const sessionTime = session?.startTime ? displaySessionTime(session.startTime) : "";
+    const sessionDuration = session?.duration ? session.duration : "";
+    const reminderTime = reminder?.time ? time24To12(reminder.time) : "";
+
+    const timeBlock =
+      session && (sessionTime || sessionDuration) ? (
+        <div className="pointer-events-none select-none absolute right-1.5 top-1.5 flex flex-col items-end text-[10px] leading-tight text-muted-foreground/80">
+          {sessionTime ? <div className="tabular-nums">{sessionTime}</div> : null}
+          {sessionDuration ? <div className="tabular-nums">{sessionDuration}</div> : null}
+        </div>
+      ) : reminder && reminderTime ? (
+        <div className="pointer-events-none select-none absolute right-1.5 top-1.5 text-[10px] leading-tight text-muted-foreground/80 tabular-nums">
+          {reminderTime}
+        </div>
+      ) : null;
 
     return (
       <div
-        className="group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition"
+        className={[
+          "group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition",
+          reserveRight ? "pr-8" : "pr-2",
+        ].join(" ")}
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
         title={title}
       >
-        <div className="min-w-0 flex-1 pr-6">
+        <div className="min-w-0 flex-1">
           <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
+            {task ? `${typeDot(task.type)} ` : ""}
             {title}
           </div>
 
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
-            <span className="inline-flex items-center gap-1 min-w-0">
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-              {metaLeft[0] ? (
-                <span className={metaLeft[0].truncate ? "truncate" : ""}>{metaLeft[0].text}</span>
-              ) : null}
-            </span>
-
-            {metaLeft[1] ? (
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+            {reminder ? (
               <>
-                <span className="text-muted-foreground/60">·</span>
-                <span className="shrink-0">{metaLeft[1].text}</span>
+                <span className="inline-flex items-center gap-1 min-w-0 flex-1">
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+                  <span className="truncate">Reminder</span>
+                </span>
               </>
-            ) : null}
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1 min-w-0 flex-1">
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+                  <span className="truncate">{subject?.name ?? "Unassigned"}</span>
+                </span>
+
+                <span className="text-muted-foreground/60 shrink-0">•</span>
+
+                {task ? <span className="shrink-0">{typeLabel(task.type)}</span> : null}
+
+                {session ? <span className="shrink-0">Study</span> : null}
+              </>
+            )}
           </div>
+
+          {!compact && session && linkedTask ? (
+            <div className="mt-1 text-[11px] text-muted-foreground truncate">Linked: {linkedTask.title}</div>
+          ) : null}
         </div>
 
-        {timeBlock ? (
-          <div className="absolute right-1.5 top-7 text-[10px] leading-snug text-muted-foreground text-right max-w-[84px]">
-            {timeBlock}
-          </div>
-        ) : null}
+        {timeBlock}
 
         {task && canEditDeleteTasks ? (
-          <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 openEditTask(task);
               }}
-              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit task"
               type="button"
             >
-              <Pencil className="h-3 w-3 text-foreground" />
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setDeletingTaskId(task.id);
               }}
-              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete task"
               type="button"
             >
-              <Trash2 className="h-3 w-3 text-muted-foreground" />
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>
         ) : null}
 
         {session && canEditDeleteSessions ? (
-          <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 openEditSession(session);
               }}
-              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit session"
               type="button"
             >
-              <Pencil className="h-3 w-3 text-foreground" />
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setDeletingSessionId(session.id);
               }}
-              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete session"
               type="button"
             >
-              <Trash2 className="h-3 w-3 text-muted-foreground" />
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>
         ) : null}
 
         {reminder && canEditDeleteReminders ? (
-          <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 openEditReminder(reminder);
               }}
-              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit reminder"
               type="button"
             >
-              <Pencil className="h-3 w-3 text-foreground" />
+              <Pencil className="h-3.5 w-3.5 text-foreground" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setDeletingReminderId(reminder.id);
               }}
-              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete reminder"
               type="button"
             >
-              <Trash2 className="h-3 w-3 text-muted-foreground" />
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>
         ) : null}
@@ -837,8 +831,8 @@ function CalendarView({
           <div className="flex items-center justify-between">
             <div
               className={[
-                "h-7 w-7 grid place-items-center rounded-full text-sm",
-                isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground",
+                "h-7 w-7 grid place-items-center rounded-full text-sm tabular-nums",
+                isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground font-medium",
                 isSelected ? "ring-1 ring-primary/30" : "",
               ].join(" ")}
             >
@@ -885,9 +879,7 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? (
-              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
-            ) : null}
+            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
           </div>
         </div>
       );
@@ -949,7 +941,7 @@ function CalendarView({
                   <div className="text-[11px] text-muted-foreground">
                     {date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
                   </div>
-                  <div className={["text-lg font-semibold", isToday ? "text-primary" : "text-foreground"].join(" ")}>
+                  <div className={["text-lg font-semibold tabular-nums", isToday ? "text-primary" : "text-foreground"].join(" ")}>
                     {date.getDate()}
                   </div>
                 </div>
@@ -1006,9 +998,7 @@ function CalendarView({
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">
-              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
-            </div>
+            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
             <div className="mt-1 text-xl font-semibold text-foreground">
               {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
@@ -1231,8 +1221,8 @@ function CalendarView({
                   {showAddForm === "study"
                     ? `${editingSessionId ? "Edit" : "Add"} study session`
                     : showAddForm === "reminder"
-                      ? `${editingReminderId ? "Edit" : "Add"} reminder`
-                      : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
+                    ? `${editingReminderId ? "Edit" : "Add"} reminder`
+                    : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {selectedDate
@@ -1264,9 +1254,7 @@ function CalendarView({
 
                   <select
                     value={sessionFormData.subjectId}
-                    onChange={(e) =>
-                      setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })
-                    }
+                    onChange={(e) => setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })}
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Select subject</option>
@@ -1307,9 +1295,7 @@ function CalendarView({
                     <input
                       type="time"
                       value={startTimeUiValue}
-                      onChange={(e) =>
-                        setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })
-                      }
+                      onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })}
                       className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     />
 
