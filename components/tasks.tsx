@@ -131,6 +131,12 @@ export function Tasks({
 
   const [showCompleted, setShowCompleted] = useState(false);
 
+  const subjectById = useMemo(() => {
+    const map = new Map<string, Subject>();
+    subjects.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [subjects]);
+
   // ✅ Load periods from localStorage (created in Settings)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
   useEffect(() => {
@@ -154,7 +160,7 @@ export function Tasks({
     }
   }, []);
 
-  const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
+  const getSubjectById = (id: string) => subjectById.get(id);
 
   const toggleSection = (section: "task" | "assignment" | "exam" | "homework") => {
     setExpandedSections((prev) => {
@@ -216,7 +222,6 @@ export function Tasks({
         completed: existing?.completed,
         completedAt: existing?.completedAt,
         periodId: nextPeriodId,
-        // Preserve marks (if any) when editing from Tasks
         result: existing?.result,
       });
 
@@ -312,7 +317,6 @@ export function Tasks({
         </button>
       </div>
 
-      {/* subtle hint (no new feature, just clarity) */}
       {periods.length === 0 ? (
         <div className="text-[11px] text-muted-foreground">
           Tip: add your Term dates in Settings so tasks can be grouped automatically.
@@ -332,6 +336,7 @@ export function Tasks({
   }) => {
     const isExpanded = expandedSections[type];
     const accent = getSectionAccentColor();
+    const itemLabel = `${count} item${count === 1 ? "" : "s"}`;
 
     return (
       <div
@@ -353,7 +358,7 @@ export function Tasks({
 
           <div className="min-w-0">
             <div className="text-sm font-semibold text-foreground">{label}</div>
-            <div className="text-xs text-muted-foreground">{count} items</div>
+            <div className="text-xs text-muted-foreground">{itemLabel}</div>
           </div>
         </button>
 
@@ -365,7 +370,7 @@ export function Tasks({
             setEditingId(null);
             setFormData({ title: "", subjectId: "", dueDate: "" });
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           <Plus className="w-4 h-4" />
           Add
@@ -381,30 +386,30 @@ export function Tasks({
 
     const toneBorder =
       tone === "overdue"
-        ? "border-red-500/30"
+        ? "border-destructive/25"
         : tone === "today"
-        ? "border-orange-500/30"
+        ? "border-primary/20"
         : tone === "soon"
-        ? "border-yellow-500/30"
+        ? "border-primary/15"
         : "border-border";
 
     const toneWash =
       tone === "overdue"
-        ? "bg-red-500/5"
+        ? "bg-destructive/5"
         : tone === "today"
-        ? "bg-orange-500/5"
+        ? "bg-primary/[0.04]"
         : tone === "soon"
-        ? "bg-yellow-500/5"
+        ? "bg-muted/20"
         : "bg-card";
 
     const chipClass =
       tone === "overdue"
-        ? "bg-red-500/10 text-red-700 border-red-500/20"
+        ? "bg-destructive/10 text-destructive border-destructive/20"
         : tone === "today"
-        ? "bg-orange-500/10 text-orange-700 border-orange-500/20"
+        ? "bg-primary/10 text-primary border-primary/20"
         : tone === "soon"
-        ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20"
-        : "bg-muted/40 text-foreground border-border";
+        ? "bg-muted/40 text-foreground border-border"
+        : "bg-muted/30 text-foreground border-border";
 
     return (
       <div
@@ -440,8 +445,8 @@ export function Tasks({
 
               <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                 {subject ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject.color }} />
+                  <span className="inline-flex items-center gap-2 min-w-0">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: subject.color }} />
                     <span className="truncate">{subject.name}</span>
                   </span>
                 ) : (
@@ -468,7 +473,7 @@ export function Tasks({
               {dueChip(task.dueDate)}
             </span>
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 group-focus-within:opacity-100 transition">
               <button
                 type="button"
                 onClick={() => handleEdit(task)}
@@ -523,6 +528,8 @@ export function Tasks({
     );
   };
 
+  const filteredCountLabel = `${filteredTasks.length} showing${selectedSubject !== "all" ? " (filtered)" : ""}`;
+
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
       <div className="space-y-1">
@@ -537,9 +544,7 @@ export function Tasks({
           className={[
             "px-4 py-2 rounded-full text-sm font-medium transition border",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-            selectedSubject === "all"
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-card text-foreground border-border hover:bg-muted",
+            selectedSubject === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-muted",
           ].join(" ")}
         >
           All
@@ -555,9 +560,9 @@ export function Tasks({
               className={[
                 "px-4 py-2 rounded-full text-sm font-medium transition border",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                active ? "bg-muted/50 border-border" : "bg-card border-border hover:bg-muted",
+                active ? "bg-muted/40 text-foreground border-border" : "bg-card text-foreground border-border hover:bg-muted",
               ].join(" ")}
-              style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
+              style={{ borderColor: active ? `${s.color}55` : undefined }}
             >
               <span className="inline-flex items-center gap-2 min-w-0">
                 <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
@@ -569,9 +574,7 @@ export function Tasks({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
-          {filteredTasks.length} showing{selectedSubject !== "all" ? " (filtered)" : ""}
-        </div>
+        <div className="text-xs text-muted-foreground">{filteredCountLabel}</div>
 
         <button
           type="button"
@@ -584,7 +587,7 @@ export function Tasks({
 
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">Taskboard</div>
+          <div className="text-xs font-medium text-muted-foreground">Plan</div>
         </div>
 
         <div className="space-y-4">
