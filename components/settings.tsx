@@ -1,7 +1,8 @@
 "use client";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, Trash, ChevronDown, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Trash, ChevronDown } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -66,13 +67,13 @@ interface SettingsProps {
   onClearAllData: () => void;
 }
 
-const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
-
-// Matches App.tsx
+// Storage keys (must match App)
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
 function toISODateInputValue(d: Date) {
+  // YYYY-MM-DD in local time
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -80,11 +81,13 @@ function toISODateInputValue(d: Date) {
 }
 
 function parseDateInput(value: string) {
+  // value is YYYY-MM-DD; create local date (midnight)
   const [y, m, d] = value.split("-").map((x) => Number(x));
   return new Date(y, (m || 1) - 1, d || 1);
 }
 
 function safeUUID() {
+  // Avoid breaking older browsers/environments
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c: any = globalThis as any;
   if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
@@ -92,33 +95,33 @@ function safeUUID() {
 }
 
 /* -------------------- Backup helpers -------------------- */
-type BackupFileV1 = {
+type BackupV1 = {
   version: 1;
-  exportedAt: string;
+  exportedAt: string; // ISO
   appMode: AppMode;
-  mainKey: string;
-  periodsKey: string;
-  // Parsed JSON for convenience
-  mainData: any | null;
-  periodsData: any | null;
+  data: any; // raw stored object used by App
+  periods?: PeriodStored[];
 };
 
-function downloadJson(obj: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+function downloadJson(filename: string, obj: unknown) {
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
+
   URL.revokeObjectURL(url);
 }
 
-function safeParseJson(raw: string | null) {
+function safeJsonParse<T>(raw: string | null): T | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    return JSON.parse(raw) as T;
   } catch {
     return null;
   }
@@ -135,6 +138,8 @@ export function Settings({
   appMode,
   onClearAllData,
 }: SettingsProps) {
+  const storageKey = appMode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
@@ -159,108 +164,12 @@ export function Settings({
   });
   const [periodFormError, setPeriodFormError] = useState<string>("");
 
-  /* -------------------- Backup state -------------------- */
-  const primaryStorageKey = appMode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // ✅ Backup section (collapsible)
+  const [backupOpen, setBackupOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string>("");
-  const [pendingImport, setPendingImport] = useState<BackupFileV1 | null>(null);
+  const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
-
-  const openImportPicker = () => {
-    setImportError("");
-    fileInputRef.current?.click();
-  };
-
-  const handleExportBackup = () => {
-    // Read from localStorage so backup matches exactly what will rehydrate
-    const rawMain = typeof window !== "undefined" ? localStorage.getItem(primaryStorageKey) : null;
-    const rawPeriods = typeof window !== "undefined" ? localStorage.getItem(PERIODS_STORAGE_KEY) : null;
-
-    const backup: BackupFileV1 = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      appMode,
-      mainKey: primaryStorageKey,
-      periodsKey: PERIODS_STORAGE_KEY,
-      mainData: safeParseJson(rawMain),
-      periodsData: safeParseJson(rawPeriods),
-    };
-
-    const dateTag = new Date().toISOString().slice(0, 10);
-    downloadJson(backup, `mystudyplanner-backup-${dateTag}.json`);
-  };
-
-  const handleFileChosen = async (file: File | null) => {
-    if (!file) return;
-
-    setImportError("");
-    setPendingImport(null);
-
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-
-      // Accept our wrapper format OR a raw mainData export (legacy/manual)
-      let normalized: BackupFileV1;
-
-      if (parsed && typeof parsed === "object" && parsed.version === 1 && "mainData" in parsed) {
-        normalized = {
-          version: 1,
-          exportedAt: String(parsed.exportedAt ?? new Date().toISOString()),
-          appMode: (parsed.appMode === "demo" || parsed.appMode === "app") ? parsed.appMode : appMode,
-          mainKey: String(parsed.mainKey ?? primaryStorageKey),
-          periodsKey: String(parsed.periodsKey ?? PERIODS_STORAGE_KEY),
-          mainData: parsed.mainData ?? null,
-          periodsData: parsed.periodsData ?? null,
-        };
-      } else {
-        // Treat as "main data only"
-        normalized = {
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          appMode,
-          mainKey: primaryStorageKey,
-          periodsKey: PERIODS_STORAGE_KEY,
-          mainData: parsed,
-          periodsData: null,
-        };
-      }
-
-      // Very light validation to avoid nuking storage with nonsense
-      if (!normalized.mainData || typeof normalized.mainData !== "object") {
-        setImportError("That file doesn’t look like a valid MyStudyPlanner backup.");
-        return;
-      }
-
-      setPendingImport(normalized);
-      setShowImportConfirm(true);
-    } catch {
-      setImportError("Couldn’t read that file. Make sure it’s a .json backup you exported from MyStudyPlanner.");
-    }
-  };
-
-  const confirmImport = () => {
-    if (!pendingImport) return;
-
-    try {
-      // Write main data to *this* mode’s storage key (important!)
-      localStorage.setItem(primaryStorageKey, JSON.stringify(pendingImport.mainData));
-
-      // If the backup includes the periods list key, restore it too
-      if (pendingImport.periodsData) {
-        localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(pendingImport.periodsData));
-      }
-
-      // Reload so App.tsx re-hydrates from storage cleanly
-      window.location.reload();
-    } catch {
-      setImportError("Import failed (storage might be blocked). Try a different browser or disable private mode.");
-    } finally {
-      setShowImportConfirm(false);
-      setPendingImport(null);
-    }
-  };
 
   /**
    * Curated palette:
@@ -269,6 +178,7 @@ export function Settings({
    * - Includes a couple of neutrals for "General" / "Other"
    */
   const colorPalette = [
+    // Greens (calm / default lane)
     "#7A9B7F",
     "#6B8E73",
     "#8BA888",
@@ -280,6 +190,7 @@ export function Settings({
     "#6F9A7B",
     "#5C8F6E",
 
+    // Teals / Aquas
     "#5E9D9A",
     "#4D8E8A",
     "#78B7B3",
@@ -287,6 +198,7 @@ export function Settings({
     "#6FAEAA",
     "#2F6F6C",
 
+    // Blues
     "#6B9BC3",
     "#5A8AAA",
     "#7BA5C7",
@@ -296,6 +208,7 @@ export function Settings({
     "#587EA5",
     "#4B6F8E",
 
+    // Purples / Lavenders
     "#9B7FA8",
     "#8B73A0",
     "#A888B5",
@@ -304,6 +217,7 @@ export function Settings({
     "#6F5F86",
     "#8F7AB2",
 
+    // Warm neutrals / Oranges
     "#C4956E",
     "#B8885C",
     "#D4A574",
@@ -312,10 +226,12 @@ export function Settings({
     "#B57F55",
     "#C98B5F",
 
+    // Yellows / Golds (muted)
     "#C8B36A",
     "#BDA85C",
     "#D6C27A",
 
+    // Reds / Pinks (muted, not loud)
     "#B87B7B",
     "#A66B6B",
     "#C88A8A",
@@ -324,6 +240,7 @@ export function Settings({
     "#B36B88",
     "#A85F77",
 
+    // Neutrals (useful for “General”, “Other”)
     "#8E8E8E",
     "#6F6F6F",
     "#A3A3A3",
@@ -477,6 +394,7 @@ export function Settings({
       return;
     }
 
+    // Prevent duplicate names (case-insensitive) unless editing same row
     const nameClash = periods.some(
       (p) => p.id !== editingPeriodId && p.name.toLowerCase() === name.toLowerCase()
     );
@@ -515,6 +433,7 @@ export function Settings({
   };
 
   const handleConfirmClear = () => {
+    // Ensure terms/periods are cleared too
     try {
       localStorage.removeItem(PERIODS_STORAGE_KEY);
     } catch {
@@ -524,12 +443,6 @@ export function Settings({
     setShowClearConfirm(false);
   };
 
-  const clearTitle = appMode === "demo" ? "Reset demo data?" : "Clear all data?";
-  const clearBody =
-    appMode === "demo"
-      ? "This will reset the demo back to the original sample subjects, tasks, and sessions."
-      : "This will permanently delete all your subjects, tasks, and study sessions from this device.";
-
   const clearButtonLabel = appMode === "demo" ? "Reset demo" : "Clear all data";
 
   const formatRange = (p: Period) => {
@@ -537,6 +450,125 @@ export function Settings({
     const end = p.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     return `${start} → ${end}`;
   };
+
+  /* -------------------- Backup handlers -------------------- */
+  const handleExportBackup = () => {
+    setImportError("");
+
+    // Prefer exporting from the same storage App uses (includes reminders/etc if present)
+    const rawAppData = safeJsonParse<any>(localStorage.getItem(storageKey));
+
+    // Periods are stored separately
+    const rawPeriods = safeJsonParse<PeriodStored[]>(localStorage.getItem(PERIODS_STORAGE_KEY)) ?? undefined;
+
+    // Fallback if storage missing/corrupt: export from props
+    const fallbackData = {
+      subjects,
+      periods: periods.map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: p.startDate.toISOString(),
+        endDate: p.endDate.toISOString(),
+      })),
+      tasks: tasks.map((t) => ({
+        ...t,
+        dueDate: t.dueDate instanceof Date ? t.dueDate.toISOString() : t.dueDate,
+      })),
+      studySessions: studySessions.map((s) => ({
+        ...s,
+        date: s.date instanceof Date ? s.date.toISOString() : s.date,
+      })),
+      // If your app stores reminders in App storage, they’ll be included via rawAppData.
+      reminders: [],
+    };
+
+    const backup: BackupV1 = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appMode,
+      data: rawAppData ?? fallbackData,
+      periods: rawPeriods,
+    };
+
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    downloadJson(`mystudyplanner-backup-${dateStamp}.json`, backup);
+  };
+
+  const openImportPicker = () => {
+    setImportError("");
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChosen = async (file: File | null) => {
+    setImportError("");
+    setPendingBackup(null);
+    setShowImportConfirm(false);
+
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Partial<BackupV1>;
+
+      if (parsed?.version !== 1) {
+        setImportError("This backup file format isn’t supported.");
+        return;
+      }
+      if (!parsed.data || typeof parsed.data !== "object") {
+        setImportError("Backup is missing data.");
+        return;
+      }
+
+      const next: BackupV1 = {
+        version: 1,
+        exportedAt: String(parsed.exportedAt ?? new Date().toISOString()),
+        appMode: (parsed.appMode === "demo" || parsed.appMode === "app") ? parsed.appMode : appMode,
+        data: parsed.data,
+        periods: Array.isArray(parsed.periods) ? parsed.periods : undefined,
+      };
+
+      setPendingBackup(next);
+      setShowImportConfirm(true);
+    } catch {
+      setImportError("Couldn’t read that file. Make sure it’s a valid .json backup.");
+    } finally {
+      // allow selecting the same file again
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const confirmImport = () => {
+    if (!pendingBackup) return;
+
+    try {
+      // Replace app data
+      localStorage.setItem(storageKey, JSON.stringify(pendingBackup.data));
+
+      // Replace periods if included (or leave as-is if not)
+      if (pendingBackup.periods) {
+        localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(pendingBackup.periods));
+      }
+
+      // Reload so App re-hydrates from storage cleanly
+      window.location.reload();
+    } catch {
+      setImportError("Import failed. Your browser may be blocking storage.");
+      setShowImportConfirm(false);
+      setPendingBackup(null);
+    }
+  };
+
+  const importCounts = useMemo(() => {
+    const d = pendingBackup?.data;
+    const getLen = (x: any) => (Array.isArray(x) ? x.length : 0);
+    return {
+      subjects: getLen(d?.subjects),
+      tasks: getLen(d?.tasks),
+      studySessions: getLen(d?.studySessions),
+      reminders: getLen(d?.reminders),
+      periods: Array.isArray(pendingBackup?.periods) ? pendingBackup!.periods!.length : 0,
+    };
+  }, [pendingBackup]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
@@ -825,9 +857,7 @@ export function Settings({
                         >
                           <div className="min-w-0">
                             <div className="text-sm font-medium text-foreground truncate">{p.name}</div>
-                            <div className="md:hidden text-xs text-muted-foreground mt-0.5">
-                              {formatRange(p)}
-                            </div>
+                            <div className="md:hidden text-xs text-muted-foreground mt-0.5">{formatRange(p)}</div>
                           </div>
 
                           <div className="hidden md:block text-sm text-foreground/90">{formatRange(p)}</div>
@@ -860,54 +890,74 @@ export function Settings({
           )}
         </div>
 
-        {/* ✅ Backup */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4 space-y-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-foreground">Backup (Export / Import)</div>
-            <div className="text-xs text-muted-foreground mt-1 leading-5">
-              Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data,
-              move to another device/browser, or recover if your browser storage is cleared.
-              <span className="block mt-1">
-                Importing a backup will <span className="text-foreground/90 font-medium">replace</span> the data on this device.
-              </span>
+        {/* ✅ Backup (collapsible, matches style) */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setBackupOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            <div className="text-left">
+              <div className="text-sm font-semibold text-foreground">Backup</div>
+              <div className="text-xs text-muted-foreground">Export a copy or restore from a backup file.</div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleExportBackup}
-              className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            >
-              Download backup
-            </button>
-
-            <button
-              type="button"
-              onClick={openImportPicker}
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            >
-              Restore backup
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={(e) => handleFileChosen(e.target.files?.[0] ?? null)}
+            <ChevronDown
+              className={[
+                "w-5 h-5 text-muted-foreground transition-transform",
+                backupOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
             />
-          </div>
+          </button>
 
-          {importError ? (
-            <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-              {importError}
+          {backupOpen && (
+            <div className="px-5 pb-5 space-y-3">
+              <div className="text-xs text-muted-foreground leading-5">
+                Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data,
+                move to another device/browser, or recover if your browser storage is cleared.
+                <span className="block mt-1">
+                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this
+                  device.
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportBackup}
+                  className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  Download backup
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openImportPicker}
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  Restore backup
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={(e) => handleFileChosen(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              {importError ? (
+                <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                  {importError}
+                </div>
+              ) : null}
+
+              <div className="text-[11px] text-muted-foreground">
+                Tip: store your backup in iCloud Drive / Google Drive so you can restore anytime.
+              </div>
             </div>
-          ) : null}
-
-          <div className="text-[11px] text-muted-foreground">
-            Tip: keep your backup file somewhere safe (e.g. iCloud Drive / Google Drive) so you can restore anytime.
-          </div>
+          )}
         </div>
 
         {/* Clear all data */}
@@ -948,74 +998,10 @@ export function Settings({
       {/* Contact */}
       <div className="pt-2 text-center text-xs text-muted-foreground">
         Need help? Contact us at{" "}
-        <a
-          href="mailto:mystudyplanner.studio@gmail.com"
-          className="underline hover:text-foreground transition-colors"
-        >
+        <a href="mailto:mystudyplanner.studio@gmail.com" className="underline hover:text-foreground transition-colors">
           mystudyplanner.studio@gmail.com
         </a>
       </div>
-
-      {/* ✅ Import confirm modal */}
-      {showImportConfirm && pendingImport ? (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowImportConfirm(false)} />
-          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Restore backup?</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  This will replace the current data saved on this device.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowImportConfirm(false)}
-                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </div>
-
-            <div className="px-5 py-4 space-y-2">
-              <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between">
-                  <span>Backup date</span>
-                  <span className="text-foreground font-medium">
-                    {new Date(pendingImport.exportedAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center justify-between">
-                  <span>Includes terms</span>
-                  <span className="text-foreground font-medium">{pendingImport.periodsData ? "Yes" : "No"}</span>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-muted-foreground">
-                After restoring, the page will refresh automatically.
-              </div>
-            </div>
-
-            <div className="p-5 flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setShowImportConfirm(false)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmImport}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              >
-                Restore
-              </button>
-            </div>
-          </div>
-        </>
-      ) : null}
 
       {/* Delete subject modal */}
       {deletingSubject && (
@@ -1024,9 +1010,7 @@ export function Settings({
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
               <div className="text-sm font-semibold text-foreground">Delete “{deletingSubject.name}”?</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                This will remove the subject and any linked data.
-              </div>
+              <div className="text-xs text-muted-foreground mt-1">This will remove the subject and any linked data.</div>
             </div>
 
             <div className="px-5 py-4 space-y-2">
@@ -1075,9 +1059,7 @@ export function Settings({
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
               <div className="text-sm font-semibold text-foreground">Delete “{deletingPeriod.name}”?</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                This removes the term definition from this device.
-              </div>
+              <div className="text-xs text-muted-foreground mt-1">This removes the term definition from this device.</div>
             </div>
 
             <div className="px-5 py-4 space-y-2">
@@ -1113,14 +1095,77 @@ export function Settings({
         </>
       )}
 
+      {/* ✅ Import confirm modal */}
+      {showImportConfirm && pendingBackup ? (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowImportConfirm(false)} />
+          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">Restore this backup?</div>
+              <div className="text-xs text-muted-foreground mt-1">This will replace data on this device.</div>
+            </div>
+
+            <div className="px-5 py-4 space-y-2">
+              <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>Subjects</span>
+                  <span className="text-foreground font-medium">{importCounts.subjects}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Tasks</span>
+                  <span className="text-foreground font-medium">{importCounts.tasks}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Study sessions</span>
+                  <span className="text-foreground font-medium">{importCounts.studySessions}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Reminders</span>
+                  <span className="text-foreground font-medium">{importCounts.reminders}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Terms</span>
+                  <span className="text-foreground font-medium">{importCounts.periods}</span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground">After restoring, the page will reload automatically.</div>
+            </div>
+
+            <div className="p-5 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowImportConfirm(false)}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmImport}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                Restore
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
       {/* Clear all modal */}
       {showClearConfirm && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowClearConfirm(false)} />
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">{clearTitle}</div>
-              <div className="text-xs text-muted-foreground mt-1">{clearBody}</div>
+              <div className="text-sm font-semibold text-foreground">
+                {appMode === "demo" ? "Reset demo data?" : "Clear all data?"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {appMode === "demo"
+                  ? "This will reset the demo back to the original sample subjects, tasks, and sessions."
+                  : "This will permanently delete all your subjects, tasks, and study sessions from this device."}
+              </div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">
@@ -1136,7 +1181,7 @@ export function Settings({
                 onClick={handleConfirmClear}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
               >
-                {clearButtonLabel}
+                {appMode === "demo" ? "Reset demo" : "Clear all data"}
               </button>
             </div>
           </div>
