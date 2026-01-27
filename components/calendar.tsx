@@ -652,7 +652,7 @@ function CalendarView({
               <>
                 <span className="inline-flex items-center gap-1 min-w-0">
                   <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-                  <span className="truncate">Reminder</span>
+                  <span className="shrink-0">{compact ? "Rem." : "Reminder"}</span>
                 </span>
                 {reminder.time ? (
                   <>
@@ -834,10 +834,10 @@ function CalendarView({
             isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
           ].join(" ")}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 min-w-0">
             <div
               className={[
-                "h-7 w-7 grid place-items-center rounded-full text-sm",
+                "h-7 w-7 shrink-0 grid place-items-center rounded-full text-sm",
                 isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground",
                 isSelected ? "ring-1 ring-primary/30" : "",
               ].join(" ")}
@@ -846,7 +846,7 @@ function CalendarView({
             </div>
 
             {isToday ? (
-              <span className="text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap shrink-0">
                 Today
               </span>
             ) : null}
@@ -1098,7 +1098,7 @@ function CalendarView({
       {/* Page header (consistent with other tabs) */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
-        <p className="text-sm text-muted-foreground">Click a day to add a task or study session.</p>
+        <p className="text-sm text-muted-foreground">Click a day to add a task, reminder, or study session.</p>
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1191,7 +1191,7 @@ function CalendarView({
                 className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
                 type="button"
               >
-                <span className="text-sm text-foreground">📚 Add study session</span>
+                <span className="text-sm text-foreground">Add study session</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
 
@@ -1200,7 +1200,7 @@ function CalendarView({
                 className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
                 type="button"
               >
-                <span className="text-sm text-foreground">⏰ Add reminder</span>
+                <span className="text-sm text-foreground">Add reminder</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
 
