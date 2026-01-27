@@ -602,7 +602,6 @@ function CalendarView({
     </span>
   );
 
-  // ✅ improved chip readability:
   const renderChip = ({
     title,
     subjectId,
@@ -621,141 +620,157 @@ function CalendarView({
     compact?: boolean;
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
-    const dot = subject?.color ?? "#94a3b8";
-    const linkedTask = session?.linkedTaskId ? taskById.get(session.linkedTaskId) : undefined;
 
+    const dot = reminder ? "#94a3b8" : subject?.color ?? "#94a3b8";
     const titleLines = compact ? 2 : 3;
 
-    const kindLabel = reminder ? "Reminder" : isStudy ? "Study" : task ? typeLabel(task.type) : "Item";
+    const metaLeft = (() => {
+      if (reminder) return [{ text: "Reminder", truncate: false }];
+      const subj = subject?.name ?? "Unassigned";
+      if (session || isStudy) {
+        return [
+          { text: subj, truncate: true },
+          { text: "Study", truncate: false },
+        ];
+      }
+      if (task) {
+        return [
+          { text: subj, truncate: true },
+          { text: typeLabel(task.type), truncate: false },
+        ];
+      }
+      return [{ text: subj, truncate: true }];
+    })();
 
-    const timeLine =
-      session && session.startTime
-        ? `${displaySessionTime(session.startTime)} • ${session.duration}`
-        : reminder && reminder.time
-          ? time24To12(reminder.time)
-          : "";
+    const timeBlock = (() => {
+      if (session) {
+        const t = (session.startTime ?? "").trim();
+        const d = (session.duration ?? "").trim();
+        if (!t && !d) return null;
+        return (
+          <div className="space-y-0.5">
+            {t ? <div className="truncate">{displaySessionTime(t)}</div> : null}
+            {d ? <div className="truncate">{d}</div> : null}
+          </div>
+        );
+      }
+      if (reminder?.time) {
+        return <div className="truncate">{time24To12(reminder.time)}</div>;
+      }
+      return null;
+    })();
 
     return (
       <div
         className="group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition"
-        style={{ borderLeftWidth: 3, borderLeftColor: reminder ? "#94a3b8" : dot }}
+        style={{ borderLeftWidth: 3, borderLeftColor: dot }}
         title={title}
       >
-        <div className="min-w-0 flex-1 pr-9">
+        <div className="min-w-0 flex-1 pr-6">
           <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
             {title}
           </div>
 
-          <div className="mt-1 flex flex-col gap-0.5">
-            {/* Bottom row: always subject (or Reminder) + type/kind */}
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
-              <span className="inline-flex items-center gap-1 min-w-0 flex-1">
-                <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: reminder ? "#94a3b8" : dot }}
-                />
-                <span className="truncate">{reminder ? "Reminder" : subject?.name ?? "Unassigned"}</span>
-              </span>
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
+            <span className="inline-flex items-center gap-1 min-w-0">
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+              {metaLeft[0] ? (
+                <span className={metaLeft[0].truncate ? "truncate" : ""}>{metaLeft[0].text}</span>
+              ) : null}
+            </span>
 
-              <span className="text-muted-foreground/60">•</span>
-              <span className="shrink-0">{kindLabel}</span>
-            </div>
-
-            {/* Second row: time/duration lives here so row above stays consistent */}
-            {timeLine ? (
-              <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground min-w-0">
-                <span className="truncate">{timeLine}</span>
-                {!compact && linkedTask ? (
-                  <span className="truncate text-muted-foreground/90">Linked: {linkedTask.title}</span>
-                ) : (
-                  <span className="sr-only"> </span>
-                )}
-              </div>
-            ) : !compact && linkedTask ? (
-              <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground min-w-0">
-                <span className="truncate">Linked: {linkedTask.title}</span>
-              </div>
+            {metaLeft[1] ? (
+              <>
+                <span className="text-muted-foreground/60">·</span>
+                <span className="shrink-0">{metaLeft[1].text}</span>
+              </>
             ) : null}
           </div>
         </div>
 
+        {timeBlock ? (
+          <div className="absolute right-1.5 top-7 text-[10px] leading-snug text-muted-foreground text-right max-w-[84px]">
+            {timeBlock}
+          </div>
+        ) : null}
+
         {task && canEditDeleteTasks ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 openEditTask(task);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit task"
               type="button"
             >
-              <Pencil className="h-3.5 w-3.5 text-foreground" />
+              <Pencil className="h-3 w-3 text-foreground" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setDeletingTaskId(task.id);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete task"
               type="button"
             >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <Trash2 className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
         ) : null}
 
         {session && canEditDeleteSessions ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 openEditSession(session);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit session"
               type="button"
             >
-              <Pencil className="h-3.5 w-3.5 text-foreground" />
+              <Pencil className="h-3 w-3 text-foreground" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setDeletingSessionId(session.id);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete session"
               type="button"
             >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <Trash2 className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
         ) : null}
 
         {reminder && canEditDeleteReminders ? (
-          <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 openEditReminder(reminder);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Edit reminder"
               type="button"
             >
-              <Pencil className="h-3.5 w-3.5 text-foreground" />
+              <Pencil className="h-3 w-3 text-foreground" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setDeletingReminderId(reminder.id);
               }}
-              className="h-7 w-7 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-6 w-6 grid place-items-center rounded-md hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label="Delete reminder"
               type="button"
             >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <Trash2 className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
         ) : null}
