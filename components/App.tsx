@@ -186,6 +186,20 @@ const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
   }
 };
 
+const navTabButtonClass = (active: boolean) =>
+  [
+    "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+    active ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
+  ].join(" ");
+
+const navTabButtonClassMobile = (active: boolean) =>
+  [
+    "shrink-0 h-9 px-3 rounded-xl text-sm font-medium transition-colors",
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+    active ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
+  ].join(" ");
+
 function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -250,7 +264,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (!raw && mode === "demo") {
       const seeded = makeDefaultData();
 
-      // 🔥 THIS is the missing piece:
       // Seed the separate "periods list" key used by your Terms UI
       seedDemoPeriodsKeyIfMissing(seeded.periods);
 
@@ -365,7 +378,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (!hydrated.current) return;
 
-    localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
+    } catch {
+      // ignore
+    }
   }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
 
   /* -------------------- Clear / Reset -------------------- */
@@ -434,7 +451,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((p) => p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s)));
+    setStudySessions((p) =>
+      p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
+    );
 
   // ✅ Reminders
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
@@ -484,7 +503,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8 min-w-0">
+          <div className="flex items-center gap-6 min-w-0">
             <div className="flex flex-col leading-tight min-w-0">
               <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
               <span className="text-[11px] text-muted-foreground truncate">Made by students, for students</span>
@@ -492,15 +511,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
             <div className="hidden md:flex gap-1">
               {tabs.map(([k, l]) => (
-                <button
-                  key={k}
-                  onClick={() => setActiveTab(k)}
-                  className={[
-                    "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                    activeTab === k ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
-                  ].join(" ")}
-                >
+                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClass(activeTab === k)}>
                   {l}
                 </button>
               ))}
@@ -510,20 +521,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
 
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={[
-                "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                activeTab === "settings"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-foreground/90 hover:bg-muted",
-              ].join(" ")}
-            >
+            <button onClick={() => setActiveTab("settings")} className={navTabButtonClass(activeTab === "settings")}>
               Settings
             </button>
 
-            <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-background/40 px-3 py-1.5 hover:bg-muted/40 transition-colors">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-1.5 hover:bg-muted/40 transition-colors">
               <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
 
               <UserButton
@@ -546,7 +548,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                 }}
               >
                 <UserButton.MenuItems>
-                  <UserButton.Action label="Account" labelIcon={<User className="h-4 w-4" />} onClick={() => setActiveTab("settings")} />
+                  <UserButton.Action
+                    label="Account"
+                    labelIcon={<User className="h-4 w-4" />}
+                    onClick={() => setActiveTab("settings")}
+                  />
                 </UserButton.MenuItems>
               </UserButton>
             </div>
@@ -557,17 +563,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="mx-auto max-w-7xl px-3 py-2">
             <div className="flex gap-1 overflow-x-auto no-scrollbar">
               {tabs.map(([k, l]) => (
-                <button
-                  key={k}
-                  onClick={() => setActiveTab(k)}
-                  className={[
-                    "shrink-0 h-9 px-3 rounded-xl text-sm font-medium transition-colors",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                    activeTab === k
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-foreground/90 hover:bg-muted border border-border bg-card",
-                  ].join(" ")}
-                >
+                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClassMobile(activeTab === k)}>
                   {l}
                 </button>
               ))}
@@ -579,7 +575,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
-            <div className="text-[12px] leading-5 text-muted-foreground">Best on desktop. Mobile is great for quick check-ins.</div>
+            <div className="text-[12px] leading-5 text-muted-foreground">
+              Best on desktop. Mobile is great for quick check-ins.
+            </div>
 
             <button
               onClick={dismissMobileDesktopHint}
