@@ -72,6 +72,9 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
+// ✅ Matches Dashboard “open terms” hint
+const SETTINGS_OPEN_KEY = "msp-settings-open";
+
 function toISODateInputValue(d: Date) {
   // YYYY-MM-DD in local time
   const year = d.getFullYear();
@@ -153,6 +156,8 @@ export function Settings({
 
   // ✅ Periods section (terms)
   const [periodsOpen, setPeriodsOpen] = useState(false);
+  const termsSectionRef = useRef<HTMLDivElement>(null);
+
   const [periods, setPeriods] = useState<Period[]>([]);
   const [showAddPeriodForm, setShowAddPeriodForm] = useState(false);
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
@@ -170,6 +175,25 @@ export function Settings({
   const [importError, setImportError] = useState<string>("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+
+  // ✅ If Dashboard asked us to open Terms, do it once and scroll into view
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(SETTINGS_OPEN_KEY);
+      if (v !== "terms") return;
+
+      setPeriodsOpen(true);
+
+      // scroll after open paints
+      requestAnimationFrame(() => {
+        termsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      localStorage.removeItem(SETTINGS_OPEN_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   /**
    * Curated palette:
@@ -395,9 +419,7 @@ export function Settings({
     }
 
     // Prevent duplicate names (case-insensitive) unless editing same row
-    const nameClash = periods.some(
-      (p) => p.id !== editingPeriodId && p.name.toLowerCase() === name.toLowerCase()
-    );
+    const nameClash = periods.some((p) => p.id !== editingPeriodId && p.name.toLowerCase() === name.toLowerCase());
     if (nameClash) {
       setPeriodFormError("That term name already exists.");
       return;
@@ -405,9 +427,7 @@ export function Settings({
 
     if (editingPeriodId) {
       setPeriods((prev) => {
-        const next = prev.map((p) =>
-          p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
-        );
+        const next = prev.map((p) => (p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p));
         next.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
         return next;
       });
@@ -472,11 +492,11 @@ export function Settings({
       })),
       tasks: tasks.map((t) => ({
         ...t,
-        dueDate: t.dueDate instanceof Date ? t.dueDate.toISOString() : t.dueDate,
+        dueDate: t.dueDate instanceof Date ? t.dueDate.toISOString() : (t.dueDate as any),
       })),
       studySessions: studySessions.map((s) => ({
         ...s,
-        date: s.date instanceof Date ? s.date.toISOString() : s.date,
+        date: s.date instanceof Date ? s.date.toISOString() : (s.date as any),
       })),
       // If your app stores reminders in App storage, they’ll be included via rawAppData.
       reminders: [],
@@ -522,7 +542,7 @@ export function Settings({
       const next: BackupV1 = {
         version: 1,
         exportedAt: String(parsed.exportedAt ?? new Date().toISOString()),
-        appMode: (parsed.appMode === "demo" || parsed.appMode === "app") ? parsed.appMode : appMode,
+        appMode: parsed.appMode === "demo" || parsed.appMode === "app" ? parsed.appMode : appMode,
         data: parsed.data,
         periods: Array.isArray(parsed.periods) ? parsed.periods : undefined,
       };
@@ -593,10 +613,9 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={[
-                "w-5 h-5 text-muted-foreground transition-transform",
-                subjectsOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
+              className={["w-5 h-5 text-muted-foreground transition-transform", subjectsOpen ? "rotate-180" : "rotate-0"].join(
+                " "
+              )}
             />
           </button>
 
@@ -619,9 +638,7 @@ export function Settings({
 
               {(showAddForm || editingId) && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    {editingId ? "Edit subject" : "New subject"}
-                  </div>
+                  <div className="text-sm font-semibold text-foreground">{editingId ? "Edit subject" : "New subject"}</div>
 
                   <input
                     type="text"
@@ -693,10 +710,7 @@ export function Settings({
                       className="group rounded-2xl border border-border bg-card px-4 py-3 shadow-sm hover:shadow-md transition flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="h-10 w-10 rounded-xl border border-border"
-                          style={{ backgroundColor: subject.color }}
-                        />
+                        <div className="h-10 w-10 rounded-xl border border-border" style={{ backgroundColor: subject.color }} />
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-foreground truncate">{subject.name}</div>
                           <div className="text-xs text-muted-foreground">{subject.color}</div>
@@ -730,7 +744,7 @@ export function Settings({
         </div>
 
         {/* ✅ Terms / Periods */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div ref={termsSectionRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setPeriodsOpen((v) => !v)}
@@ -738,16 +752,13 @@ export function Settings({
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Terms</div>
-              <div className="text-xs text-muted-foreground">
-                Define your school terms so tasks can be grouped automatically.
-              </div>
+              <div className="text-xs text-muted-foreground">Define your school terms so tasks can be grouped automatically.</div>
             </div>
 
             <ChevronDown
-              className={[
-                "w-5 h-5 text-muted-foreground transition-transform",
-                periodsOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
+              className={["w-5 h-5 text-muted-foreground transition-transform", periodsOpen ? "rotate-180" : "rotate-0"].join(
+                " "
+              )}
             />
           </button>
 
@@ -766,9 +777,7 @@ export function Settings({
 
               {showAddPeriodForm && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    {editingPeriodId ? "Edit term" : "New term"}
-                  </div>
+                  <div className="text-sm font-semibold text-foreground">{editingPeriodId ? "Edit term" : "New term"}</div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-1">
@@ -903,21 +912,19 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={[
-                "w-5 h-5 text-muted-foreground transition-transform",
-                backupOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
+              className={["w-5 h-5 text-muted-foreground transition-transform", backupOpen ? "rotate-180" : "rotate-0"].join(
+                " "
+              )}
             />
           </button>
 
           {backupOpen && (
             <div className="px-5 pb-5 space-y-3">
               <div className="text-xs text-muted-foreground leading-5">
-                Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data,
-                move to another device/browser, or recover if your browser storage is cleared.
+                Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data, move to
+                another device/browser, or recover if your browser storage is cleared.
                 <span className="block mt-1">
-                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this
-                  device.
+                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this device.
                 </span>
               </div>
 
@@ -1129,7 +1136,9 @@ export function Settings({
                 </div>
               </div>
 
-              <div className="text-[11px] text-muted-foreground">After restoring, the page will reload automatically.</div>
+              <div className="text-[11px] text-muted-foreground">
+                After restoring, the page will reload automatically.
+              </div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">
@@ -1158,9 +1167,7 @@ export function Settings({
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowClearConfirm(false)} />
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">
-                {appMode === "demo" ? "Reset demo data?" : "Clear all data?"}
-              </div>
+              <div className="text-sm font-semibold text-foreground">{appMode === "demo" ? "Reset demo data?" : "Clear all data?"}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {appMode === "demo"
                   ? "This will reset the demo back to the original sample subjects, tasks, and sessions."

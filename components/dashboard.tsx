@@ -1,12 +1,18 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Calendar, Settings2 } from "lucide-react";
+import { ArrowUpRight, Calendar, Settings2, X } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { isSameDay } from "./models";
 
 // Must match Settings + Tasks + Marks
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+// ✅ Dashboard-only UI pref (safe to delete anytime)
+const TERMS_BANNER_DISMISSED_KEY = "msp-terms-banner-dismissed";
+
+// ✅ Optional “open Terms accordion” hint for Settings
+const SETTINGS_OPEN_KEY = "msp-settings-open";
 
 type PeriodStored = {
   id: string;
@@ -45,8 +51,7 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
-const startOfDay = (d: Date) =>
-  new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 // Monday-start week (better for school week numbers)
 const startOfWeekMonday = (d: Date) => {
@@ -67,9 +72,7 @@ const inRangeInclusive = (t: Date, a: Date, b: Date) => {
 const weekOfTerm = (today: Date, termStart: Date) => {
   const wsToday = startOfWeekMonday(today).getTime();
   const wsStart = startOfWeekMonday(termStart).getTime();
-  const diffWeeks = Math.floor(
-    (wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000)
-  );
+  const diffWeeks = Math.floor((wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000));
   return diffWeeks + 1; // Week 1 at start week
 };
 
@@ -79,36 +82,19 @@ const QUOTES: Array<{ quote: string; author?: string }> = [
   { quote: "Keep it simple. Do the next right thing." },
   { quote: "Small progress, every day.", author: "Unknown" },
   { quote: "Consistency beats intensity.", author: "Unknown" },
-  {
-    quote: "You don’t rise to the goal — you fall to the system.",
-    author: "James Clear",
-  },
-  {
-    quote: "Discipline is choosing what you want most over what you want now.",
-    author: "Unknown",
-  },
-  {
-    quote: "Start where you are. Use what you have. Do what you can.",
-    author: "Arthur Ashe",
-  },
-  {
-    quote: "The work you do today builds the results you want tomorrow.",
-    author: "Unknown",
-  },
+  { quote: "You don’t rise to the goal — you fall to the system.", author: "James Clear" },
+  { quote: "Discipline is choosing what you want most over what you want now.", author: "Unknown" },
+  { quote: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
+  { quote: "The work you do today builds the results you want tomorrow.", author: "Unknown" },
   { quote: "Focus on the reps, not the outcome.", author: "Unknown" },
-  {
-    quote: "Make it obvious. Make it easy. Make it satisfying.",
-    author: "James Clear",
-  },
+  { quote: "Make it obvious. Make it easy. Make it satisfying.", author: "James Clear" },
   { quote: "Done is better than perfect.", author: "Sheryl Sandberg" },
 ];
 
 function daySeed(d: Date) {
   // stable per-day (local time)
   return Number(
-    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
-      d.getDate()
-    ).padStart(2, "0")}`
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`
   );
 }
 
@@ -150,7 +136,7 @@ export function Dashboard({
 
   const dailyQuote = useMemo(() => pickDailyQuote(today), [today]);
 
-  // ✅ Load Terms from localStorage (Terms 1–4)
+  // ✅ Load Terms from localStorage (ALL terms — not only “Term 1–4”)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
   useEffect(() => {
@@ -162,34 +148,35 @@ export function Dashboard({
       }
 
       const parsed = JSON.parse(raw) as PeriodStored[];
-      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map(
-        (p) => ({
-          id: p.id,
-          name: p.name,
-          startDate: new Date(p.startDate),
-          endDate: new Date(p.endDate),
-        })
-      );
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      }));
 
-      const onlyTerms1to4 = hydrated
-        .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
-        .sort(
-          (a, b) =>
-            startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime()
-        );
-
-      setPeriods(onlyTerms1to4);
+      hydrated.sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+      setPeriods(hydrated);
     } catch {
       setPeriods([]);
+    }
+  }, []);
+
+  // ✅ Dismissable “set term dates” banner (dashboard-only)
+  const [termsBannerDismissed, setTermsBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setTermsBannerDismissed(Boolean(localStorage.getItem(TERMS_BANNER_DISMISSED_KEY)));
+    } catch {
+      setTermsBannerDismissed(false);
     }
   }, []);
 
   const termWeekLabel = useMemo(() => {
     if (periods.length === 0) return null;
 
-    const active = periods.find((p) =>
-      inRangeInclusive(today, p.startDate, p.endDate)
-    );
+    const active = periods.find((p) => inRangeInclusive(today, p.startDate, p.endDate));
     if (!active) return null;
 
     const wk = weekOfTerm(today, active.startDate);
@@ -204,10 +191,7 @@ export function Dashboard({
 
   // ✅ Focus Today = sessions today (not completed)
   const focusToday = useMemo(
-    () =>
-      studySessions
-        .filter((s) => !s.completed && isSameDay(s.date, today))
-        .slice(0, 4),
+    () => studySessions.filter((s) => !s.completed && isSameDay(s.date, today)).slice(0, 4),
     [studySessions, today]
   );
 
@@ -229,35 +213,48 @@ export function Dashboard({
 
   const needsSubjects = subjects.length === 0;
 
+  const hasNoTerms = periods.length === 0;
+  const showTermsBanner = hasNoTerms && !termsBannerDismissed;
+
+  const openTermsInSettings = () => {
+    try {
+      localStorage.setItem(SETTINGS_OPEN_KEY, "terms"); // Settings should read this and auto-expand Terms
+    } catch {
+      // ignore
+    }
+    onOpenSettings();
+  };
+
+  const dismissTermsBanner = () => {
+    setTermsBannerDismissed(true);
+    try {
+      localStorage.setItem(TERMS_BANNER_DISMISSED_KEY, "1");
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {formattedDate}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{formattedDate}</h1>
 
           <div className="flex flex-col gap-1">
-            <p className="text-sm text-muted-foreground">
-              {dailyQuote.quote}
-            </p>
+            <p className="text-sm text-muted-foreground">{dailyQuote.quote}</p>
 
-            {termWeekLabel ? (
-              <div className="text-xs text-muted-foreground">{termWeekLabel}</div>
-            ) : null}
+            {termWeekLabel ? <div className="text-xs text-muted-foreground">{termWeekLabel}</div> : null}
           </div>
         </div>
       </div>
 
-      {/* ✅ First-run setup nudge (only when no subjects) */}
+      {/* ✅ First-run setup nudges */}
       {needsSubjects && (
         <div className="rounded-2xl border border-border bg-card shadow-sm">
           <div className="px-5 py-4 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">
-                Start by adding your subjects
-              </div>
+              <div className="text-sm font-semibold text-foreground">Start by adding your subjects</div>
               <div className="mt-1 text-xs text-muted-foreground">
                 MyStudyPlanner organises everything by subject. Add yours in Settings to get started.
               </div>
@@ -272,6 +269,41 @@ export function Dashboard({
               <Settings2 className="h-4 w-4" />
               Add subjects
             </button>
+          </div>
+        </div>
+      )}
+
+      {showTermsBanner && (
+        <div className="rounded-2xl border border-border bg-card shadow-sm">
+          <div className="px-5 py-4 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Set your term dates</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Add your term date ranges so tasks and insights can group work by term and show week numbers.
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={openTermsInSettings}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                title="Open Terms in Settings"
+              >
+                <Settings2 className="h-4 w-4" />
+                Add term dates
+              </button>
+
+              <button
+                type="button"
+                onClick={dismissTermsBanner}
+                className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                aria-label="Dismiss"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -305,12 +337,8 @@ export function Dashboard({
             <div className="p-4">
               {focusToday.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
-                  <div className="text-sm font-medium text-foreground">
-                    Nothing planned
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Log a study session to see it here.
-                  </div>
+                  <div className="text-sm font-medium text-foreground">Nothing planned</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Log a study session to see it here.</div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -332,12 +360,9 @@ export function Dashboard({
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-foreground">
-                                  {s.title}
-                                </div>
+                                <div className="truncate text-sm font-medium text-foreground">{s.title}</div>
                                 <div className="mt-1 text-xs text-muted-foreground truncate">
-                                  {s.duration} • {s.startTime} •{" "}
-                                  {subject?.name ?? "Unassigned"}
+                                  {s.duration} • {s.startTime} • {subject?.name ?? "Unassigned"}
                                 </div>
                               </div>
 
@@ -375,9 +400,7 @@ export function Dashboard({
               {upNext.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
                   <div className="text-sm font-medium text-foreground">All clear</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    No upcoming tasks.
-                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">No upcoming tasks.</div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -397,15 +420,10 @@ export function Dashboard({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-foreground">
-                              {task.title}
-                            </div>
+                            <div className="truncate text-sm font-medium text-foreground">{task.title}</div>
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               <span className="inline-flex items-center gap-1">
-                                <span
-                                  className="h-2 w-2 rounded-full"
-                                  style={{ backgroundColor: dot }}
-                                />
+                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
                                 {subject?.name ?? "Unassigned"}
                               </span>
                               <span className="text-muted-foreground/60">•</span>
@@ -414,20 +432,12 @@ export function Dashboard({
                           </div>
 
                           <div className="shrink-0 text-right">
-                            <div
-                              className={[
-                                "text-xs font-semibold",
-                                isLate ? "text-destructive" : "text-foreground",
-                              ].join(" ")}
-                            >
+                            <div className={["text-xs font-semibold", isLate ? "text-destructive" : "text-foreground"].join(" ")}>
                               {dueLabel(d)}
                             </div>
                             <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3" />
-                              {task.dueDate.toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                              })}
+                              {task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                             </div>
                           </div>
                         </div>
