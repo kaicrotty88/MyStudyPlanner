@@ -40,7 +40,7 @@ type AppMode = "demo" | "app";
 
 type Period = {
   id: string;
-  name: string; // "Term 1", "Prelims", etc.
+  name: string;
   startDate: Date;
   endDate: Date;
 };
@@ -48,13 +48,12 @@ type Period = {
 type PeriodStored = {
   id: string;
   name: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
+  startDate: string;
+  endDate: string;
 };
 
 interface SettingsProps {
   subjects: Subject[];
-
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
@@ -72,11 +71,10 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-// ✅ Matches Dashboard “open terms” hint
-const SETTINGS_OPEN_KEY = "msp-settings-open";
+// From Dashboard -> Settings
+const SETTINGS_OPEN_SECTION_KEY = "msp-settings-open-section";
 
 function toISODateInputValue(d: Date) {
-  // YYYY-MM-DD in local time
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -84,13 +82,11 @@ function toISODateInputValue(d: Date) {
 }
 
 function parseDateInput(value: string) {
-  // value is YYYY-MM-DD; create local date (midnight)
   const [y, m, d] = value.split("-").map((x) => Number(x));
   return new Date(y, (m || 1) - 1, d || 1);
 }
 
 function safeUUID() {
-  // Avoid breaking older browsers/environments
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c: any = globalThis as any;
   if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
@@ -100,9 +96,9 @@ function safeUUID() {
 /* -------------------- Backup helpers -------------------- */
 type BackupV1 = {
   version: 1;
-  exportedAt: string; // ISO
+  exportedAt: string;
   appMode: AppMode;
-  data: any; // raw stored object used by App
+  data: any;
   periods?: PeriodStored[];
 };
 
@@ -151,13 +147,11 @@ export function Settings({
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Default to collapsed for calmer Settings landing
+  // Collapsed by default
   const [subjectsOpen, setSubjectsOpen] = useState(false);
 
-  // ✅ Periods section (terms)
+  // Terms
   const [periodsOpen, setPeriodsOpen] = useState(false);
-  const termsSectionRef = useRef<HTMLDivElement>(null);
-
   const [periods, setPeriods] = useState<Period[]>([]);
   const [showAddPeriodForm, setShowAddPeriodForm] = useState(false);
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
@@ -169,40 +163,45 @@ export function Settings({
   });
   const [periodFormError, setPeriodFormError] = useState<string>("");
 
-  // ✅ Backup section (collapsible)
+  // Backup (collapsible)
   const [backupOpen, setBackupOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string>("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
-  // ✅ If Dashboard asked us to open Terms, do it once and scroll into view
+  // Refs for scrolling when opened from Dashboard
+  const subjectsSectionRef = useRef<HTMLDivElement>(null);
+  const termsSectionRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open the right section if Dashboard requested it
   useEffect(() => {
+    let section: string | null = null;
     try {
-      const v = localStorage.getItem(SETTINGS_OPEN_KEY);
-      if (v !== "terms") return;
+      section = localStorage.getItem(SETTINGS_OPEN_SECTION_KEY);
+    } catch {
+      section = null;
+    }
+    if (!section) return;
 
+    if (section === "subjects") {
+      setSubjectsOpen(true);
+      requestAnimationFrame(() => subjectsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+
+    if (section === "terms") {
       setPeriodsOpen(true);
+      requestAnimationFrame(() => termsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
 
-      // scroll after open paints
-      requestAnimationFrame(() => {
-        termsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-
-      localStorage.removeItem(SETTINGS_OPEN_KEY);
+    try {
+      localStorage.removeItem(SETTINGS_OPEN_SECTION_KEY);
     } catch {
       // ignore
     }
   }, []);
 
-  /**
-   * Curated palette:
-   * - Wider range (so subjects feel distinct)
-   * - Still muted / premium (no neon)
-   * - Includes a couple of neutrals for "General" / "Other"
-   */
   const colorPalette = [
-    // Greens (calm / default lane)
     "#7A9B7F",
     "#6B8E73",
     "#8BA888",
@@ -213,16 +212,12 @@ export function Settings({
     "#4F7E62",
     "#6F9A7B",
     "#5C8F6E",
-
-    // Teals / Aquas
     "#5E9D9A",
     "#4D8E8A",
     "#78B7B3",
     "#3F7F7C",
     "#6FAEAA",
     "#2F6F6C",
-
-    // Blues
     "#6B9BC3",
     "#5A8AAA",
     "#7BA5C7",
@@ -231,8 +226,6 @@ export function Settings({
     "#84B2D6",
     "#587EA5",
     "#4B6F8E",
-
-    // Purples / Lavenders
     "#9B7FA8",
     "#8B73A0",
     "#A888B5",
@@ -240,8 +233,6 @@ export function Settings({
     "#B39BC6",
     "#6F5F86",
     "#8F7AB2",
-
-    // Warm neutrals / Oranges
     "#C4956E",
     "#B8885C",
     "#D4A574",
@@ -249,13 +240,9 @@ export function Settings({
     "#D9B08C",
     "#B57F55",
     "#C98B5F",
-
-    // Yellows / Golds (muted)
     "#C8B36A",
     "#BDA85C",
     "#D6C27A",
-
-    // Reds / Pinks (muted, not loud)
     "#B87B7B",
     "#A66B6B",
     "#C88A8A",
@@ -263,14 +250,12 @@ export function Settings({
     "#C27C99",
     "#B36B88",
     "#A85F77",
-
-    // Neutrals (useful for “General”, “Other”)
     "#8E8E8E",
     "#6F6F6F",
     "#A3A3A3",
   ];
 
-  // -------- Periods: load + persist --------
+  // Periods: load + persist
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
@@ -313,18 +298,13 @@ export function Settings({
 
   const deleteCounts = useMemo(() => {
     if (!deletingSubjectId) return { tasks: 0, items: 0, sessions: 0 };
-
     const t = tasks.filter((x) => x.subjectId === deletingSubjectId).length;
     const i = studyItems.filter((x) => x.subjectId === deletingSubjectId).length;
     const s = studySessions.filter((x) => x.subjectId === deletingSubjectId).length;
-
     return { tasks: t, items: i, sessions: s };
   }, [deletingSubjectId, tasks, studyItems, studySessions]);
 
-  const deletingPeriod = useMemo(
-    () => periods.find((p) => p.id === deletingPeriodId) || null,
-    [periods, deletingPeriodId]
-  );
+  const deletingPeriod = useMemo(() => periods.find((p) => p.id === deletingPeriodId) || null, [periods, deletingPeriodId]);
 
   const handleSubmit = () => {
     if (!formData.name || !formData.color) return;
@@ -359,7 +339,7 @@ export function Settings({
     setDeletingSubjectId(null);
   };
 
-  // -------- Periods handlers --------
+  // Periods handlers
   const openNewPeriod = () => {
     setPeriodFormError("");
     setEditingPeriodId(null);
@@ -418,7 +398,6 @@ export function Settings({
       return;
     }
 
-    // Prevent duplicate names (case-insensitive) unless editing same row
     const nameClash = periods.some((p) => p.id !== editingPeriodId && p.name.toLowerCase() === name.toLowerCase());
     if (nameClash) {
       setPeriodFormError("That term name already exists.");
@@ -453,7 +432,6 @@ export function Settings({
   };
 
   const handleConfirmClear = () => {
-    // Ensure terms/periods are cleared too
     try {
       localStorage.removeItem(PERIODS_STORAGE_KEY);
     } catch {
@@ -475,13 +453,9 @@ export function Settings({
   const handleExportBackup = () => {
     setImportError("");
 
-    // Prefer exporting from the same storage App uses (includes reminders/etc if present)
     const rawAppData = safeJsonParse<any>(localStorage.getItem(storageKey));
-
-    // Periods are stored separately
     const rawPeriods = safeJsonParse<PeriodStored[]>(localStorage.getItem(PERIODS_STORAGE_KEY)) ?? undefined;
 
-    // Fallback if storage missing/corrupt: export from props
     const fallbackData = {
       subjects,
       periods: periods.map((p) => ({
@@ -492,13 +466,12 @@ export function Settings({
       })),
       tasks: tasks.map((t) => ({
         ...t,
-        dueDate: t.dueDate instanceof Date ? t.dueDate.toISOString() : (t.dueDate as any),
+        dueDate: t.dueDate instanceof Date ? t.dueDate.toISOString() : t.dueDate,
       })),
       studySessions: studySessions.map((s) => ({
         ...s,
-        date: s.date instanceof Date ? s.date.toISOString() : (s.date as any),
+        date: s.date instanceof Date ? s.date.toISOString() : s.date,
       })),
-      // If your app stores reminders in App storage, they’ll be included via rawAppData.
       reminders: [],
     };
 
@@ -552,7 +525,6 @@ export function Settings({
     } catch {
       setImportError("Couldn’t read that file. Make sure it’s a valid .json backup.");
     } finally {
-      // allow selecting the same file again
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -561,15 +533,10 @@ export function Settings({
     if (!pendingBackup) return;
 
     try {
-      // Replace app data
       localStorage.setItem(storageKey, JSON.stringify(pendingBackup.data));
-
-      // Replace periods if included (or leave as-is if not)
       if (pendingBackup.periods) {
         localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(pendingBackup.periods));
       }
-
-      // Reload so App re-hydrates from storage cleanly
       window.location.reload();
     } catch {
       setImportError("Import failed. Your browser may be blocking storage.");
@@ -592,16 +559,14 @@ export function Settings({
 
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
-      {/* Header */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground">Manage your subjects and preferences.</p>
       </div>
 
-      {/* Subtle wrapper for hierarchy */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5 space-y-4">
         {/* Subjects */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div ref={subjectsSectionRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setSubjectsOpen((v) => !v)}
@@ -613,9 +578,7 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={["w-5 h-5 text-muted-foreground transition-transform", subjectsOpen ? "rotate-180" : "rotate-0"].join(
-                " "
-              )}
+              className={["w-5 h-5 text-muted-foreground transition-transform", subjectsOpen ? "rotate-180" : "rotate-0"].join(" ")}
             />
           </button>
 
@@ -743,7 +706,7 @@ export function Settings({
           )}
         </div>
 
-        {/* ✅ Terms / Periods */}
+        {/* Terms */}
         <div ref={termsSectionRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
@@ -756,9 +719,7 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={["w-5 h-5 text-muted-foreground transition-transform", periodsOpen ? "rotate-180" : "rotate-0"].join(
-                " "
-              )}
+              className={["w-5 h-5 text-muted-foreground transition-transform", periodsOpen ? "rotate-180" : "rotate-0"].join(" ")}
             />
           </button>
 
@@ -814,9 +775,7 @@ export function Settings({
                   </div>
 
                   {periodFormError ? (
-                    <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                      {periodFormError}
-                    </div>
+                    <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">{periodFormError}</div>
                   ) : null}
 
                   <div className="flex gap-2 pt-1">
@@ -846,9 +805,7 @@ export function Settings({
                 {periods.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No terms yet</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Add Term 1, Term 2, Prelims, HSC — whatever matches your year.
-                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">Add Term 1, Term 2, Prelims, HSC — whatever matches your year.</div>
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -899,7 +856,7 @@ export function Settings({
           )}
         </div>
 
-        {/* ✅ Backup (collapsible, matches style) */}
+        {/* Backup */}
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
@@ -912,17 +869,15 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={["w-5 h-5 text-muted-foreground transition-transform", backupOpen ? "rotate-180" : "rotate-0"].join(
-                " "
-              )}
+              className={["w-5 h-5 text-muted-foreground transition-transform", backupOpen ? "rotate-180" : "rotate-0"].join(" ")}
             />
           </button>
 
           {backupOpen && (
             <div className="px-5 pb-5 space-y-3">
               <div className="text-xs text-muted-foreground leading-5">
-                Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data, move to
-                another device/browser, or recover if your browser storage is cleared.
+                Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data,
+                move to another device/browser, or recover if your browser storage is cleared.
                 <span className="block mt-1">
                   Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this device.
                 </span>
@@ -955,9 +910,7 @@ export function Settings({
               </div>
 
               {importError ? (
-                <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                  {importError}
-                </div>
+                <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">{importError}</div>
               ) : null}
 
               <div className="text-[11px] text-muted-foreground">
@@ -1002,7 +955,6 @@ export function Settings({
         </div>
       </div>
 
-      {/* Contact */}
       <div className="pt-2 text-center text-xs text-muted-foreground">
         Need help? Contact us at{" "}
         <a href="mailto:mystudyplanner.studio@gmail.com" className="underline hover:text-foreground transition-colors">
@@ -1059,7 +1011,7 @@ export function Settings({
         </>
       )}
 
-      {/* ✅ Delete term modal */}
+      {/* Delete term modal */}
       {deletingPeriod && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingPeriodId(null)} />
@@ -1102,7 +1054,7 @@ export function Settings({
         </>
       )}
 
-      {/* ✅ Import confirm modal */}
+      {/* Import confirm modal */}
       {showImportConfirm && pendingBackup ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowImportConfirm(false)} />
@@ -1136,9 +1088,7 @@ export function Settings({
                 </div>
               </div>
 
-              <div className="text-[11px] text-muted-foreground">
-                After restoring, the page will reload automatically.
-              </div>
+              <div className="text-[11px] text-muted-foreground">After restoring, the page will reload automatically.</div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">

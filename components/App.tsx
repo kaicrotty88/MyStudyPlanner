@@ -22,8 +22,11 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// ✅ must match your periods UI (Insights/Settings)
+// Must match your periods UI (Insights/Settings/Tasks)
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+// Track when demo was last normalized
+const DEMO_SEEDED_AT_KEY = "mystudyplanner-demo-seededAt";
 
 type Tab =
   | "dashboard"
@@ -36,103 +39,6 @@ type Tab =
   | "settings";
 type AppMode = "demo" | "app";
 
-/* -------------------- Demo freshness helpers -------------------- */
-
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-const dayKey = (d: Date) => {
-  const x = startOfDay(d);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
-};
-
-const parseDayKey = (k: string) => {
-  const [y, m, d] = k.split("-").map(Number);
-  return startOfDay(new Date(y, (m || 1) - 1, d || 1));
-};
-
-const addDays = (d: Date, days: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
-};
-
-const safeDate = (v: any): Date | null => {
-  if (!v) return null;
-  const d = v instanceof Date ? v : new Date(v);
-  return Number.isNaN(d.getTime()) ? null : d;
-};
-
-const diffDays = (fromKey: string, to: Date) => {
-  const a = parseDayKey(fromKey).getTime();
-  const b = startOfDay(to).getTime();
-  return Math.round((b - a) / (1000 * 60 * 60 * 24));
-};
-
-// Shifts ALL demo dates forward if demo was seeded on an older day.
-// Returns updated payload + whether it changed.
-const shiftDemoDatesIfNeeded = (payload: any) => {
-  const today = new Date();
-  const todayKey = dayKey(today);
-
-  const seededOn: string = typeof payload?.seededOn === "string" ? payload.seededOn : todayKey;
-  const delta = diffDays(seededOn, today);
-
-  if (!delta) {
-    // Ensure seededOn exists
-    return { next: { ...payload, seededOn: todayKey }, changed: seededOn !== todayKey };
-  }
-
-  const shiftField = (obj: any, field: string) => {
-    const d = safeDate(obj?.[field]);
-    if (!d) return obj;
-    return { ...obj, [field]: addDays(d, delta).toISOString() };
-  };
-
-  const shiftPeriod = (p: any) => {
-    let out = { ...p };
-    out = shiftField(out, "startDate");
-    out = shiftField(out, "endDate");
-    return out;
-  };
-
-  const shiftTask = (t: any) => {
-    let out = { ...t };
-    out = shiftField(out, "dueDate");
-    out = shiftField(out, "completedAt");
-    if (out?.result?.dateRecorded) {
-      const dr = safeDate(out.result.dateRecorded);
-      if (dr) out = { ...out, result: { ...out.result, dateRecorded: addDays(dr, delta).toISOString() } };
-    }
-    return out;
-  };
-
-  const shiftSession = (s: any) => {
-    let out = { ...s };
-    out = shiftField(out, "date");
-    out = shiftField(out, "completedAt");
-    return out;
-  };
-
-  const shiftReminder = (r: any) => {
-    let out = { ...r };
-    out = shiftField(out, "dueDate");
-    out = shiftField(out, "createdAt");
-    out = shiftField(out, "completedAt");
-    return out;
-  };
-
-  const next = {
-    ...payload,
-    seededOn: todayKey,
-    periods: Array.isArray(payload?.periods) ? payload.periods.map(shiftPeriod) : payload?.periods,
-    tasks: Array.isArray(payload?.tasks) ? payload.tasks.map(shiftTask) : payload?.tasks,
-    studySessions: Array.isArray(payload?.studySessions) ? payload.studySessions.map(shiftSession) : payload?.studySessions,
-    reminders: Array.isArray(payload?.reminders) ? payload.reminders.map(shiftReminder) : payload?.reminders,
-  };
-
-  return { next, changed: true };
-};
-
 /* -------------------- Defaults / Demo -------------------- */
 
 const defaultSubjects: Subject[] = [
@@ -143,35 +49,41 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
-// ✅ Demo-only default periods (ONLY seeded for brand new demo users with no storage)
-const DEMO_PERIODS: Period[] = [
-  {
-    id: "p1",
-    name: "Term 1",
-    startDate: new Date(2026, 0, 29), // Jan 29, 2026
-    endDate: new Date(2026, 3, 11), // Apr 11, 2026
-  },
-  {
-    id: "p2",
-    name: "Term 2",
-    startDate: new Date(2026, 3, 29), // Apr 29, 2026
-    endDate: new Date(2026, 6, 5), // Jul 5, 2026
-  },
-];
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const dayDiff = (a: Date, b: Date) => {
+  const aa = startOfDay(a).getTime();
+  const bb = startOfDay(b).getTime();
+  return Math.round((aa - bb) / (1000 * 60 * 60 * 24));
+};
+
+const addDays = (d: Date, days: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+};
+
+// Demo periods that always include "today"
+const makeDemoPeriods = (today: Date): Period[] => {
+  const t0 = startOfDay(today);
+  const term1Start = addDays(t0, -2);
+  const term1End = addDays(t0, 70);
+  const term2Start = addDays(t0, 85);
+  const term2End = addDays(t0, 150);
+
+  return [
+    { id: "p1", name: "Term 1", startDate: term1Start, endDate: term1End },
+    { id: "p2", name: "Term 2", startDate: term2Start, endDate: term2End },
+  ];
+};
 
 const makeDefaultData = () => {
   const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const periods = makeDemoPeriods(today);
 
-  const in3 = new Date(today);
-  in3.setDate(today.getDate() + 3);
-
-  const in5 = new Date(today);
-  in5.setDate(today.getDate() + 5);
-
-  const in7 = new Date(today);
-  in7.setDate(today.getDate() + 7);
+  const tomorrow = addDays(today, 1);
+  const in3 = addDays(today, 3);
+  const in5 = addDays(today, 5);
+  const in7 = addDays(today, 7);
 
   const demoTasks: Task[] = [
     {
@@ -256,32 +168,122 @@ const makeDefaultData = () => {
   ];
 
   return {
-    seededOn: dayKey(today), // ✅ store when this demo was generated
     subjects: defaultSubjects,
-    periods: DEMO_PERIODS,
+    periods,
     tasks: demoTasks,
     studySessions: demoStudySessions,
     reminders: demoReminders,
   };
 };
 
-// ✅ seed periods list for demo UI that reads PERIODS_STORAGE_KEY
+// Seed periods list key for UI that reads PERIODS_STORAGE_KEY
 const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
   try {
-    const existing = localStorage.getItem(PERIODS_STORAGE_KEY);
-    if (existing) return;
-
     const stored = periods.map((p) => ({
       id: p.id,
       name: p.name,
       startDate: p.startDate.toISOString(),
       endDate: p.endDate.toISOString(),
     }));
-
     localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
   } catch {
     // ignore
   }
+};
+
+// Shift demo dates forward so they always feel current
+const normalizeDemoDataToToday = (parsed: any) => {
+  const today = new Date();
+
+  let seededAt: Date | null = null;
+  try {
+    const raw = localStorage.getItem(DEMO_SEEDED_AT_KEY);
+    if (raw) seededAt = new Date(raw);
+  } catch {
+    seededAt = null;
+  }
+
+  // If we can't read seededAt, infer from earliest task dueDate (minus 1 day)
+  if (!seededAt) {
+    const dueDates: Date[] = (parsed?.tasks ?? [])
+      .map((t: any) => (t?.dueDate ? new Date(t.dueDate) : null))
+      .filter(Boolean) as Date[];
+    if (dueDates.length) {
+      dueDates.sort((a, b) => a.getTime() - b.getTime());
+      seededAt = addDays(dueDates[0], -1);
+    } else {
+      seededAt = today;
+    }
+  }
+
+  const diff = dayDiff(today, seededAt);
+  const shouldShift = diff !== 0;
+
+  // Always use fresh demo periods around today
+  const freshPeriods = makeDemoPeriods(today);
+
+  const shiftDate = (d: any) => {
+    if (!d) return d;
+    const x = d instanceof Date ? d : new Date(d);
+    if (Number.isNaN(x.getTime())) return d;
+    return addDays(x, diff);
+  };
+
+  const next = {
+    ...parsed,
+    subjects: Array.isArray(parsed?.subjects) ? parsed.subjects : defaultSubjects,
+    periods: freshPeriods,
+    tasks: Array.isArray(parsed?.tasks)
+      ? parsed.tasks.map((t: any) => ({
+          ...t,
+          dueDate: shiftDate(t?.dueDate),
+          completedAt: t?.completedAt ? shiftDate(t.completedAt) : undefined,
+          result: t?.result
+            ? {
+                ...t.result,
+                dateRecorded: t?.result?.dateRecorded ? shiftDate(t.result.dateRecorded) : undefined,
+              }
+            : undefined,
+          // Keep existing periodId if present; most demo tasks are p1 anyway
+          periodId: t?.periodId ?? "p1",
+        }))
+      : [],
+    studySessions: Array.isArray(parsed?.studySessions)
+      ? parsed.studySessions.map((s: any) => ({
+          ...s,
+          date: shiftDate(s?.date),
+          completedAt: s?.completedAt ? shiftDate(s.completedAt) : undefined,
+        }))
+      : [],
+    reminders: Array.isArray(parsed?.reminders)
+      ? parsed.reminders.map((r: any) => ({
+          ...r,
+          dueDate: r?.dueDate ? shiftDate(r.dueDate) : undefined,
+          createdAt: r?.createdAt ? shiftDate(r.createdAt) : undefined,
+          completedAt: r?.completedAt ? shiftDate(r.completedAt) : undefined,
+        }))
+      : [],
+  };
+
+  if (shouldShift) {
+    try {
+      localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
+    } catch {
+      // ignore
+    }
+  } else {
+    try {
+      // still ensure key exists
+      if (!localStorage.getItem(DEMO_SEEDED_AT_KEY)) localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
+    } catch {
+      // ignore
+    }
+  }
+
+  // Ensure periods key matches fresh demo periods so dashboards/filters work
+  seedDemoPeriodsKeyIfMissing(freshPeriods);
+
+  return next;
 };
 
 const navTabButtonClass = (active: boolean) =>
@@ -304,18 +306,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
-  const [subjects, setSubjects] = useState<Subject[]>(mode === "demo" ? defaultSubjects : []);
-  const [periods, setPeriods] = useState<Period[]>(mode === "demo" ? DEMO_PERIODS : []);
+  const [subjects, setSubjects] = useState<Subject[]>(() => (mode === "demo" ? defaultSubjects : []));
+  const [periods, setPeriods] = useState<Period[]>(() => (mode === "demo" ? makeDemoPeriods(new Date()) : []));
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
-
-  // Keep current demo seededOn so we persist it cleanly
-  const demoSeededOnRef = useRef<string | null>(null);
-
-  /* -------------------- Mobile desktop hint -------------------- */
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
 
@@ -335,8 +332,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     } catch {}
   };
 
-  /* -------------------- Helpers -------------------- */
-
   const pruneAutoDeletedCompletedTasks = (input: Task[]) => {
     const now = Date.now();
     return input.filter((t) => {
@@ -349,33 +344,23 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     requestAnimationFrame(() => setIsReady(true));
   };
 
-  // Auto-assign a term based on dueDate
   const periodIdForDate = (d: Date) => {
     const t = d.getTime();
     const match = periods.find((p) => t >= p.startDate.getTime() && t <= p.endDate.getTime());
     return match?.id;
   };
 
-  /* -------------------- Persistence -------------------- */
-
   useEffect(() => {
     const raw = localStorage.getItem(storageKey);
 
-    // ✅ Seed ONLY for brand new demo users (no demo storage yet)
     if (!raw && mode === "demo") {
       const seeded = makeDefaultData();
 
-      // Seed the separate "periods list" key used by your Terms UI
       seedDemoPeriodsKeyIfMissing(seeded.periods);
 
-      // Store demo immediately (so future loads can roll forward using seededOn)
       try {
-        localStorage.setItem(storageKey, JSON.stringify(seeded));
-      } catch {
-        // ignore
-      }
-
-      demoSeededOnRef.current = seeded.seededOn;
+        localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
+      } catch {}
 
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
@@ -388,7 +373,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       return;
     }
 
-    // ✅ For /app mode with no storage: show NOTHING (empty everything)
     if (!raw && mode === "app") {
       setSubjects([]);
       setPeriods([]);
@@ -403,20 +387,12 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     try {
       let parsed = JSON.parse(raw as string);
 
-      // ✅ If demo exists, roll dates forward so it always feels current
-      if (mode === "demo" && parsed) {
-        const { next, changed } = shiftDemoDatesIfNeeded(parsed);
-        parsed = next;
-
-        demoSeededOnRef.current = typeof parsed.seededOn === "string" ? parsed.seededOn : null;
-
-        if (changed) {
-          try {
-            localStorage.setItem(storageKey, JSON.stringify(parsed));
-          } catch {
-            // ignore
-          }
-        }
+      // Keep demo always fresh/current
+      if (mode === "demo") {
+        parsed = normalizeDemoDataToToday(parsed);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(parsed));
+        } catch {}
       }
 
       setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
@@ -430,7 +406,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               endDate: p?.endDate ? new Date(p.endDate) : new Date(),
             }))
           : mode === "demo"
-            ? DEMO_PERIODS
+            ? makeDemoPeriods(new Date())
             : []
       );
 
@@ -444,13 +420,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               ? {
                   ...t.result,
                   score:
-                    typeof t?.result?.score === "number"
-                      ? t.result.score
-                      : Number(t?.result?.score ?? 0),
+                    typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
                   outOf:
-                    typeof t?.result?.outOf === "number"
-                      ? t.result.outOf
-                      : Number(t?.result?.outOf ?? 100),
+                    typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
                   dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
                 }
               : undefined,
@@ -478,18 +450,13 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         }))
       );
     } catch {
-      // If storage is corrupted:
       if (mode === "demo") {
         const seeded = makeDefaultData();
         seedDemoPeriodsKeyIfMissing(seeded.periods);
 
         try {
-          localStorage.setItem(storageKey, JSON.stringify(seeded));
-        } catch {
-          // ignore
-        }
-
-        demoSeededOnRef.current = seeded.seededOn;
+          localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
+        } catch {}
 
         setSubjects(seeded.subjects);
         setPeriods(seeded.periods);
@@ -513,20 +480,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (!hydrated.current) return;
 
     try {
-      const payload: any = { subjects, periods, tasks, studySessions, reminders };
-
-      // ✅ keep demo freshness stamp
-      if (mode === "demo") {
-        payload.seededOn = demoSeededOnRef.current ?? dayKey(new Date());
-      }
-
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
     } catch {
       // ignore
     }
-  }, [subjects, periods, tasks, studySessions, reminders, storageKey, mode]);
-
-  /* -------------------- Clear / Reset -------------------- */
+  }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
 
   const handleClearAllData = () => {
     localStorage.removeItem(storageKey);
@@ -536,12 +494,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       seedDemoPeriodsKeyIfMissing(seeded.periods);
 
       try {
-        localStorage.setItem(storageKey, JSON.stringify(seeded));
-      } catch {
-        // ignore
-      }
-
-      demoSeededOnRef.current = seeded.seededOn;
+        localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
+      } catch {}
 
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
@@ -558,8 +512,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
     setActiveTab("dashboard");
   };
-
-  /* -------------------- Handlers -------------------- */
 
   const handleAddSubject = (name: string, color: string) =>
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
@@ -600,11 +552,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((p) =>
-      p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
-    );
+    setStudySessions((p) => p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s)));
 
-  // ✅ Reminders
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
     setReminders((p) => [
       ...p,
@@ -633,8 +582,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         };
       })
     );
-
-  /* -------------------- Render -------------------- */
 
   const tabs: Array<[Tab, string]> = [
     ["dashboard", "Dashboard"],
@@ -697,11 +644,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                 }}
               >
                 <UserButton.MenuItems>
-                  <UserButton.Action
-                    label="Account"
-                    labelIcon={<User className="h-4 w-4" />}
-                    onClick={() => setActiveTab("settings")}
-                  />
+                  <UserButton.Action label="Account" labelIcon={<User className="h-4 w-4" />} onClick={() => setActiveTab("settings")} />
                 </UserButton.MenuItems>
               </UserButton>
             </div>
@@ -724,9 +667,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
-            <div className="text-[12px] leading-5 text-muted-foreground">
-              Best on desktop. Mobile is great for quick check-ins.
-            </div>
+            <div className="text-[12px] leading-5 text-muted-foreground">Best on desktop. Mobile is great for quick check-ins.</div>
 
             <button
               onClick={dismissMobileDesktopHint}
