@@ -52,8 +52,16 @@ type PeriodStored = {
   endDate: string;
 };
 
+// Storage keys (must match App)
+const REAL_STORAGE_KEY = "mystudyplanner-data";
+const DEMO_STORAGE_KEY = "mystudyplanner-demo";
+const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+type SettingsOpenSection = "subjects" | "terms" | "backup";
+
 interface SettingsProps {
   subjects: Subject[];
+
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
@@ -64,15 +72,11 @@ interface SettingsProps {
 
   appMode: AppMode;
   onClearAllData: () => void;
+
+  // ✅ new: allow Dashboard to open + expand a section
+  openSection?: SettingsOpenSection | null;
+  onOpenSectionHandled?: () => void;
 }
-
-// Storage keys (must match App)
-const REAL_STORAGE_KEY = "mystudyplanner-data";
-const DEMO_STORAGE_KEY = "mystudyplanner-demo";
-const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
-
-// From Dashboard -> Settings
-const SETTINGS_OPEN_SECTION_KEY = "msp-settings-open-section";
 
 function toISODateInputValue(d: Date) {
   const year = d.getFullYear();
@@ -136,6 +140,8 @@ export function Settings({
   onDeleteSubject,
   appMode,
   onClearAllData,
+  openSection,
+  onOpenSectionHandled,
 }: SettingsProps) {
   const storageKey = appMode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
@@ -147,10 +153,9 @@ export function Settings({
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Collapsed by default
   const [subjectsOpen, setSubjectsOpen] = useState(false);
 
-  // Terms
+  // ✅ Periods section
   const [periodsOpen, setPeriodsOpen] = useState(false);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [showAddPeriodForm, setShowAddPeriodForm] = useState(false);
@@ -163,44 +168,24 @@ export function Settings({
   });
   const [periodFormError, setPeriodFormError] = useState<string>("");
 
-  // Backup (collapsible)
+  // ✅ Backup section (collapsible)
   const [backupOpen, setBackupOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string>("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
-  // Refs for scrolling when opened from Dashboard
-  const subjectsSectionRef = useRef<HTMLDivElement>(null);
-  const termsSectionRef = useRef<HTMLDivElement>(null);
+  // ✅ Refs for “open section + focus”
+  const subjectsCardRef = useRef<HTMLDivElement>(null);
+  const termsCardRef = useRef<HTMLDivElement>(null);
+  const backupCardRef = useRef<HTMLDivElement>(null);
 
-  // Auto-open the right section if Dashboard requested it
-  useEffect(() => {
-    let section: string | null = null;
-    try {
-      section = localStorage.getItem(SETTINGS_OPEN_SECTION_KEY);
-    } catch {
-      section = null;
-    }
-    if (!section) return;
+  const subjectNameInputRef = useRef<HTMLInputElement>(null);
+  const termNameInputRef = useRef<HTMLInputElement>(null);
 
-    if (section === "subjects") {
-      setSubjectsOpen(true);
-      requestAnimationFrame(() => subjectsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }
-
-    if (section === "terms") {
-      setPeriodsOpen(true);
-      requestAnimationFrame(() => termsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }
-
-    try {
-      localStorage.removeItem(SETTINGS_OPEN_SECTION_KEY);
-    } catch {
-      // ignore
-    }
-  }, []);
-
+  /**
+   * Curated palette
+   */
   const colorPalette = [
     "#7A9B7F",
     "#6B8E73",
@@ -255,7 +240,7 @@ export function Settings({
     "#A3A3A3",
   ];
 
-  // Periods: load + persist
+  // -------- Periods: load + persist --------
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
@@ -291,6 +276,52 @@ export function Settings({
     }
   }, [periods]);
 
+  // ✅ When Dashboard asks to open a specific section
+  useEffect(() => {
+    if (!openSection) return;
+
+    if (openSection === "subjects") {
+      setSubjectsOpen(true);
+      setPeriodsOpen(false);
+      setBackupOpen(false);
+
+      setEditingId(null);
+      setShowAddForm(true);
+
+      requestAnimationFrame(() => {
+        subjectsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        subjectNameInputRef.current?.focus();
+      });
+    }
+
+    if (openSection === "terms") {
+      setSubjectsOpen(false);
+      setBackupOpen(false);
+      setPeriodsOpen(true);
+
+      // Open the “new term” form too (good onboarding)
+      openNewPeriod();
+
+      requestAnimationFrame(() => {
+        termsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        termNameInputRef.current?.focus();
+      });
+    }
+
+    if (openSection === "backup") {
+      setSubjectsOpen(false);
+      setPeriodsOpen(false);
+      setBackupOpen(true);
+
+      requestAnimationFrame(() => {
+        backupCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    onOpenSectionHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSection]);
+
   const deletingSubject = useMemo(
     () => subjects.find((s) => s.id === deletingSubjectId) || null,
     [subjects, deletingSubjectId]
@@ -298,9 +329,11 @@ export function Settings({
 
   const deleteCounts = useMemo(() => {
     if (!deletingSubjectId) return { tasks: 0, items: 0, sessions: 0 };
+
     const t = tasks.filter((x) => x.subjectId === deletingSubjectId).length;
     const i = studyItems.filter((x) => x.subjectId === deletingSubjectId).length;
     const s = studySessions.filter((x) => x.subjectId === deletingSubjectId).length;
+
     return { tasks: t, items: i, sessions: s };
   }, [deletingSubjectId, tasks, studyItems, studySessions]);
 
@@ -339,7 +372,7 @@ export function Settings({
     setDeletingSubjectId(null);
   };
 
-  // Periods handlers
+  // -------- Periods handlers --------
   const openNewPeriod = () => {
     setPeriodFormError("");
     setEditingPeriodId(null);
@@ -434,9 +467,8 @@ export function Settings({
   const handleConfirmClear = () => {
     try {
       localStorage.removeItem(PERIODS_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+    } catch {}
+
     onClearAllData();
     setShowClearConfirm(false);
   };
@@ -534,9 +566,11 @@ export function Settings({
 
     try {
       localStorage.setItem(storageKey, JSON.stringify(pendingBackup.data));
+
       if (pendingBackup.periods) {
         localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(pendingBackup.periods));
       }
+
       window.location.reload();
     } catch {
       setImportError("Import failed. Your browser may be blocking storage.");
@@ -566,7 +600,7 @@ export function Settings({
 
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5 space-y-4">
         {/* Subjects */}
-        <div ref={subjectsSectionRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div ref={subjectsCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setSubjectsOpen((v) => !v)}
@@ -604,6 +638,7 @@ export function Settings({
                   <div className="text-sm font-semibold text-foreground">{editingId ? "Edit subject" : "New subject"}</div>
 
                   <input
+                    ref={subjectNameInputRef}
                     type="text"
                     placeholder="Subject name"
                     value={formData.name}
@@ -706,8 +741,8 @@ export function Settings({
           )}
         </div>
 
-        {/* Terms */}
-        <div ref={termsSectionRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        {/* Terms / Periods */}
+        <div ref={termsCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setPeriodsOpen((v) => !v)}
@@ -744,6 +779,7 @@ export function Settings({
                     <div className="md:col-span-1">
                       <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
                       <input
+                        ref={termNameInputRef}
                         type="text"
                         placeholder='e.g. "Term 1"'
                         value={periodForm.name}
@@ -775,7 +811,9 @@ export function Settings({
                   </div>
 
                   {periodFormError ? (
-                    <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">{periodFormError}</div>
+                    <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                      {periodFormError}
+                    </div>
                   ) : null}
 
                   <div className="flex gap-2 pt-1">
@@ -805,7 +843,9 @@ export function Settings({
                 {periods.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No terms yet</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Add Term 1, Term 2, Prelims, HSC — whatever matches your year.</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Add Term 1, Term 2, Prelims, HSC — whatever matches your year.
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -857,7 +897,7 @@ export function Settings({
         </div>
 
         {/* Backup */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div ref={backupCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setBackupOpen((v) => !v)}
@@ -879,7 +919,8 @@ export function Settings({
                 Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data,
                 move to another device/browser, or recover if your browser storage is cleared.
                 <span className="block mt-1">
-                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this device.
+                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this
+                  device.
                 </span>
               </div>
 
@@ -910,7 +951,9 @@ export function Settings({
               </div>
 
               {importError ? (
-                <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">{importError}</div>
+                <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                  {importError}
+                </div>
               ) : null}
 
               <div className="text-[11px] text-muted-foreground">
@@ -924,9 +967,7 @@ export function Settings({
         <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4 flex items-center justify-between">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-foreground">Clear all data</div>
-            <div className="text-xs text-muted-foreground">
-              {appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}
-            </div>
+            <div className="text-xs text-muted-foreground">{appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}</div>
           </div>
 
           <button
@@ -955,6 +996,7 @@ export function Settings({
         </div>
       </div>
 
+      {/* Contact */}
       <div className="pt-2 text-center text-xs text-muted-foreground">
         Need help? Contact us at{" "}
         <a href="mailto:mystudyplanner.studio@gmail.com" className="underline hover:text-foreground transition-colors">
@@ -1117,7 +1159,9 @@ export function Settings({
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowClearConfirm(false)} />
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">{appMode === "demo" ? "Reset demo data?" : "Clear all data?"}</div>
+              <div className="text-sm font-semibold text-foreground">
+                {appMode === "demo" ? "Reset demo data?" : "Clear all data?"}
+              </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {appMode === "demo"
                   ? "This will reset the demo back to the original sample subjects, tasks, and sessions."

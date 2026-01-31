@@ -8,9 +8,6 @@ import { isSameDay } from "./models";
 // Must match Settings + Tasks + Marks
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-// Optional: used to auto-open the Terms accordion in Settings (if Settings reads it)
-const OPEN_TERMS_HINT_KEY = "msp-open-terms";
-
 type PeriodStored = {
   id: string;
   name: string;
@@ -89,7 +86,6 @@ const QUOTES: Array<{ quote: string; author?: string }> = [
 ];
 
 function daySeed(d: Date) {
-  // stable per-day (local time)
   return Number(
     `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`
   );
@@ -102,12 +98,14 @@ function pickDailyQuote(d: Date) {
 
 /* -------------------- Props -------------------- */
 
+type SettingsOpenSection = "subjects" | "terms";
+
 interface DashboardProps {
   tasks: Task[];
   subjects: Subject[];
   studySessions: StudySession[];
   onOpenStudyPlanner: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (section?: SettingsOpenSection) => void;
   onOpenTasks: () => void;
 }
 
@@ -121,7 +119,6 @@ export function Dashboard({
   onOpenSettings,
   onOpenTasks,
 }: DashboardProps) {
-  // Keep "today" stable so useMemo dependencies actually memoize
   const today = useMemo(() => new Date(), []);
 
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -133,14 +130,17 @@ export function Dashboard({
 
   const dailyQuote = useMemo(() => pickDailyQuote(today), [today]);
 
-  // ✅ Load ALL periods from localStorage (Terms / Prelims / etc)
-  const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
+  // ✅ Load ALL periods (for the “needsTerms” banner)
+  const [allPeriods, setAllPeriods] = useState<PeriodHydrated[]>([]);
+  // ✅ Load Term 1–4 subset (for the week label)
+  const [terms1to4, setTerms1to4] = useState<PeriodHydrated[]>([]);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
       if (!raw) {
-        setPeriods([]);
+        setAllPeriods([]);
+        setTerms1to4([]);
         return;
       }
 
@@ -153,18 +153,18 @@ export function Dashboard({
       }));
 
       hydrated.sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
-      setPeriods(hydrated);
+      setAllPeriods(hydrated);
+
+      const onlyTerms1to4 = hydrated
+        .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
+        .sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+
+      setTerms1to4(onlyTerms1to4);
     } catch {
-      setPeriods([]);
+      setAllPeriods([]);
+      setTerms1to4([]);
     }
   }, []);
-
-  // Terms 1–4 only (for “Term · Week X” label)
-  const terms1to4 = useMemo(() => {
-    return periods
-      .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
-      .sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
-  }, [periods]);
 
   const termWeekLabel = useMemo(() => {
     if (terms1to4.length === 0) return null;
@@ -182,7 +182,6 @@ export function Dashboard({
     return map;
   }, [subjects]);
 
-  // ✅ Focus Today = sessions today (not completed)
   const focusToday = useMemo(
     () => studySessions.filter((s) => !s.completed && isSameDay(s.date, today)).slice(0, 4),
     [studySessions, today]
@@ -205,19 +204,10 @@ export function Dashboard({
   );
 
   const needsSubjects = subjects.length === 0;
+  const needsTerms = allPeriods.length === 0;
 
-  // ✅ This is the new rule: show banner until at least 1 term exists (NOT dismissable)
-  const needsTerms = periods.length === 0;
-
-  const openTermsInSettings = () => {
-    // Optional hint so Settings can auto-open the Terms accordion
-    try {
-      localStorage.setItem(OPEN_TERMS_HINT_KEY, "1");
-    } catch {
-      // ignore
-    }
-    onOpenSettings();
-  };
+  const bannerButtonClass =
+    "shrink-0 inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
@@ -233,7 +223,7 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* ✅ First-run setup nudge (only when no subjects) */}
+      {/* ✅ First-run setup nudges */}
       {needsSubjects && (
         <div className="rounded-2xl border border-border bg-card shadow-sm">
           <div className="px-5 py-4 flex items-start justify-between gap-4">
@@ -244,12 +234,7 @@ export function Dashboard({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="shrink-0 inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              title="Go to Settings"
-            >
+            <button type="button" onClick={() => onOpenSettings("subjects")} className={bannerButtonClass}>
               <Settings2 className="h-4 w-4" />
               Add subjects
             </button>
@@ -257,23 +242,17 @@ export function Dashboard({
         </div>
       )}
 
-      {/* ✅ Terms banner (NOT dismissable, disappears once terms exist) */}
       {needsTerms && (
         <div className="rounded-2xl border border-border bg-card shadow-sm">
           <div className="px-5 py-4 flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">Add your term dates</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                Term dates help MyStudyPlanner group tasks by term and power term filtering in Insights & Tasks.
+                Term dates help group tasks by term and enable term filtering in Insights and Tasks.
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={openTermsInSettings}
-              className="shrink-0 inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              title="Open Settings → Terms"
-            >
+            <button type="button" onClick={() => onOpenSettings("terms")} className={bannerButtonClass}>
               <Settings2 className="h-4 w-4" />
               Add terms
             </button>
@@ -281,13 +260,12 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Subtle section wrapper (hierarchy/rhythm) */}
+      {/* Subtle section wrapper */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-xs font-medium text-muted-foreground">Today</div>
         </div>
 
-        {/* Main grid */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
           {/* Focus today */}
           <section className="md:col-span-7 rounded-2xl border border-border bg-card shadow-sm">

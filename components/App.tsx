@@ -22,11 +22,7 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Must match your periods UI (Insights/Settings/Tasks)
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
-
-// Track when demo was last normalized
-const DEMO_SEEDED_AT_KEY = "mystudyplanner-demo-seededAt";
 
 type Tab =
   | "dashboard"
@@ -37,7 +33,10 @@ type Tab =
   | "marks"
   | "reminders"
   | "settings";
+
 type AppMode = "demo" | "app";
+
+type SettingsOpenSection = "subjects" | "terms" | "backup" | null;
 
 /* -------------------- Defaults / Demo -------------------- */
 
@@ -49,59 +48,28 @@ const defaultSubjects: Subject[] = [
   { id: "5", name: "History", color: "#B87B7B" },
 ];
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const dayDiff = (a: Date, b: Date) => {
-  const aa = startOfDay(a).getTime();
-  const bb = startOfDay(b).getTime();
-  return Math.round((aa - bb) / (1000 * 60 * 60 * 24));
-};
-
-const addDays = (d: Date, days: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
-};
-
-// Demo periods that always include "today"
-const makeDemoPeriods = (today: Date): Period[] => {
-  const t0 = startOfDay(today);
-  const term1Start = addDays(t0, -2);
-  const term1End = addDays(t0, 70);
-  const term2Start = addDays(t0, 85);
-  const term2End = addDays(t0, 150);
-
-  return [
-    { id: "p1", name: "Term 1", startDate: term1Start, endDate: term1End },
-    { id: "p2", name: "Term 2", startDate: term2Start, endDate: term2End },
-  ];
-};
+const DEMO_PERIODS: Period[] = [
+  { id: "p1", name: "Term 1", startDate: new Date(2026, 0, 29), endDate: new Date(2026, 3, 11) },
+  { id: "p2", name: "Term 2", startDate: new Date(2026, 3, 29), endDate: new Date(2026, 6, 5) },
+];
 
 const makeDefaultData = () => {
   const today = new Date();
-  const periods = makeDemoPeriods(today);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
 
-  const tomorrow = addDays(today, 1);
-  const in3 = addDays(today, 3);
-  const in5 = addDays(today, 5);
-  const in7 = addDays(today, 7);
+  const in3 = new Date(today);
+  in3.setDate(today.getDate() + 3);
+
+  const in5 = new Date(today);
+  in5.setDate(today.getDate() + 5);
+
+  const in7 = new Date(today);
+  in7.setDate(today.getDate() + 7);
 
   const demoTasks: Task[] = [
-    {
-      id: "t1",
-      title: "Read pages 120–145",
-      subjectId: "5",
-      dueDate: tomorrow,
-      type: "task",
-      periodId: "p1",
-    },
-    {
-      id: "t2",
-      title: "Lab Report",
-      subjectId: "3",
-      dueDate: in3,
-      type: "assignment",
-      periodId: "p1",
-    },
+    { id: "t1", title: "Read pages 120–145", subjectId: "5", dueDate: tomorrow, type: "task", periodId: "p1" },
+    { id: "t2", title: "Lab Report", subjectId: "3", dueDate: in3, type: "assignment", periodId: "p1" },
     {
       id: "t3",
       title: "Complete Chapter 5 Review",
@@ -109,181 +77,38 @@ const makeDefaultData = () => {
       dueDate: in5,
       type: "assignment",
       periodId: "p1",
-      result: {
-        score: 18,
-        outOf: 20,
-        dateRecorded: today,
-      },
+      result: { score: 18, outOf: 20, dateRecorded: today },
     },
-    {
-      id: "t4",
-      title: "Midterm Exam",
-      subjectId: "2",
-      dueDate: in7,
-      type: "exam",
-      periodId: "p1",
-    },
+    { id: "t4", title: "Midterm Exam", subjectId: "2", dueDate: in7, type: "exam", periodId: "p1" },
   ];
 
   const demoStudySessions: StudySession[] = [
-    {
-      id: "ss1",
-      subjectId: "1",
-      title: "Chapter 5 review",
-      date: today,
-      startTime: "4:00 PM",
-      duration: "60 min",
-      linkedTaskId: "t3",
-      completed: false,
-    },
+    { id: "ss1", subjectId: "1", title: "Chapter 5 review", date: today, startTime: "4:00 PM", duration: "60 min", linkedTaskId: "t3", completed: false },
   ];
 
   const demoReminders: Reminder[] = [
-    {
-      id: "r1",
-      title: "Pack bag tonight",
-      notes: "Laptop charger, workbook, sport kit",
-      dueDate: today,
-      time: "20:30",
-      repeat: "none",
-      completed: false,
-      createdAt: today,
-    },
-    {
-      id: "r2",
-      title: "Email teacher about extension question",
-      dueDate: tomorrow,
-      repeat: "none",
-      completed: false,
-      createdAt: today,
-    },
-    {
-      id: "r3",
-      title: "Buy new pens",
-      notes: "Black + blue",
-      repeat: "none",
-      completed: false,
-      createdAt: today,
-    },
+    { id: "r1", title: "Pack bag tonight", notes: "Laptop charger, workbook, sport kit", dueDate: today, time: "20:30", repeat: "none", completed: false, createdAt: today },
+    { id: "r2", title: "Email teacher about extension question", dueDate: tomorrow, repeat: "none", completed: false, createdAt: today },
+    { id: "r3", title: "Buy new pens", notes: "Black + blue", repeat: "none", completed: false, createdAt: today },
   ];
 
-  return {
-    subjects: defaultSubjects,
-    periods,
-    tasks: demoTasks,
-    studySessions: demoStudySessions,
-    reminders: demoReminders,
-  };
+  return { subjects: defaultSubjects, periods: DEMO_PERIODS, tasks: demoTasks, studySessions: demoStudySessions, reminders: demoReminders };
 };
 
-// Seed periods list key for UI that reads PERIODS_STORAGE_KEY
 const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
   try {
+    const existing = localStorage.getItem(PERIODS_STORAGE_KEY);
+    if (existing) return;
+
     const stored = periods.map((p) => ({
       id: p.id,
       name: p.name,
       startDate: p.startDate.toISOString(),
       endDate: p.endDate.toISOString(),
     }));
+
     localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
-  } catch {
-    // ignore
-  }
-};
-
-// Shift demo dates forward so they always feel current
-const normalizeDemoDataToToday = (parsed: any) => {
-  const today = new Date();
-
-  let seededAt: Date | null = null;
-  try {
-    const raw = localStorage.getItem(DEMO_SEEDED_AT_KEY);
-    if (raw) seededAt = new Date(raw);
-  } catch {
-    seededAt = null;
-  }
-
-  // If we can't read seededAt, infer from earliest task dueDate (minus 1 day)
-  if (!seededAt) {
-    const dueDates: Date[] = (parsed?.tasks ?? [])
-      .map((t: any) => (t?.dueDate ? new Date(t.dueDate) : null))
-      .filter(Boolean) as Date[];
-    if (dueDates.length) {
-      dueDates.sort((a, b) => a.getTime() - b.getTime());
-      seededAt = addDays(dueDates[0], -1);
-    } else {
-      seededAt = today;
-    }
-  }
-
-  const diff = dayDiff(today, seededAt);
-  const shouldShift = diff !== 0;
-
-  // Always use fresh demo periods around today
-  const freshPeriods = makeDemoPeriods(today);
-
-  const shiftDate = (d: any) => {
-    if (!d) return d;
-    const x = d instanceof Date ? d : new Date(d);
-    if (Number.isNaN(x.getTime())) return d;
-    return addDays(x, diff);
-  };
-
-  const next = {
-    ...parsed,
-    subjects: Array.isArray(parsed?.subjects) ? parsed.subjects : defaultSubjects,
-    periods: freshPeriods,
-    tasks: Array.isArray(parsed?.tasks)
-      ? parsed.tasks.map((t: any) => ({
-          ...t,
-          dueDate: shiftDate(t?.dueDate),
-          completedAt: t?.completedAt ? shiftDate(t.completedAt) : undefined,
-          result: t?.result
-            ? {
-                ...t.result,
-                dateRecorded: t?.result?.dateRecorded ? shiftDate(t.result.dateRecorded) : undefined,
-              }
-            : undefined,
-          // Keep existing periodId if present; most demo tasks are p1 anyway
-          periodId: t?.periodId ?? "p1",
-        }))
-      : [],
-    studySessions: Array.isArray(parsed?.studySessions)
-      ? parsed.studySessions.map((s: any) => ({
-          ...s,
-          date: shiftDate(s?.date),
-          completedAt: s?.completedAt ? shiftDate(s.completedAt) : undefined,
-        }))
-      : [],
-    reminders: Array.isArray(parsed?.reminders)
-      ? parsed.reminders.map((r: any) => ({
-          ...r,
-          dueDate: r?.dueDate ? shiftDate(r.dueDate) : undefined,
-          createdAt: r?.createdAt ? shiftDate(r.createdAt) : undefined,
-          completedAt: r?.completedAt ? shiftDate(r.completedAt) : undefined,
-        }))
-      : [],
-  };
-
-  if (shouldShift) {
-    try {
-      localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
-    } catch {
-      // ignore
-    }
-  } else {
-    try {
-      // still ensure key exists
-      if (!localStorage.getItem(DEMO_SEEDED_AT_KEY)) localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
-    } catch {
-      // ignore
-    }
-  }
-
-  // Ensure periods key matches fresh demo periods so dashboards/filters work
-  seedDemoPeriodsKeyIfMissing(freshPeriods);
-
-  return next;
+  } catch {}
 };
 
 const navTabButtonClass = (active: boolean) =>
@@ -306,13 +131,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
-  const [subjects, setSubjects] = useState<Subject[]>(() => (mode === "demo" ? defaultSubjects : []));
-  const [periods, setPeriods] = useState<Period[]>(() => (mode === "demo" ? makeDemoPeriods(new Date()) : []));
+  const [subjects, setSubjects] = useState<Subject[]>(mode === "demo" ? defaultSubjects : []);
+  const [periods, setPeriods] = useState<Period[]>(mode === "demo" ? DEMO_PERIODS : []);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
+
+  // ✅ new: tell Settings which section to open (from Dashboard banners)
+  const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
+
+  /* -------------------- Mobile desktop hint -------------------- */
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
 
@@ -332,6 +162,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     } catch {}
   };
 
+  /* -------------------- Helpers -------------------- */
+
   const pruneAutoDeletedCompletedTasks = (input: Task[]) => {
     const now = Date.now();
     return input.filter((t) => {
@@ -350,17 +182,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     return match?.id;
   };
 
+  /* -------------------- Persistence -------------------- */
+
   useEffect(() => {
     const raw = localStorage.getItem(storageKey);
 
     if (!raw && mode === "demo") {
       const seeded = makeDefaultData();
-
       seedDemoPeriodsKeyIfMissing(seeded.periods);
-
-      try {
-        localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
-      } catch {}
 
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
@@ -385,15 +214,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     }
 
     try {
-      let parsed = JSON.parse(raw as string);
-
-      // Keep demo always fresh/current
-      if (mode === "demo") {
-        parsed = normalizeDemoDataToToday(parsed);
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(parsed));
-        } catch {}
-      }
+      const parsed = JSON.parse(raw as string);
 
       setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
 
@@ -406,8 +227,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
               endDate: p?.endDate ? new Date(p.endDate) : new Date(),
             }))
           : mode === "demo"
-            ? makeDemoPeriods(new Date())
-            : []
+          ? DEMO_PERIODS
+          : []
       );
 
       setTasks(
@@ -419,10 +240,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             result: t?.result
               ? {
                   ...t.result,
-                  score:
-                    typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
-                  outOf:
-                    typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
+                  score: typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
+                  outOf: typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
                   dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
                 }
               : undefined,
@@ -454,10 +273,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         const seeded = makeDefaultData();
         seedDemoPeriodsKeyIfMissing(seeded.periods);
 
-        try {
-          localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
-        } catch {}
-
         setSubjects(seeded.subjects);
         setPeriods(seeded.periods);
         setTasks(seeded.tasks);
@@ -481,10 +296,10 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
     try {
       localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
+
+  /* -------------------- Clear / Reset -------------------- */
 
   const handleClearAllData = () => {
     localStorage.removeItem(storageKey);
@@ -492,10 +307,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (mode === "demo") {
       const seeded = makeDefaultData();
       seedDemoPeriodsKeyIfMissing(seeded.periods);
-
-      try {
-        localStorage.setItem(DEMO_SEEDED_AT_KEY, new Date().toISOString());
-      } catch {}
 
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
@@ -513,8 +324,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setActiveTab("dashboard");
   };
 
-  const handleAddSubject = (name: string, color: string) =>
-    setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
+  /* -------------------- Handlers -------------------- */
+
+  const handleAddSubject = (name: string, color: string) => setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
     setSubjects((p) => p.map((s) => (s.id === id ? { ...s, name, color } : s)));
@@ -543,11 +355,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) => p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t)));
 
-  const handleAddStudySession = (s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
+  const handleAddStudySession = (s: Omit<StudySession, "id">) => setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
 
-  const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
+  const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) => setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
   const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
@@ -555,18 +365,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     setStudySessions((p) => p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s)));
 
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
-    setReminders((p) => [
-      ...p,
-      {
-        ...r,
-        id: Date.now().toString(),
-        createdAt: r.createdAt ?? new Date(),
-        completed: r.completed ?? false,
-      },
-    ]);
+    setReminders((p) => [...p, { ...r, id: Date.now().toString(), createdAt: r.createdAt ?? new Date(), completed: r.completed ?? false }]);
 
-  const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
-    setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
+  const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) => setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
 
   const handleDeleteReminder = (id: string) => setReminders((p) => p.filter((r) => r.id !== id));
 
@@ -575,13 +376,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       p.map((r) => {
         if (r.id !== id) return r;
         const nextCompleted = !r.completed;
-        return {
-          ...r,
-          completed: nextCompleted,
-          completedAt: nextCompleted ? new Date() : undefined,
-        };
+        return { ...r, completed: nextCompleted, completedAt: nextCompleted ? new Date() : undefined };
       })
     );
+
+  /* -------------------- Render -------------------- */
 
   const tabs: Array<[Tab, string]> = [
     ["dashboard", "Dashboard"],
@@ -687,8 +486,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             subjects={subjects}
             studySessions={studySessions}
             onOpenStudyPlanner={() => setActiveTab("study")}
-            onOpenSettings={() => setActiveTab("settings")}
             onOpenTasks={() => setActiveTab("tasks")}
+            onOpenSettings={(section) => {
+              setActiveTab("settings");
+              setSettingsOpenSection(section ?? null);
+            }}
           />
         )}
 
@@ -759,6 +561,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateSubject={handleUpdateSubject}
             onDeleteSubject={handleDeleteSubject}
             onClearAllData={handleClearAllData}
+            openSection={settingsOpenSection}
+            onOpenSectionHandled={() => setSettingsOpenSection(null)}
           />
         )}
       </main>
