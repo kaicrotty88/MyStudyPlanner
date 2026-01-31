@@ -206,8 +206,9 @@ export function Dashboard({
   const needsSubjects = subjects.length === 0;
   const needsTerms = allPeriods.length === 0;
 
+  // ✅ ONLY CHANGE: make these banner buttons the same size
   const bannerButtonClass =
-    "shrink-0 inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+    "shrink-0 inline-flex h-9 min-w-[140px] justify-center whitespace-nowrap items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
@@ -380,7 +381,12 @@ export function Dashboard({
                           </div>
 
                           <div className="shrink-0 text-right">
-                            <div className={["text-xs font-semibold", isLate ? "text-destructive" : "text-foreground"].join(" ")}>
+                            <div
+                              className={[
+                                "text-xs font-semibold",
+                                isLate ? "text-destructive" : "text-foreground",
+                              ].join(" ")}
+                            >
                               {dueLabel(d)}
                             </div>
                             <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
