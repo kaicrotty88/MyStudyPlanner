@@ -1,18 +1,15 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Calendar, Settings2, X } from "lucide-react";
+import { ArrowUpRight, Calendar, Settings2 } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { isSameDay } from "./models";
 
 // Must match Settings + Tasks + Marks
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-// ✅ Dashboard-only UI pref (safe to delete anytime)
-const TERMS_BANNER_DISMISSED_KEY = "msp-terms-banner-dismissed";
-
-// ✅ Optional “open Terms accordion” hint for Settings
-const SETTINGS_OPEN_KEY = "msp-settings-open";
+// Optional: used to auto-open the Terms accordion in Settings (if Settings reads it)
+const OPEN_TERMS_HINT_KEY = "msp-open-terms";
 
 type PeriodStored = {
   id: string;
@@ -136,7 +133,7 @@ export function Dashboard({
 
   const dailyQuote = useMemo(() => pickDailyQuote(today), [today]);
 
-  // ✅ Load Terms from localStorage (ALL terms — not only “Term 1–4”)
+  // ✅ Load ALL periods from localStorage (Terms / Prelims / etc)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
   useEffect(() => {
@@ -162,26 +159,22 @@ export function Dashboard({
     }
   }, []);
 
-  // ✅ Dismissable “set term dates” banner (dashboard-only)
-  const [termsBannerDismissed, setTermsBannerDismissed] = useState(false);
-
-  useEffect(() => {
-    try {
-      setTermsBannerDismissed(Boolean(localStorage.getItem(TERMS_BANNER_DISMISSED_KEY)));
-    } catch {
-      setTermsBannerDismissed(false);
-    }
-  }, []);
+  // Terms 1–4 only (for “Term · Week X” label)
+  const terms1to4 = useMemo(() => {
+    return periods
+      .filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()))
+      .sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+  }, [periods]);
 
   const termWeekLabel = useMemo(() => {
-    if (periods.length === 0) return null;
+    if (terms1to4.length === 0) return null;
 
-    const active = periods.find((p) => inRangeInclusive(today, p.startDate, p.endDate));
+    const active = terms1to4.find((p) => inRangeInclusive(today, p.startDate, p.endDate));
     if (!active) return null;
 
     const wk = weekOfTerm(today, active.startDate);
     return `${active.name} · Week ${wk}`;
-  }, [periods, today]);
+  }, [terms1to4, today]);
 
   const subjectById = useMemo(() => {
     const map = new Map<string, Subject>();
@@ -213,25 +206,17 @@ export function Dashboard({
 
   const needsSubjects = subjects.length === 0;
 
-  const hasNoTerms = periods.length === 0;
-  const showTermsBanner = hasNoTerms && !termsBannerDismissed;
+  // ✅ This is the new rule: show banner until at least 1 term exists (NOT dismissable)
+  const needsTerms = periods.length === 0;
 
   const openTermsInSettings = () => {
+    // Optional hint so Settings can auto-open the Terms accordion
     try {
-      localStorage.setItem(SETTINGS_OPEN_KEY, "terms"); // Settings should read this and auto-expand Terms
+      localStorage.setItem(OPEN_TERMS_HINT_KEY, "1");
     } catch {
       // ignore
     }
     onOpenSettings();
-  };
-
-  const dismissTermsBanner = () => {
-    setTermsBannerDismissed(true);
-    try {
-      localStorage.setItem(TERMS_BANNER_DISMISSED_KEY, "1");
-    } catch {
-      // ignore
-    }
   };
 
   return (
@@ -243,13 +228,12 @@ export function Dashboard({
 
           <div className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">{dailyQuote.quote}</p>
-
             {termWeekLabel ? <div className="text-xs text-muted-foreground">{termWeekLabel}</div> : null}
           </div>
         </div>
       </div>
 
-      {/* ✅ First-run setup nudges */}
+      {/* ✅ First-run setup nudge (only when no subjects) */}
       {needsSubjects && (
         <div className="rounded-2xl border border-border bg-card shadow-sm">
           <div className="px-5 py-4 flex items-start justify-between gap-4">
@@ -273,37 +257,26 @@ export function Dashboard({
         </div>
       )}
 
-      {showTermsBanner && (
+      {/* ✅ Terms banner (NOT dismissable, disappears once terms exist) */}
+      {needsTerms && (
         <div className="rounded-2xl border border-border bg-card shadow-sm">
           <div className="px-5 py-4 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">Set your term dates</div>
+              <div className="text-sm font-semibold text-foreground">Add your term dates</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                Add your term date ranges so tasks and insights can group work by term and show week numbers.
+                Term dates help MyStudyPlanner group tasks by term and power term filtering in Insights & Tasks.
               </div>
             </div>
 
-            <div className="shrink-0 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={openTermsInSettings}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                title="Open Terms in Settings"
-              >
-                <Settings2 className="h-4 w-4" />
-                Add term dates
-              </button>
-
-              <button
-                type="button"
-                onClick={dismissTermsBanner}
-                className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                aria-label="Dismiss"
-                title="Dismiss"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={openTermsInSettings}
+              className="shrink-0 inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              title="Open Settings → Terms"
+            >
+              <Settings2 className="h-4 w-4" />
+              Add terms
+            </button>
           </div>
         </div>
       )}
@@ -352,10 +325,7 @@ export function Dashboard({
                         className="group rounded-xl border border-border bg-background/40 px-4 py-3 hover:bg-background/60 transition"
                       >
                         <div className="flex items-start gap-3">
-                          <span
-                            className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: dot }}
-                          />
+                          <span className="mt-1 h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: dot }} />
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-3">

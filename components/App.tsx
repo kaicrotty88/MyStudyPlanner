@@ -36,6 +36,103 @@ type Tab =
   | "settings";
 type AppMode = "demo" | "app";
 
+/* -------------------- Demo freshness helpers -------------------- */
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+const dayKey = (d: Date) => {
+  const x = startOfDay(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
+
+const parseDayKey = (k: string) => {
+  const [y, m, d] = k.split("-").map(Number);
+  return startOfDay(new Date(y, (m || 1) - 1, d || 1));
+};
+
+const addDays = (d: Date, days: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+};
+
+const safeDate = (v: any): Date | null => {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const diffDays = (fromKey: string, to: Date) => {
+  const a = parseDayKey(fromKey).getTime();
+  const b = startOfDay(to).getTime();
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+};
+
+// Shifts ALL demo dates forward if demo was seeded on an older day.
+// Returns updated payload + whether it changed.
+const shiftDemoDatesIfNeeded = (payload: any) => {
+  const today = new Date();
+  const todayKey = dayKey(today);
+
+  const seededOn: string = typeof payload?.seededOn === "string" ? payload.seededOn : todayKey;
+  const delta = diffDays(seededOn, today);
+
+  if (!delta) {
+    // Ensure seededOn exists
+    return { next: { ...payload, seededOn: todayKey }, changed: seededOn !== todayKey };
+  }
+
+  const shiftField = (obj: any, field: string) => {
+    const d = safeDate(obj?.[field]);
+    if (!d) return obj;
+    return { ...obj, [field]: addDays(d, delta).toISOString() };
+  };
+
+  const shiftPeriod = (p: any) => {
+    let out = { ...p };
+    out = shiftField(out, "startDate");
+    out = shiftField(out, "endDate");
+    return out;
+  };
+
+  const shiftTask = (t: any) => {
+    let out = { ...t };
+    out = shiftField(out, "dueDate");
+    out = shiftField(out, "completedAt");
+    if (out?.result?.dateRecorded) {
+      const dr = safeDate(out.result.dateRecorded);
+      if (dr) out = { ...out, result: { ...out.result, dateRecorded: addDays(dr, delta).toISOString() } };
+    }
+    return out;
+  };
+
+  const shiftSession = (s: any) => {
+    let out = { ...s };
+    out = shiftField(out, "date");
+    out = shiftField(out, "completedAt");
+    return out;
+  };
+
+  const shiftReminder = (r: any) => {
+    let out = { ...r };
+    out = shiftField(out, "dueDate");
+    out = shiftField(out, "createdAt");
+    out = shiftField(out, "completedAt");
+    return out;
+  };
+
+  const next = {
+    ...payload,
+    seededOn: todayKey,
+    periods: Array.isArray(payload?.periods) ? payload.periods.map(shiftPeriod) : payload?.periods,
+    tasks: Array.isArray(payload?.tasks) ? payload.tasks.map(shiftTask) : payload?.tasks,
+    studySessions: Array.isArray(payload?.studySessions) ? payload.studySessions.map(shiftSession) : payload?.studySessions,
+    reminders: Array.isArray(payload?.reminders) ? payload.reminders.map(shiftReminder) : payload?.reminders,
+  };
+
+  return { next, changed: true };
+};
+
 /* -------------------- Defaults / Demo -------------------- */
 
 const defaultSubjects: Subject[] = [
@@ -159,6 +256,7 @@ const makeDefaultData = () => {
   ];
 
   return {
+    seededOn: dayKey(today), // ✅ store when this demo was generated
     subjects: defaultSubjects,
     periods: DEMO_PERIODS,
     tasks: demoTasks,
@@ -214,6 +312,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
+  // Keep current demo seededOn so we persist it cleanly
+  const demoSeededOnRef = useRef<string | null>(null);
+
   /* -------------------- Mobile desktop hint -------------------- */
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
@@ -267,6 +368,15 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       // Seed the separate "periods list" key used by your Terms UI
       seedDemoPeriodsKeyIfMissing(seeded.periods);
 
+      // Store demo immediately (so future loads can roll forward using seededOn)
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(seeded));
+      } catch {
+        // ignore
+      }
+
+      demoSeededOnRef.current = seeded.seededOn;
+
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
       setTasks(seeded.tasks);
@@ -291,7 +401,23 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     }
 
     try {
-      const parsed = JSON.parse(raw as string);
+      let parsed = JSON.parse(raw as string);
+
+      // ✅ If demo exists, roll dates forward so it always feels current
+      if (mode === "demo" && parsed) {
+        const { next, changed } = shiftDemoDatesIfNeeded(parsed);
+        parsed = next;
+
+        demoSeededOnRef.current = typeof parsed.seededOn === "string" ? parsed.seededOn : null;
+
+        if (changed) {
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          } catch {
+            // ignore
+          }
+        }
+      }
 
       setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
 
@@ -357,6 +483,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         const seeded = makeDefaultData();
         seedDemoPeriodsKeyIfMissing(seeded.periods);
 
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(seeded));
+        } catch {
+          // ignore
+        }
+
+        demoSeededOnRef.current = seeded.seededOn;
+
         setSubjects(seeded.subjects);
         setPeriods(seeded.periods);
         setTasks(seeded.tasks);
@@ -379,11 +513,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (!hydrated.current) return;
 
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
+      const payload: any = { subjects, periods, tasks, studySessions, reminders };
+
+      // ✅ keep demo freshness stamp
+      if (mode === "demo") {
+        payload.seededOn = demoSeededOnRef.current ?? dayKey(new Date());
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       // ignore
     }
-  }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
+  }, [subjects, periods, tasks, studySessions, reminders, storageKey, mode]);
 
   /* -------------------- Clear / Reset -------------------- */
 
@@ -393,6 +534,14 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     if (mode === "demo") {
       const seeded = makeDefaultData();
       seedDemoPeriodsKeyIfMissing(seeded.periods);
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(seeded));
+      } catch {
+        // ignore
+      }
+
+      demoSeededOnRef.current = seeded.seededOn;
 
       setSubjects(seeded.subjects);
       setPeriods(seeded.periods);
