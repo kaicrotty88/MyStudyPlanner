@@ -73,7 +73,7 @@ interface SettingsProps {
   appMode: AppMode;
   onClearAllData: () => void;
 
-  // ✅ new: allow Dashboard to open + expand a section
+  // ✅ allow Dashboard to open + expand a section
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
 }
@@ -240,6 +240,10 @@ export function Settings({
     "#A3A3A3",
   ];
 
+  // Normalize term names for reliable duplicate checking
+  const normalizeTermName = (s: string) =>
+    s.trim().replace(/\s+/g, " ").toLowerCase();
+
   // -------- Periods: load + persist --------
   useEffect(() => {
     try {
@@ -275,6 +279,45 @@ export function Settings({
       // ignore
     }
   }, [periods]);
+
+  // -------- Periods handlers --------
+  const openNewPeriod = () => {
+    setPeriodFormError("");
+    setEditingPeriodId(null);
+    setShowAddPeriodForm(true);
+    setPeriodsOpen(true);
+
+    const today = new Date();
+    setPeriodForm({
+      name: "",
+      startDate: toISODateInputValue(today),
+      endDate: toISODateInputValue(today),
+    });
+  };
+
+  const openEditPeriod = (p: Period) => {
+    setPeriodFormError("");
+    setEditingPeriodId(p.id);
+    setShowAddPeriodForm(true);
+    setPeriodsOpen(true);
+    setPeriodForm({
+      name: p.name,
+      startDate: toISODateInputValue(p.startDate),
+      endDate: toISODateInputValue(p.endDate),
+    });
+  };
+
+  const cancelPeriodForm = () => {
+    setShowAddPeriodForm(false);
+    setEditingPeriodId(null);
+    setPeriodFormError("");
+    const today = new Date();
+    setPeriodForm({
+      name: "",
+      startDate: toISODateInputValue(today),
+      endDate: toISODateInputValue(today),
+    });
+  };
 
   // ✅ When Dashboard asks to open a specific section
   useEffect(() => {
@@ -337,7 +380,10 @@ export function Settings({
     return { tasks: t, items: i, sessions: s };
   }, [deletingSubjectId, tasks, studyItems, studySessions]);
 
-  const deletingPeriod = useMemo(() => periods.find((p) => p.id === deletingPeriodId) || null, [periods, deletingPeriodId]);
+  const deletingPeriod = useMemo(
+    () => periods.find((p) => p.id === deletingPeriodId) || null,
+    [periods, deletingPeriodId]
+  );
 
   const handleSubmit = () => {
     if (!formData.name || !formData.color) return;
@@ -372,45 +418,6 @@ export function Settings({
     setDeletingSubjectId(null);
   };
 
-  // -------- Periods handlers --------
-  const openNewPeriod = () => {
-    setPeriodFormError("");
-    setEditingPeriodId(null);
-    setShowAddPeriodForm(true);
-    setPeriodsOpen(true);
-
-    const today = new Date();
-    setPeriodForm({
-      name: "",
-      startDate: toISODateInputValue(today),
-      endDate: toISODateInputValue(today),
-    });
-  };
-
-  const openEditPeriod = (p: Period) => {
-    setPeriodFormError("");
-    setEditingPeriodId(p.id);
-    setShowAddPeriodForm(true);
-    setPeriodsOpen(true);
-    setPeriodForm({
-      name: p.name,
-      startDate: toISODateInputValue(p.startDate),
-      endDate: toISODateInputValue(p.endDate),
-    });
-  };
-
-  const cancelPeriodForm = () => {
-    setShowAddPeriodForm(false);
-    setEditingPeriodId(null);
-    setPeriodFormError("");
-    const today = new Date();
-    setPeriodForm({
-      name: "",
-      startDate: toISODateInputValue(today),
-      endDate: toISODateInputValue(today),
-    });
-  };
-
   const savePeriod = () => {
     const name = periodForm.name.trim();
     if (!name) {
@@ -431,7 +438,11 @@ export function Settings({
       return;
     }
 
-    const nameClash = periods.some((p) => p.id !== editingPeriodId && p.name.toLowerCase() === name.toLowerCase());
+    // ✅ Fix: normalize names + ignore the row being edited
+    const n = normalizeTermName(name);
+    const nameClash = periods.some(
+      (p) => p.id !== editingPeriodId && normalizeTermName(p.name) === n
+    );
     if (nameClash) {
       setPeriodFormError("That term name already exists.");
       return;
@@ -439,7 +450,9 @@ export function Settings({
 
     if (editingPeriodId) {
       setPeriods((prev) => {
-        const next = prev.map((p) => (p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p));
+        const next = prev.map((p) =>
+          p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
+        );
         next.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
         return next;
       });
@@ -612,7 +625,10 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={["w-5 h-5 text-muted-foreground transition-transform", subjectsOpen ? "rotate-180" : "rotate-0"].join(" ")}
+              className={[
+                "w-5 h-5 text-muted-foreground transition-transform",
+                subjectsOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
             />
           </button>
 
@@ -635,7 +651,9 @@ export function Settings({
 
               {(showAddForm || editingId) && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-foreground">{editingId ? "Edit subject" : "New subject"}</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {editingId ? "Edit subject" : "New subject"}
+                  </div>
 
                   <input
                     ref={subjectNameInputRef}
@@ -660,7 +678,9 @@ export function Settings({
                           onClick={() => setFormData({ ...formData, color })}
                           className={[
                             "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                            formData.color === color ? "ring-2 ring-primary scale-105" : "hover:scale-105",
+                            formData.color === color
+                              ? "ring-2 ring-primary scale-105"
+                              : "hover:scale-105",
                           ].join(" ")}
                           style={{ backgroundColor: color }}
                           aria-label={`Pick ${color}`}
@@ -699,7 +719,9 @@ export function Settings({
                 {subjects.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No subjects yet</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Create one to start organising your work.</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Create one to start organising your work.
+                    </div>
                   </div>
                 ) : (
                   subjects.map((subject) => (
@@ -708,9 +730,14 @@ export function Settings({
                       className="group rounded-2xl border border-border bg-card px-4 py-3 shadow-sm hover:shadow-md transition flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl border border-border" style={{ backgroundColor: subject.color }} />
+                        <div
+                          className="h-10 w-10 rounded-xl border border-border"
+                          style={{ backgroundColor: subject.color }}
+                        />
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">{subject.name}</div>
+                          <div className="text-sm font-medium text-foreground truncate">
+                            {subject.name}
+                          </div>
                           <div className="text-xs text-muted-foreground">{subject.color}</div>
                         </div>
                       </div>
@@ -750,11 +777,16 @@ export function Settings({
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Terms</div>
-              <div className="text-xs text-muted-foreground">Define your school terms so tasks can be grouped automatically.</div>
+              <div className="text-xs text-muted-foreground">
+                Define your school terms so tasks can be grouped automatically.
+              </div>
             </div>
 
             <ChevronDown
-              className={["w-5 h-5 text-muted-foreground transition-transform", periodsOpen ? "rotate-180" : "rotate-0"].join(" ")}
+              className={[
+                "w-5 h-5 text-muted-foreground transition-transform",
+                periodsOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
             />
           </button>
 
@@ -773,11 +805,15 @@ export function Settings({
 
               {showAddPeriodForm && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-foreground">{editingPeriodId ? "Edit term" : "New term"}</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {editingPeriodId ? "Edit term" : "New term"}
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-1">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        Name
+                      </label>
                       <input
                         ref={termNameInputRef}
                         type="text"
@@ -790,7 +826,9 @@ export function Settings({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Start date</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        Start date
+                      </label>
                       <input
                         type="date"
                         value={periodForm.startDate}
@@ -800,7 +838,9 @@ export function Settings({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">End date</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        End date
+                      </label>
                       <input
                         type="date"
                         value={periodForm.endDate}
@@ -909,7 +949,10 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={["w-5 h-5 text-muted-foreground transition-transform", backupOpen ? "rotate-180" : "rotate-0"].join(" ")}
+              className={[
+                "w-5 h-5 text-muted-foreground transition-transform",
+                backupOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
             />
           </button>
 
@@ -967,7 +1010,9 @@ export function Settings({
         <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4 flex items-center justify-between">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-foreground">Clear all data</div>
-            <div className="text-xs text-muted-foreground">{appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}</div>
+            <div className="text-xs text-muted-foreground">
+              {appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}
+            </div>
           </div>
 
           <button
@@ -1130,7 +1175,9 @@ export function Settings({
                 </div>
               </div>
 
-              <div className="text-[11px] text-muted-foreground">After restoring, the page will reload automatically.</div>
+              <div className="text-[11px] text-muted-foreground">
+                After restoring, the page will reload automatically.
+              </div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">

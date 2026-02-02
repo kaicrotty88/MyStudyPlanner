@@ -83,16 +83,40 @@ const makeDefaultData = () => {
   ];
 
   const demoStudySessions: StudySession[] = [
-    { id: "ss1", subjectId: "1", title: "Chapter 5 review", date: today, startTime: "4:00 PM", duration: "60 min", linkedTaskId: "t3", completed: false },
+    {
+      id: "ss1",
+      subjectId: "1",
+      title: "Chapter 5 review",
+      date: today,
+      startTime: "4:00 PM",
+      duration: "60 min",
+      linkedTaskId: "t3",
+      completed: false,
+    },
   ];
 
   const demoReminders: Reminder[] = [
-    { id: "r1", title: "Pack bag tonight", notes: "Laptop charger, workbook, sport kit", dueDate: today, time: "20:30", repeat: "none", completed: false, createdAt: today },
+    {
+      id: "r1",
+      title: "Pack bag tonight",
+      notes: "Laptop charger, workbook, sport kit",
+      dueDate: today,
+      time: "20:30",
+      repeat: "none",
+      completed: false,
+      createdAt: today,
+    },
     { id: "r2", title: "Email teacher about extension question", dueDate: tomorrow, repeat: "none", completed: false, createdAt: today },
     { id: "r3", title: "Buy new pens", notes: "Black + blue", repeat: "none", completed: false, createdAt: today },
   ];
 
-  return { subjects: defaultSubjects, periods: DEMO_PERIODS, tasks: demoTasks, studySessions: demoStudySessions, reminders: demoReminders };
+  return {
+    subjects: defaultSubjects,
+    periods: DEMO_PERIODS,
+    tasks: demoTasks,
+    studySessions: demoStudySessions,
+    reminders: demoReminders,
+  };
 };
 
 const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
@@ -139,7 +163,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
-  // ✅ new: tell Settings which section to open (from Dashboard banners)
+  // ✅ tell Settings which section to open (from Dashboard banners)
   const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
 
   /* -------------------- Mobile desktop hint -------------------- */
@@ -202,12 +226,18 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       return;
     }
 
+    // ✅ For brand new app users: clear any leftover demo/shared "periods" key too
     if (!raw && mode === "app") {
+      try {
+        localStorage.removeItem(PERIODS_STORAGE_KEY);
+      } catch {}
+
       setSubjects([]);
       setPeriods([]);
       setTasks([]);
       setStudySessions([]);
       setReminders([]);
+
       hydrated.current = true;
       markReadyNextPaint();
       return;
@@ -279,6 +309,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         setStudySessions(seeded.studySessions);
         setReminders(seeded.reminders);
       } else {
+        // ✅ If app storage is corrupted, also clear periods key so the user starts clean
+        try {
+          localStorage.removeItem(PERIODS_STORAGE_KEY);
+        } catch {}
+
         setSubjects([]);
         setPeriods([]);
         setTasks([]);
@@ -326,7 +361,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
 
   /* -------------------- Handlers -------------------- */
 
-  const handleAddSubject = (name: string, color: string) => setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
+  const handleAddSubject = (name: string, color: string) =>
+    setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
     setSubjects((p) => p.map((s) => (s.id === id ? { ...s, name, color } : s)));
@@ -355,19 +391,27 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) => p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t)));
 
-  const handleAddStudySession = (s: Omit<StudySession, "id">) => setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
+  const handleAddStudySession = (s: Omit<StudySession, "id">) =>
+    setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
 
-  const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) => setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
+  const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
+    setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
   const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((p) => p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s)));
+    setStudySessions((p) =>
+      p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
+    );
 
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
-    setReminders((p) => [...p, { ...r, id: Date.now().toString(), createdAt: r.createdAt ?? new Date(), completed: r.completed ?? false }]);
+    setReminders((p) => [
+      ...p,
+      { ...r, id: Date.now().toString(), createdAt: r.createdAt ?? new Date(), completed: r.completed ?? false },
+    ]);
 
-  const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) => setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
+  const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
+    setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
 
   const handleDeleteReminder = (id: string) => setReminders((p) => p.filter((r) => r.id !== id));
 
@@ -443,7 +487,11 @@ function App({ mode = "app" }: { mode?: AppMode }) {
                 }}
               >
                 <UserButton.MenuItems>
-                  <UserButton.Action label="Account" labelIcon={<User className="h-4 w-4" />} onClick={() => setActiveTab("settings")} />
+                  <UserButton.Action
+                    label="Account"
+                    labelIcon={<User className="h-4 w-4" />}
+                    onClick={() => setActiveTab("settings")}
+                  />
                 </UserButton.MenuItems>
               </UserButton>
             </div>
@@ -466,7 +514,9 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
-            <div className="text-[12px] leading-5 text-muted-foreground">Best on desktop. Mobile is great for quick check-ins.</div>
+            <div className="text-[12px] leading-5 text-muted-foreground">
+              Best on desktop. Mobile is great for quick check-ins.
+            </div>
 
             <button
               onClick={dismissMobileDesktopHint}

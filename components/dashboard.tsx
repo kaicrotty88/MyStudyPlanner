@@ -187,9 +187,13 @@ export function Dashboard({
     [studySessions, today]
   );
 
-  const ninetyDaysFromToday = useMemo(() => {
+  // ✅ Dashboard “Up next” window + cap
+  const UPCOMING_WINDOW_DAYS = 30;
+  const MAX_UP_NEXT = 5;
+
+  const thirtyDaysFromToday = useMemo(() => {
     const d = new Date(today);
-    d.setDate(d.getDate() + 90);
+    d.setDate(d.getDate() + UPCOMING_WINDOW_DAYS);
     return d;
   }, [today]);
 
@@ -197,18 +201,17 @@ export function Dashboard({
     () =>
       tasks
         .filter((t) => !t.completed)
-        .filter((t) => t.dueDate.getTime() <= ninetyDaysFromToday.getTime())
+        .filter((t) => t.dueDate.getTime() <= thirtyDaysFromToday.getTime())
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-        .slice(0, 6),
-    [tasks, ninetyDaysFromToday]
+        .slice(0, MAX_UP_NEXT),
+    [tasks, thirtyDaysFromToday]
   );
 
   const needsSubjects = subjects.length === 0;
   const needsTerms = allPeriods.length === 0;
 
-  // ✅ ONLY CHANGE: make these banner buttons the same size
   const bannerButtonClass =
-    "shrink-0 inline-flex h-9 min-w-[140px] justify-center whitespace-nowrap items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+    "shrink-0 inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background/40 px-3 text-sm font-medium text-foreground/90 hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
@@ -332,7 +335,9 @@ export function Dashboard({
             <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground">Up next</h2>
-                <p className="text-xs text-muted-foreground">Upcoming deadlines</p>
+                <p className="text-xs text-muted-foreground">
+                  Due in the next {UPCOMING_WINDOW_DAYS} days (max {MAX_UP_NEXT})
+                </p>
               </div>
 
               <button
@@ -349,7 +354,9 @@ export function Dashboard({
               {upNext.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-10 text-center">
                   <div className="text-sm font-medium text-foreground">All clear</div>
-                  <div className="mt-1 text-xs text-muted-foreground">No upcoming tasks.</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    No tasks due in the next {UPCOMING_WINDOW_DAYS} days.
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
