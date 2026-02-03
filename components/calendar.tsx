@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
-import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Plus, Check } from "lucide-react";
 
 import type { Subject, Task, StudySession, Reminder } from "./models";
 
@@ -35,8 +35,10 @@ interface CalendarProps {
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
   onDeleteTask?: (id: string) => void;
 
-  // ✅ NEW: allow completing tasks from Calendar
+  // ✅ allow completing items from Calendar
   onToggleTaskCompleted?: (taskId: string) => void;
+  onToggleStudySessionCompleted?: (sessionId: string) => void;
+  onToggleReminderCompleted?: (reminderId: string) => void;
 
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession?: (id: string, session: Omit<StudySession, "id">) => void;
@@ -131,8 +133,6 @@ const time24To12 = (t: string) => {
 const time12To24 = (t: string) => {
   if (!t) return "";
   const s = t.trim().toUpperCase();
-
-  // Matches: "4:00 PM", "4 PM", "12:15 AM"
   const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
   if (!m) return "";
 
@@ -151,7 +151,6 @@ const time12To24 = (t: string) => {
 const displaySessionTime = (t: string) => {
   const s = (t ?? "").trim();
   if (!s) return "";
-  // If stored as 24h "HH:MM", display nicely
   if (/^\d{2}:\d{2}$/.test(s)) return time24To12(s);
   return s;
 };
@@ -186,6 +185,8 @@ function CalendarView({
   onUpdateTask,
   onDeleteTask,
   onToggleTaskCompleted,
+  onToggleStudySessionCompleted,
+  onToggleReminderCompleted,
   onAddStudySession,
   onUpdateStudySession,
   onDeleteStudySession,
@@ -223,29 +224,16 @@ function CalendarView({
     }
   }, []);
 
-  const periodNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of periods) map.set(p.id, p.name);
-    return map;
-  }, [periods]);
-
   const termWeekLabel = useMemo(() => {
     if (periods.length === 0) return undefined;
-
     const active = periods.find((p) => inRangeInclusive(currentDate, p.startDate, p.endDate));
     if (!active) return undefined;
-
     const wk = weekOfTerm(currentDate, active.startDate);
     return `${active.name} · Week ${wk}`;
   }, [currentDate, periods]);
 
-  // tasks edit
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-
-  // sessions edit
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-
-  // reminders edit
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
 
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
@@ -259,7 +247,6 @@ function CalendarView({
     type: "task" as "task" | "assignment" | "exam" | "homework",
   });
 
-  // ✅ Study Sessions form
   const [sessionFormData, setSessionFormData] = useState({
     title: "",
     subjectId: "",
@@ -269,7 +256,6 @@ function CalendarView({
     linkedTaskId: "",
   });
 
-  // ✅ Reminders form
   const [reminderFormData, setReminderFormData] = useState({
     title: "",
     dueDate: "",
@@ -284,15 +270,15 @@ function CalendarView({
 
   const taskById = useMemo(() => {
     const map = new Map<string, Task>();
-    tasks.forEach((t) => map.set(t.id, t));
+    tasks.forEach((t: any) => map.set(t.id, t));
     return map;
   }, [tasks]);
 
-  // ✅ Calendar should hide completed tasks/sessions (so completed items disappear instantly)
+  // ✅ hide completed items in Calendar
   const activeTasks = useMemo(() => tasks.filter((t: any) => !t.completed), [tasks]);
   const activeSessions = useMemo(() => studySessions.filter((s: any) => !s.completed), [studySessions]);
+  const activeReminders = useMemo(() => reminders.filter((r: any) => !r.completed), [reminders]);
 
-  // ✅ Link study sessions to ANY active task (incl. Homework), filtered by selected subject if set
   const linkableTasks = useMemo(() => {
     return activeTasks
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
@@ -300,7 +286,6 @@ function CalendarView({
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [activeTasks, sessionFormData.subjectId]);
 
-  // If editing a session linked to a now-completed/missing task, keep it visible (disabled)
   const currentLinkedTask = useMemo(() => {
     const id = (sessionFormData.linkedTaskId ?? "").trim();
     if (!id) return null;
@@ -335,10 +320,7 @@ function CalendarView({
   const getItemsForDate = (date: Date) => {
     const dateTasks = activeTasks.filter((task) => isSameDay(task.dueDate, date));
     const dateSessions = activeSessions.filter((session) => isSameDay(session.date, date));
-    const dateReminders = reminders
-      .filter((r) => !r.completed)
-      .filter((r) => (r.dueDate ? isSameDay(r.dueDate, date) : false));
-
+    const dateReminders = activeReminders.filter((r) => (r.dueDate ? isSameDay(r.dueDate, date) : false));
     return { tasks: dateTasks, sessions: dateSessions, reminders: dateReminders };
   };
 
@@ -365,11 +347,7 @@ function CalendarView({
         linkedTaskId: "",
       });
     } else if (type === "reminder") {
-      setReminderFormData({
-        title: "",
-        dueDate: dateStr,
-        time: "",
-      });
+      setReminderFormData({ title: "", dueDate: dateStr, time: "" });
     } else {
       setTaskFormData({
         title: "",
@@ -444,22 +422,21 @@ function CalendarView({
     if (editingTaskId && onUpdateTask) {
       const existing = tasks.find((t) => t.id === editingTaskId);
 
-      // Stable history: keep existing periodId unless due date changed.
       const dueChanged =
         existing?.dueDate && startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
       const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
-      const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
+      const nextPeriodId = dueChanged ? computedPeriodId : (existing as any)?.periodId;
 
       const payload: Omit<Task, "id"> = {
         title: taskFormData.title,
         subjectId: taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
-        completed: existing?.completed,
-        completedAt: existing?.completedAt,
+        completed: (existing as any)?.completed,
+        completedAt: (existing as any)?.completedAt,
         periodId: nextPeriodId,
-        result: existing?.result,
+        result: (existing as any)?.result,
       };
 
       onUpdateTask(editingTaskId, payload);
@@ -503,7 +480,7 @@ function CalendarView({
       ...(editingSessionId
         ? (() => {
             const current = studySessions.find((x) => x.id === editingSessionId);
-            return { completed: current?.completed, completedAt: current?.completedAt };
+            return { completed: (current as any)?.completed, completedAt: (current as any)?.completedAt };
           })()
         : {}),
     };
@@ -539,11 +516,11 @@ function CalendarView({
       time: reminderFormData.time?.trim() ? reminderFormData.time.trim() : undefined,
       ...(editingReminderId
         ? {
-            notes: existing?.notes,
-            repeat: existing?.repeat,
-            completed: existing?.completed,
-            completedAt: existing?.completedAt,
-            createdAt: existing?.createdAt,
+            notes: (existing as any)?.notes,
+            repeat: (existing as any)?.repeat,
+            completed: (existing as any)?.completed,
+            completedAt: (existing as any)?.completedAt,
+            createdAt: (existing as any)?.createdAt,
           }
         : {}),
     };
@@ -595,6 +572,30 @@ function CalendarView({
     </button>
   );
 
+  // ✅ More visible complete button for every card type
+  const CompleteButton = ({
+    onClick,
+    label,
+  }: {
+    onClick: (e: React.MouseEvent) => void;
+    label: string;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={[
+        "mt-0.5 h-6 w-6 rounded-lg border border-border",
+        "grid place-items-center bg-primary/10 hover:bg-primary/20 transition",
+        "text-primary shadow-sm",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+      ].join(" ")}
+    >
+      <Check className="h-4 w-4" />
+    </button>
+  );
+
+  // ✅ card (chip)
   const renderChip = ({
     title,
     subjectId,
@@ -612,7 +613,6 @@ function CalendarView({
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
     const dot = subject?.color ?? "#94a3b8";
-
     const titleLines = compact ? 2 : 3;
 
     const timeLabel = session
@@ -631,13 +631,13 @@ function CalendarView({
       (task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders)
     );
 
-    // ✅ Capitalised labels
     const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
     const bottomRight = task ? typeLabel(task.type) : session ? "Study Session" : "";
 
-    const canToggleComplete = Boolean(task && onToggleTaskCompleted);
+    const canCompleteTask = Boolean(task && onToggleTaskCompleted);
+    const canCompleteSession = Boolean(session && onToggleStudySessionCompleted);
+    const canCompleteReminder = Boolean(reminder && onToggleReminderCompleted);
 
-    // ✅ Only reserve right-side space for time if there is time text
     const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
 
     return (
@@ -664,23 +664,30 @@ function CalendarView({
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
         title={title}
       >
-        {/* ✅ Complete toggle (tasks only) */}
-        {canToggleComplete ? (
-          <button
-            type="button"
+        {canCompleteTask ? (
+          <CompleteButton
+            label="Mark task complete"
             onClick={(e) => {
               e.stopPropagation();
               if (task) onToggleTaskCompleted?.(task.id);
             }}
-            className={[
-              "mt-0.5 h-5 w-5 rounded border border-border grid place-items-center",
-              "bg-background/40 hover:bg-muted transition shrink-0",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-            ].join(" ")}
-            aria-label="Mark task complete"
-          >
-            <div className="h-2.5 w-2.5 rounded-sm bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-          </button>
+          />
+        ) : canCompleteSession ? (
+          <CompleteButton
+            label="Mark study session complete"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (session) onToggleStudySessionCompleted?.(session.id);
+            }}
+          />
+        ) : canCompleteReminder ? (
+          <CompleteButton
+            label="Mark reminder complete"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (reminder) onToggleReminderCompleted?.(reminder.id);
+            }}
+          />
         ) : null}
 
         <div className={["min-w-0 flex-1", rightPaddingClass].join(" ")}>
@@ -688,7 +695,6 @@ function CalendarView({
             {title}
           </div>
 
-          {/* ✅ Bottom row: subject uses remaining space, type hugs right */}
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             <div className="min-w-0 flex-1 truncate">{bottomLeft}</div>
             {bottomRight ? <div className="shrink-0 ml-auto">{bottomRight}</div> : null}
@@ -1008,7 +1014,7 @@ function CalendarView({
   // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = useMemo(() => {
     const s = (sessionFormData.startTime ?? "").trim();
-    if (/^\d{2}:\d{2}$/.test(s)) return s; // already 24h format
+    if (/^\d{2}:\d{2}$/.test(s)) return s;
     return time12To24(s);
   }, [sessionFormData.startTime]);
 
@@ -1184,8 +1190,6 @@ function CalendarView({
                     value={sessionFormData.subjectId}
                     onChange={(e) => {
                       const nextSubjectId = e.target.value;
-
-                      // If a link exists and the new subject doesn't match it, clear the link.
                       const linked = sessionFormData.linkedTaskId ? taskById.get(sessionFormData.linkedTaskId) : null;
                       const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
 
@@ -1224,7 +1228,6 @@ function CalendarView({
                           return;
                         }
 
-                        // ✅ Auto-sync subject to linked task
                         setSessionFormData((p) => ({
                           ...p,
                           linkedTaskId: nextId,
@@ -1235,7 +1238,6 @@ function CalendarView({
                     >
                       <option value="">Not linked</option>
 
-                      {/* Keep old link visible if editing and the task is now completed */}
                       {currentLinkedTask && (currentLinkedTask as any).completed ? (
                         <option value={currentLinkedTask.id} disabled>
                           {typeLabel(currentLinkedTask.type)} • {currentLinkedTask.title} (completed)
@@ -1260,9 +1262,7 @@ function CalendarView({
                       )}
                     </select>
 
-                    <div className="text-[11px] text-muted-foreground">
-                      Only shows active (not completed) tasks.
-                    </div>
+                    <div className="text-[11px] text-muted-foreground">Only shows active (not completed) tasks.</div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2">

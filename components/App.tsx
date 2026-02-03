@@ -554,6 +554,8 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     onUpdateTask={handleUpdateTask}
     onDeleteTask={handleDeleteTask}
     onToggleTaskCompleted={toggleTaskCompleted}
+    onToggleStudySessionCompleted={handleToggleSessionCompleted}
+    onToggleReminderCompleted={handleToggleReminderCompleted}
     onAddStudySession={handleAddStudySession}
     onUpdateStudySession={handleUpdateStudySession}
     onDeleteStudySession={handleDeleteStudySession}
@@ -562,6 +564,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     onDeleteReminder={handleDeleteReminder}
   />
 )}
+
 
 
         {activeTab === "tasks" && (
