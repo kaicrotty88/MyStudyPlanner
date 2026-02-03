@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, X, CheckCircle2 } from "lucide-react";
+import { Plus, Edit2, Trash2, X, CheckCircle2, Link2 } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 
 /* -------------------- Time helpers -------------------- */
@@ -102,6 +102,13 @@ const DURATION_OPTIONS = [
   { label: "3h", value: "3h" },
 ];
 
+const typeLabel = (t: Task["type"]) => {
+  if (t === "assignment") return "Assignment";
+  if (t === "exam") return "Exam";
+  if (t === "homework") return "Homework";
+  return "Task";
+};
+
 interface StudyPlannerProps {
   tasks: Task[];
   subjects: Subject[];
@@ -111,13 +118,6 @@ interface StudyPlannerProps {
   onDeleteStudySession: (id: string) => void;
   onToggleSessionCompleted: (id: string) => void;
 }
-
-const typeLabel = (t: Task["type"]) => {
-  if (t === "assignment") return "Assignment";
-  if (t === "exam") return "Exam";
-  if (t === "homework") return "Homework";
-  return "Task";
-};
 
 export function StudyPlanner({
   tasks,
@@ -147,18 +147,16 @@ export function StudyPlanner({
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
 
-  // ✅ only ACTIVE tasks are linkable; include ALL task types
+  // ✅ Only ACTIVE tasks are linkable (not completed), and include ALL task types (task/assignment/exam/homework)
   const linkableTasks = useMemo(() => {
     return tasks
-      // @ts-expect-error: if Task has `completed`, we respect it; otherwise this is harmless
-      .filter((t) => !(t as any).completed)
+      .filter((t) => !t.completed)
       .filter((t) => (sessionForm.subjectId ? t.subjectId === sessionForm.subjectId : true))
       .slice()
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [tasks, sessionForm.subjectId]);
 
-  // If editing a session that is linked to a now-completed/missing task,
-  // keep it visible (disabled) so we don’t drop the link accidentally.
+  // If editing a session that is linked to a now-completed / missing task, keep it visible so we don’t drop the link.
   const currentLinkedTask = useMemo(() => {
     if (!sessionForm.linkedTaskId) return null;
     return getTaskById(sessionForm.linkedTaskId) ?? null;
@@ -180,10 +178,10 @@ export function StudyPlanner({
     return {
       count: inWeek.length,
       minutes,
-      label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString(
-        "en-US",
-        { month: "short", day: "numeric" }
-      )}`,
+      label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })}`,
     };
   }, [studySessions]);
 
@@ -247,7 +245,14 @@ export function StudyPlanner({
     closePanel();
   };
 
+  // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = time12To24(sessionForm.startTime);
+
+  const confirmDelete = () => {
+    if (!deletingId) return;
+    onDeleteStudySession(deletingId);
+    setDeletingId(null);
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
@@ -345,31 +350,28 @@ export function StudyPlanner({
               const subj = getSubjectById(s.subjectId);
               const mins = parseDurationToMinutes(s.duration);
               const linked = s.linkedTaskId ? getTaskById(s.linkedTaskId) : undefined;
-              const linkedDue = linked?.dueDate
-                ? linked.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                : null;
 
               return (
                 <div
                   key={s.id}
-                  className={`group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition ${
-                    s.completed ? "opacity-85" : ""
-                  }`}
+                  className={["group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition", s.completed ? "opacity-80" : ""].join(
+                    " "
+                  )}
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    {/* ✅ More visible complete button */}
+                    {/* ✅ Bigger, clearer complete button */}
                     <button
                       type="button"
                       onClick={() => onToggleSessionCompleted(s.id)}
                       className={[
-                        "shrink-0 mt-0.5 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition",
+                        "mt-0.5 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium border transition shrink-0",
                         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                         s.completed
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card hover:bg-muted border-border text-foreground",
+                          ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/15"
+                          : "bg-card text-foreground border-border hover:bg-muted",
                       ].join(" ")}
                       aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
-                      title={s.completed ? "Mark incomplete" : "Mark complete"}
+                      title={s.completed ? "Completed" : "Mark as completed"}
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       {s.completed ? "Completed" : "Complete"}
@@ -383,18 +385,22 @@ export function StudyPlanner({
                           {formatMinutes(mins)} • {s.startTime}
                         </span>
                         <span>• {s.date.toLocaleDateString()}</span>
-                        {subj ? <span>• {subj.name}</span> : null}
+                        {subj && <span>• {subj.name}</span>}
                       </div>
 
-                      {/* ✅ show link context */}
                       {linked ? (
-                        <div className="mt-1 text-[11px] text-muted-foreground truncate">
-                          Linked: {typeLabel(linked.type)} • {linked.title}
-                          {linkedDue ? ` (due ${linkedDue})` : ""}
-                        </div>
-                      ) : s.linkedTaskId ? (
-                        <div className="mt-1 text-[11px] text-muted-foreground truncate">
-                          Linked task not found (it may have been deleted).
+                        <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1">
+                            <Link2 className="h-3.5 w-3.5" />
+                            Linked:
+                          </span>
+                          <span className="text-foreground/90">
+                            {typeLabel(linked.type)} • {linked.title}
+                          </span>
+                          <span className="opacity-60">
+                            (due{" "}
+                            {linked.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })})
+                          </span>
                         </div>
                       ) : null}
                     </div>
@@ -405,6 +411,7 @@ export function StudyPlanner({
                       onClick={() => openEdit(s)}
                       className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                       aria-label="Edit"
+                      type="button"
                     >
                       <Edit2 className="w-4 h-4 text-foreground" />
                     </button>
@@ -412,6 +419,7 @@ export function StudyPlanner({
                       onClick={() => setDeletingId(s.id)}
                       className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                       aria-label="Delete"
+                      type="button"
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -435,11 +443,7 @@ export function StudyPlanner({
                   Add title, subject, time, duration — and optionally link a task.
                 </div>
               </div>
-              <button
-                onClick={closePanel}
-                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
-                aria-label="Close"
-              >
+              <button onClick={closePanel} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition" aria-label="Close" type="button">
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
@@ -509,7 +513,7 @@ export function StudyPlanner({
                   <option value="">Not linked</option>
 
                   {/* If editing an old session linked to a completed task, keep it visible (disabled) */}
-                  {currentLinkedTask && (currentLinkedTask as any).completed ? (
+                  {currentLinkedTask && currentLinkedTask.completed ? (
                     <option value={currentLinkedTask.id} disabled>
                       {typeLabel(currentLinkedTask.type)} • {currentLinkedTask.title} (completed)
                     </option>
@@ -571,12 +575,14 @@ export function StudyPlanner({
                 <button
                   onClick={handleSubmit}
                   className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  type="button"
                 >
                   {editingId ? "Save" : "Add"}
                 </button>
                 <button
                   onClick={closePanel}
                   className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  type="button"
                 >
                   Cancel
                 </button>
@@ -586,13 +592,35 @@ export function StudyPlanner({
         </>
       )}
 
-      {/* Delete hook placeholder (you can add the modal later if you want) */}
-      {deletingId ? (
-        <div className="hidden">
-          {/* Keeping state so you don’t lose your wiring; we can add the modal when needed */}
-          <button onClick={() => onDeleteStudySession(deletingId)} />
-        </div>
-      ) : null}
+      {/* Delete modal */}
+      {deletingId && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingId(null)} />
+          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">Delete this study session?</div>
+              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
+            </div>
+
+            <div className="p-5 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeletingId(null)}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
