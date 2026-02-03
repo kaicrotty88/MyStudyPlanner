@@ -1,6 +1,7 @@
 "use client";
+
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, X } from "lucide-react";
+import { Plus, Edit2, Trash2, X, CheckCircle2 } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 
 /* -------------------- Time helpers -------------------- */
@@ -72,8 +73,6 @@ const time24To12 = (t: string) => {
 const time12To24 = (t: string) => {
   if (!t) return "";
   const s = t.trim().toUpperCase();
-
-  // Matches: "4:00 PM", "4 PM", "12:15 AM"
   const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
   if (!m) return "";
 
@@ -113,6 +112,13 @@ interface StudyPlannerProps {
   onToggleSessionCompleted: (id: string) => void;
 }
 
+const typeLabel = (t: Task["type"]) => {
+  if (t === "assignment") return "Assignment";
+  if (t === "exam") return "Exam";
+  if (t === "homework") return "Homework";
+  return "Task";
+};
+
 export function StudyPlanner({
   tasks,
   subjects,
@@ -129,8 +135,6 @@ export function StudyPlanner({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const activeSubject = activeTab !== "all" ? subjects.find((s) => s.id === activeTab) : null;
-
   const [sessionForm, setSessionForm] = useState({
     title: "",
     subjectId: "",
@@ -141,17 +145,28 @@ export function StudyPlanner({
   });
 
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
+  const getTaskById = (id: string) => tasks.find((t) => t.id === id);
 
-  const linkableAssessments = useMemo(() => {
+  // ✅ only ACTIVE tasks are linkable; include ALL task types
+  const linkableTasks = useMemo(() => {
     return tasks
-      .filter((t) => t.type === "exam" || t.type === "assignment")
+      // @ts-expect-error: if Task has `completed`, we respect it; otherwise this is harmless
+      .filter((t) => !(t as any).completed)
       .filter((t) => (sessionForm.subjectId ? t.subjectId === sessionForm.subjectId : true))
+      .slice()
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [tasks, sessionForm.subjectId]);
 
+  // If editing a session that is linked to a now-completed/missing task,
+  // keep it visible (disabled) so we don’t drop the link accidentally.
+  const currentLinkedTask = useMemo(() => {
+    if (!sessionForm.linkedTaskId) return null;
+    return getTaskById(sessionForm.linkedTaskId) ?? null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionForm.linkedTaskId, tasks]);
+
   const visibleSessions = useMemo(() => {
-    const base =
-      activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
+    const base = activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
     const filtered = showCompleted ? base : base.filter((s) => !s.completed);
     return filtered.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [studySessions, activeTab, showCompleted]);
@@ -211,8 +226,7 @@ export function StudyPlanner({
   };
 
   const handleSubmit = () => {
-    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime)
-      return;
+    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime) return;
 
     const payload: Omit<StudySession, "id"> = {
       title: sessionForm.title.trim(),
@@ -233,7 +247,6 @@ export function StudyPlanner({
     closePanel();
   };
 
-  // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = time12To24(sessionForm.startTime);
 
   return (
@@ -242,11 +255,8 @@ export function StudyPlanner({
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Log</h1>
-
-          {/* Description */}
           <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
 
-          {/* Week line */}
           <div className="pt-2">
             <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
               <span className="text-foreground/90 font-medium">This week</span>
@@ -281,7 +291,7 @@ export function StudyPlanner({
         </div>
       </div>
 
-      {/* Subject tabs — match Calendar/Insights pill system */}
+      {/* Subject tabs */}
       <div className="rounded-full border border-border bg-card p-1 flex flex-wrap gap-1">
         <button
           onClick={() => setActiveTab("all")}
@@ -327,41 +337,66 @@ export function StudyPlanner({
         {visibleSessions.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-sm font-medium text-foreground">No sessions yet</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Log your first one to start tracking progress.
-            </div>
+            <div className="mt-1 text-xs text-muted-foreground">Log your first one to start tracking progress.</div>
           </div>
         ) : (
           <div className="divide-y divide-border">
             {visibleSessions.map((s) => {
               const subj = getSubjectById(s.subjectId);
               const mins = parseDurationToMinutes(s.duration);
+              const linked = s.linkedTaskId ? getTaskById(s.linkedTaskId) : undefined;
+              const linkedDue = linked?.dueDate
+                ? linked.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                : null;
 
               return (
                 <div
                   key={s.id}
                   className={`group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition ${
-                    s.completed ? "opacity-80" : ""
+                    s.completed ? "opacity-85" : ""
                   }`}
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
+                    {/* ✅ More visible complete button */}
                     <button
+                      type="button"
                       onClick={() => onToggleSessionCompleted(s.id)}
-                      className="mt-0.5 h-5 w-5 rounded border border-border grid place-items-center bg-background/40 hover:bg-muted transition shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className={[
+                        "shrink-0 mt-0.5 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                        s.completed
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card hover:bg-muted border-border text-foreground",
+                      ].join(" ")}
                       aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
+                      title={s.completed ? "Mark incomplete" : "Mark complete"}
                     >
-                      {s.completed && <div className="h-3 w-3 rounded-sm bg-primary" />}
+                      <CheckCircle2 className="h-4 w-4" />
+                      {s.completed ? "Completed" : "Complete"}
                     </button>
 
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{s.title}</div>
+
                       <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-2">
                         <span>
                           {formatMinutes(mins)} • {s.startTime}
                         </span>
                         <span>• {s.date.toLocaleDateString()}</span>
-                        {subj && <span>• {subj.name}</span>}
+                        {subj ? <span>• {subj.name}</span> : null}
                       </div>
+
+                      {/* ✅ show link context */}
+                      {linked ? (
+                        <div className="mt-1 text-[11px] text-muted-foreground truncate">
+                          Linked: {typeLabel(linked.type)} • {linked.title}
+                          {linkedDue ? ` (due ${linkedDue})` : ""}
+                        </div>
+                      ) : s.linkedTaskId ? (
+                        <div className="mt-1 text-[11px] text-muted-foreground truncate">
+                          Linked task not found (it may have been deleted).
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -395,10 +430,10 @@ export function StudyPlanner({
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="space-y-0.5">
-                <div className="text-sm font-semibold text-foreground">
-                  {editingId ? "Edit session" : "New session"}
+                <div className="text-sm font-semibold text-foreground">{editingId ? "Edit session" : "New session"}</div>
+                <div className="text-xs text-muted-foreground">
+                  Add title, subject, time, duration — and optionally link a task.
                 </div>
-                <div className="text-xs text-muted-foreground">Add title, subject, time, and duration.</div>
               </div>
               <button
                 onClick={closePanel}
@@ -419,7 +454,19 @@ export function StudyPlanner({
 
               <select
                 value={sessionForm.subjectId}
-                onChange={(e) => setSessionForm({ ...sessionForm, subjectId: e.target.value })}
+                onChange={(e) => {
+                  const nextSubjectId = e.target.value;
+
+                  // If a link exists and the new subject doesn't match it, clear the link.
+                  const linked = sessionForm.linkedTaskId ? getTaskById(sessionForm.linkedTaskId) : null;
+                  const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
+
+                  setSessionForm((p) => ({
+                    ...p,
+                    subjectId: nextSubjectId,
+                    linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
+                  }));
+                }}
                 className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="">Select subject</option>
@@ -429,6 +476,68 @@ export function StudyPlanner({
                   </option>
                 ))}
               </select>
+
+              {/* ✅ Link to task (active tasks only) */}
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Link to task (optional)</div>
+
+                <select
+                  value={sessionForm.linkedTaskId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+
+                    if (!nextId) {
+                      setSessionForm((p) => ({ ...p, linkedTaskId: "" }));
+                      return;
+                    }
+
+                    const linked = getTaskById(nextId);
+                    if (!linked) {
+                      setSessionForm((p) => ({ ...p, linkedTaskId: "" }));
+                      return;
+                    }
+
+                    // ✅ Auto-sync subject to the linked task’s subject
+                    setSessionForm((p) => ({
+                      ...p,
+                      linkedTaskId: nextId,
+                      subjectId: linked.subjectId,
+                    }));
+                  }}
+                  className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">Not linked</option>
+
+                  {/* If editing an old session linked to a completed task, keep it visible (disabled) */}
+                  {currentLinkedTask && (currentLinkedTask as any).completed ? (
+                    <option value={currentLinkedTask.id} disabled>
+                      {typeLabel(currentLinkedTask.type)} • {currentLinkedTask.title} (completed)
+                    </option>
+                  ) : null}
+
+                  {linkableTasks.length === 0 ? (
+                    <option value="" disabled>
+                      No active tasks available
+                    </option>
+                  ) : (
+                    linkableTasks.map((t) => {
+                      const subj = getSubjectById(t.subjectId);
+                      const subjName = subj?.name ?? "Unassigned";
+                      const due = t.dueDate?.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {typeLabel(t.type)} • {t.title} — {subjName} (due {due})
+                        </option>
+                      );
+                    })
+                  )}
+                </select>
+
+                <div className="text-[11px] text-muted-foreground">
+                  Only shows active (not completed) tasks. Linking helps Insights understand what you studied.
+                </div>
+              </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <input
@@ -441,9 +550,7 @@ export function StudyPlanner({
                 <input
                   type="time"
                   value={startTimeUiValue}
-                  onChange={(e) =>
-                    setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) })
-                  }
+                  onChange={(e) => setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) })}
                   className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
 
@@ -478,6 +585,14 @@ export function StudyPlanner({
           </div>
         </>
       )}
+
+      {/* Delete hook placeholder (you can add the modal later if you want) */}
+      {deletingId ? (
+        <div className="hidden">
+          {/* Keeping state so you don’t lose your wiring; we can add the modal when needed */}
+          <button onClick={() => onDeleteStudySession(deletingId)} />
+        </div>
+      ) : null}
     </div>
   );
 }

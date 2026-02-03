@@ -545,22 +545,24 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
 
         {activeTab === "calendar" && (
-          <Calendar
-            studySessions={studySessions}
-            tasks={tasks}
-            reminders={reminders}
-            subjects={subjects}
-            onAddTask={handleAddTask}
-            onUpdateTask={handleUpdateTask}
-            onDeleteTask={handleDeleteTask}
-            onAddStudySession={handleAddStudySession}
-            onUpdateStudySession={handleUpdateStudySession}
-            onDeleteStudySession={handleDeleteStudySession}
-            onAddReminder={handleAddReminder}
-            onUpdateReminder={handleUpdateReminder}
-            onDeleteReminder={handleDeleteReminder}
-          />
-        )}
+  <Calendar
+    studySessions={studySessions}
+    tasks={tasks}
+    reminders={reminders}
+    subjects={subjects}
+    onAddTask={handleAddTask}
+    onUpdateTask={handleUpdateTask}
+    onDeleteTask={handleDeleteTask}
+    onToggleTaskCompleted={toggleTaskCompleted}
+    onAddStudySession={handleAddStudySession}
+    onUpdateStudySession={handleUpdateStudySession}
+    onDeleteStudySession={handleDeleteStudySession}
+    onAddReminder={handleAddReminder}
+    onUpdateReminder={handleUpdateReminder}
+    onDeleteReminder={handleDeleteReminder}
+  />
+)}
+
 
         {activeTab === "tasks" && (
           <Tasks

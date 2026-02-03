@@ -35,6 +35,9 @@ interface CalendarProps {
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
   onDeleteTask?: (id: string) => void;
 
+  // ✅ NEW: allow completing tasks from Calendar
+  onToggleTaskCompleted?: (taskId: string) => void;
+
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession?: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession?: (id: string) => void;
@@ -182,6 +185,7 @@ function CalendarView({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  onToggleTaskCompleted,
   onAddStudySession,
   onUpdateStudySession,
   onDeleteStudySession,
@@ -284,15 +288,26 @@ function CalendarView({
     return map;
   }, [tasks]);
 
-  const linkableAssessments = useMemo(() => {
-    return tasks
-      .filter((t) => t.type === "exam" || t.type === "assignment")
-      .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }, [tasks, sessionFormData.subjectId]);
+  // ✅ Calendar should hide completed tasks/sessions (so completed items disappear instantly)
+  const activeTasks = useMemo(() => tasks.filter((t: any) => !t.completed), [tasks]);
+  const activeSessions = useMemo(() => studySessions.filter((s: any) => !s.completed), [studySessions]);
 
-  const previousMonth = () =>
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  // ✅ Link study sessions to ANY active task (incl. Homework), filtered by selected subject if set
+  const linkableTasks = useMemo(() => {
+    return activeTasks
+      .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
+      .slice()
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [activeTasks, sessionFormData.subjectId]);
+
+  // If editing a session linked to a now-completed/missing task, keep it visible (disabled)
+  const currentLinkedTask = useMemo(() => {
+    const id = (sessionFormData.linkedTaskId ?? "").trim();
+    if (!id) return null;
+    return taskById.get(id) ?? null;
+  }, [sessionFormData.linkedTaskId, taskById]);
+
+  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
   const previousWeek = () => {
@@ -318,8 +333,8 @@ function CalendarView({
   };
 
   const getItemsForDate = (date: Date) => {
-    const dateTasks = tasks.filter((task) => isSameDay(task.dueDate, date));
-    const dateSessions = studySessions.filter((session) => isSameDay(session.date, date));
+    const dateTasks = activeTasks.filter((task) => isSameDay(task.dueDate, date));
+    const dateSessions = activeSessions.filter((session) => isSameDay(session.date, date));
     const dateReminders = reminders
       .filter((r) => !r.completed)
       .filter((r) => (r.dueDate ? isSameDay(r.dueDate, date) : false));
@@ -580,7 +595,6 @@ function CalendarView({
     </button>
   );
 
-  // ✅ card (chip)
   const renderChip = ({
     title,
     subjectId,
@@ -613,10 +627,18 @@ function CalendarView({
       else if (reminder) openEditReminder(reminder);
     };
 
-    const canOpen = Boolean((task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders));
+    const canOpen = Boolean(
+      (task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders)
+    );
 
+    // ✅ Capitalised labels
     const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
-    const bottomRight = task ? typeLabel(task.type) : session ? "Study" : "";
+    const bottomRight = task ? typeLabel(task.type) : session ? "Study Session" : "";
+
+    const canToggleComplete = Boolean(task && onToggleTaskCompleted);
+
+    // ✅ Only reserve right-side space for time if there is time text
+    const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
 
     return (
       <div
@@ -636,26 +658,45 @@ function CalendarView({
           }
         }}
         className={[
-          "group relative flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition",
+          "group relative flex items-start gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition",
           canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
         ].join(" ")}
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
         title={title}
       >
-        {/* Reserve space on the right for time to prevent overlap */}
-        <div className="min-w-0 flex-1 pr-12">
+        {/* ✅ Complete toggle (tasks only) */}
+        {canToggleComplete ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (task) onToggleTaskCompleted?.(task.id);
+            }}
+            className={[
+              "mt-0.5 h-5 w-5 rounded border border-border grid place-items-center",
+              "bg-background/40 hover:bg-muted transition shrink-0",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+            ].join(" ")}
+            aria-label="Mark task complete"
+          >
+            <div className="h-2.5 w-2.5 rounded-sm bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+        ) : null}
+
+        <div className={["min-w-0 flex-1", rightPaddingClass].join(" ")}>
           <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
             {title}
           </div>
 
-          <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground min-w-0">
+          {/* ✅ Bottom row: subject uses remaining space, type hugs right */}
+          <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             <div className="min-w-0 flex-1 truncate">{bottomLeft}</div>
-            {bottomRight ? <div className="shrink-0">{bottomRight}</div> : null}
+            {bottomRight ? <div className="shrink-0 ml-auto">{bottomRight}</div> : null}
           </div>
         </div>
 
         {timeLabel ? (
-          <div className="absolute top-1 right-2 w-[44px] text-right text-[10px] leading-3 text-muted-foreground">
+          <div className="absolute top-1 right-2 w-[52px] text-right text-[10px] leading-3 text-muted-foreground">
             {timeLabel}
           </div>
         ) : null}
@@ -750,7 +791,7 @@ function CalendarView({
                 return (
                   <div key={x.s.id + idx} className="min-w-0">
                     {renderChip({
-                      title: x.s.title || "Study session",
+                      title: x.s.title || "Study Session",
                       subjectId: x.s.subjectId,
                       session: x.s,
                       compact: true,
@@ -769,9 +810,7 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? (
-              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
-            ) : null}
+            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
           </div>
         </div>
       );
@@ -851,7 +890,7 @@ function CalendarView({
                 {daySessions.map((sess) => (
                   <div key={sess.id}>
                     {renderChip({
-                      title: sess.title || "Study session",
+                      title: sess.title || "Study Session",
                       subjectId: sess.subjectId,
                       session: sess,
                       compact: false,
@@ -923,7 +962,7 @@ function CalendarView({
               {daySessions.map((sess) => (
                 <div key={sess.id}>
                   {renderChip({
-                    title: sess.title || "Study session",
+                    title: sess.title || "Study Session",
                     subjectId: sess.subjectId,
                     session: sess,
                     compact: false,
@@ -975,7 +1014,6 @@ function CalendarView({
 
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
-      {/* Page header (consistent with other tabs) */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
         <p className="text-sm text-muted-foreground">Click a day to add a task, reminder, or study session.</p>
@@ -1071,7 +1109,7 @@ function CalendarView({
                 className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
                 type="button"
               >
-                <span className="text-sm text-foreground">Add study session</span>
+                <span className="text-sm text-foreground">Add Study Session</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
 
@@ -1080,7 +1118,7 @@ function CalendarView({
                 className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
                 type="button"
               >
-                <span className="text-sm text-foreground">Add reminder</span>
+                <span className="text-sm text-foreground">Add Reminder</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
 
@@ -1109,9 +1147,9 @@ function CalendarView({
               <div className="space-y-0.5">
                 <div className="text-sm font-semibold text-foreground">
                   {showAddForm === "study"
-                    ? `${editingSessionId ? "Edit" : "Add"} study session`
+                    ? `${editingSessionId ? "Edit" : "Add"} Study Session`
                     : showAddForm === "reminder"
-                      ? `${editingReminderId ? "Edit" : "Add"} reminder`
+                      ? `${editingReminderId ? "Edit" : "Add"} Reminder`
                       : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -1144,9 +1182,19 @@ function CalendarView({
 
                   <select
                     value={sessionFormData.subjectId}
-                    onChange={(e) =>
-                      setSessionFormData({ ...sessionFormData, subjectId: e.target.value, linkedTaskId: "" })
-                    }
+                    onChange={(e) => {
+                      const nextSubjectId = e.target.value;
+
+                      // If a link exists and the new subject doesn't match it, clear the link.
+                      const linked = sessionFormData.linkedTaskId ? taskById.get(sessionFormData.linkedTaskId) : null;
+                      const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
+
+                      setSessionFormData((p) => ({
+                        ...p,
+                        subjectId: nextSubjectId,
+                        linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
+                      }));
+                    }}
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     <option value="">Select subject</option>
@@ -1157,18 +1205,65 @@ function CalendarView({
                     ))}
                   </select>
 
-                  <select
-                    value={sessionFormData.linkedTaskId}
-                    onChange={(e) => setSessionFormData({ ...sessionFormData, linkedTaskId: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    <option value="">Link to assessment (optional)</option>
-                    {linkableAssessments.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.type.toUpperCase()}: {t.title}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">Link to task (optional)</div>
+
+                    <select
+                      value={sessionFormData.linkedTaskId}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+
+                        if (!nextId) {
+                          setSessionFormData((p) => ({ ...p, linkedTaskId: "" }));
+                          return;
+                        }
+
+                        const linked = taskById.get(nextId);
+                        if (!linked) {
+                          setSessionFormData((p) => ({ ...p, linkedTaskId: "" }));
+                          return;
+                        }
+
+                        // ✅ Auto-sync subject to linked task
+                        setSessionFormData((p) => ({
+                          ...p,
+                          linkedTaskId: nextId,
+                          subjectId: linked.subjectId,
+                        }));
+                      }}
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    >
+                      <option value="">Not linked</option>
+
+                      {/* Keep old link visible if editing and the task is now completed */}
+                      {currentLinkedTask && (currentLinkedTask as any).completed ? (
+                        <option value={currentLinkedTask.id} disabled>
+                          {typeLabel(currentLinkedTask.type)} • {currentLinkedTask.title} (completed)
+                        </option>
+                      ) : null}
+
+                      {linkableTasks.length === 0 ? (
+                        <option value="" disabled>
+                          No active tasks available
+                        </option>
+                      ) : (
+                        linkableTasks.map((t) => {
+                          const subj = subjectById.get(t.subjectId);
+                          const subjName = subj?.name ?? "Unassigned";
+                          const due = t.dueDate?.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {typeLabel(t.type)} • {t.title} — {subjName} (due {due})
+                            </option>
+                          );
+                        })
+                      )}
+                    </select>
+
+                    <div className="text-[11px] text-muted-foreground">
+                      Only shows active (not completed) tasks.
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 gap-2">
                     <label className="text-xs text-muted-foreground flex items-center gap-2">
@@ -1187,9 +1282,7 @@ function CalendarView({
                     <input
                       type="time"
                       value={startTimeUiValue}
-                      onChange={(e) =>
-                        setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })
-                      }
+                      onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })}
                       className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     />
 
