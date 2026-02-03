@@ -554,16 +554,17 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     onUpdateTask={handleUpdateTask}
     onDeleteTask={handleDeleteTask}
     onToggleTaskCompleted={toggleTaskCompleted}
-    onToggleStudySessionCompleted={handleToggleSessionCompleted}
-    onToggleReminderCompleted={handleToggleReminderCompleted}
     onAddStudySession={handleAddStudySession}
     onUpdateStudySession={handleUpdateStudySession}
     onDeleteStudySession={handleDeleteStudySession}
+    onToggleStudySessionCompleted={handleToggleSessionCompleted}
     onAddReminder={handleAddReminder}
     onUpdateReminder={handleUpdateReminder}
     onDeleteReminder={handleDeleteReminder}
+    onToggleReminderCompleted={handleToggleReminderCompleted}
   />
 )}
+
 
 
 
