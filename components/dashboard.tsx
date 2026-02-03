@@ -187,7 +187,7 @@ export function Dashboard({
     [studySessions, today]
   );
 
-  // ✅ Dashboard “Up next” window + cap
+  // ✅ Dashboard “Up next” window + cap (show 5, then "+X more")
   const UPCOMING_WINDOW_DAYS = 30;
   const MAX_UP_NEXT = 5;
 
@@ -197,15 +197,17 @@ export function Dashboard({
     return d;
   }, [today]);
 
-  const upNext = useMemo(
+  const upNextAll = useMemo(
     () =>
       tasks
         .filter((t) => !t.completed)
         .filter((t) => t.dueDate.getTime() <= thirtyDaysFromToday.getTime())
-        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-        .slice(0, MAX_UP_NEXT),
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()),
     [tasks, thirtyDaysFromToday]
   );
+
+  const upNext = useMemo(() => upNextAll.slice(0, MAX_UP_NEXT), [upNextAll]);
+  const upNextRemaining = Math.max(0, upNextAll.length - MAX_UP_NEXT);
 
   const needsSubjects = subjects.length === 0;
   const needsTerms = allPeriods.length === 0;
@@ -336,7 +338,8 @@ export function Dashboard({
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground">Up next</h2>
                 <p className="text-xs text-muted-foreground">
-                  Due in the next {UPCOMING_WINDOW_DAYS} days (max {MAX_UP_NEXT})
+                  Due in the next {UPCOMING_WINDOW_DAYS} days
+                  {upNextRemaining > 0 ? ` · +${upNextRemaining} more` : ""}
                 </p>
               </div>
 
@@ -388,12 +391,7 @@ export function Dashboard({
                           </div>
 
                           <div className="shrink-0 text-right">
-                            <div
-                              className={[
-                                "text-xs font-semibold",
-                                isLate ? "text-destructive" : "text-foreground",
-                              ].join(" ")}
-                            >
+                            <div className={["text-xs font-semibold", isLate ? "text-destructive" : "text-foreground"].join(" ")}>
                               {dueLabel(d)}
                             </div>
                             <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -405,6 +403,11 @@ export function Dashboard({
                       </div>
                     );
                   })}
+
+                  {/* Optional extra line under list (subtle) */}
+                  {upNextRemaining > 0 ? (
+                    <div className="pt-1 text-xs text-muted-foreground">+{upNextRemaining} more</div>
+                  ) : null}
                 </div>
               )}
             </div>
