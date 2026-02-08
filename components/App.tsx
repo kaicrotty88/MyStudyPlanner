@@ -322,7 +322,16 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     (async () => {
       const remote = await fetchPlannerState(supabase);
 
-      if (remote && Object.keys(remote).length > 0) {
+      const remoteHasPlannerData =
+  !!remote &&
+  (Array.isArray((remote as any).tasks) ||
+    Array.isArray((remote as any).subjects) ||
+    Array.isArray((remote as any).periods) ||
+    Array.isArray((remote as any).studySessions) ||
+    Array.isArray((remote as any).reminders));
+
+if (remoteHasPlannerData) {
+
         applyParsedState(remote);
         try {
           localStorage.setItem(storageKey, JSON.stringify(remote));
