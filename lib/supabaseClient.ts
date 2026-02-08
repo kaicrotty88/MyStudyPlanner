@@ -1,5 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * Singleton Supabase browser client authenticated via Clerk session token.
+ */
 let client: SupabaseClient | null = null;
 
 export function getSupabaseClient(getAccessToken: () => Promise<string | null>): SupabaseClient {

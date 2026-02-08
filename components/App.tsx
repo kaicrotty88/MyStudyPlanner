@@ -1,6 +1,7 @@
+// components/App.tsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { Dashboard } from "./dashboard";
 import { Calendar } from "./calendar";
@@ -14,14 +15,16 @@ import { Reminders } from "./reminders";
 
 import type { Subject, Task, StudySession, Period, Reminder } from "./models";
 
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
 import { User, X } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 
+import { getSupabaseClient } from "@/lib/supabaseClient";
+import { fetchPlannerState, upsertPlannerState, clearPlannerState } from "@/lib/plannerStateSupabase";
+
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
-const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
-
+const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
 type Tab =
@@ -35,10 +38,7 @@ type Tab =
   | "settings";
 
 type AppMode = "demo" | "app";
-
 type SettingsOpenSection = "subjects" | "terms" | "backup" | null;
-
-/* -------------------- Defaults / Demo -------------------- */
 
 const defaultSubjects: Subject[] = [
   { id: "1", name: "Mathematics", color: "#6B9BC3" },
@@ -149,9 +149,25 @@ const navTabButtonClassMobile = (active: boolean) =>
     active ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
   ].join(" ");
 
-function App({ mode = "app" }: { mode?: AppMode }) {
+function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
+  let t: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+export default function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
   const [isReady, setIsReady] = useState(false);
+
+  const { isLoaded: userLoaded, isSignedIn } = useUser();
+  const { session } = useSession();
+
+  const supabase = useMemo(() => {
+    if (!session) return null;
+    return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
+  }, [session]);
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
@@ -162,11 +178,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
-
-  // ✅ tell Settings which section to open (from Dashboard banners)
   const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
-
-  /* -------------------- Mobile desktop hint -------------------- */
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
 
@@ -186,8 +198,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     } catch {}
   };
 
-  /* -------------------- Helpers -------------------- */
-
   const pruneAutoDeletedCompletedTasks = (input: Task[]) => {
     const now = Date.now();
     return input.filter((t) => {
@@ -206,100 +216,68 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     return match?.id;
   };
 
-  /* -------------------- Persistence -------------------- */
+  const applyParsedState = (parsed: any) => {
+    setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
+
+    setPeriods(
+      Array.isArray(parsed.periods)
+        ? parsed.periods.map((p: any) => ({
+            id: String(p.id),
+            name: String(p.name),
+            startDate: p?.startDate ? new Date(p.startDate) : new Date(),
+            endDate: p?.endDate ? new Date(p.endDate) : new Date(),
+          }))
+        : mode === "demo"
+        ? DEMO_PERIODS
+        : []
+    );
+
+    setTasks(
+      pruneAutoDeletedCompletedTasks(
+        (parsed.tasks ?? []).map((t: any) => ({
+          ...t,
+          dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
+          completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
+          result: t?.result
+            ? {
+                ...t.result,
+                score: typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
+                outOf: typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
+                dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
+              }
+            : undefined,
+        }))
+      )
+    );
+
+    setStudySessions(
+      (parsed.studySessions ?? []).map((s: any) => ({
+        ...s,
+        title: s?.title?.trim() || "Study session",
+        date: s?.date ? new Date(s.date) : new Date(),
+        completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
+      }))
+    );
+
+    setReminders(
+      (parsed.reminders ?? []).map((r: any) => ({
+        ...r,
+        title: String(r?.title ?? "").trim(),
+        notes: r?.notes ? String(r.notes) : undefined,
+        dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
+        completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
+        createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
+      }))
+    );
+  };
+
+  const makeStateSnapshot = () => ({ subjects, periods, tasks, studySessions, reminders });
 
   useEffect(() => {
-    const raw = localStorage.getItem(storageKey);
+    if (mode === "demo") {
+      const raw = localStorage.getItem(storageKey);
 
-    if (!raw && mode === "demo") {
-      const seeded = makeDefaultData();
-      seedDemoPeriodsKeyIfMissing(seeded.periods);
-
-      setSubjects(seeded.subjects);
-      setPeriods(seeded.periods);
-      setTasks(seeded.tasks);
-      setStudySessions(seeded.studySessions);
-      setReminders(seeded.reminders);
-
-      hydrated.current = true;
-      markReadyNextPaint();
-      return;
-    }
-
-    // ✅ For brand new app users: clear any leftover demo/shared "periods" key too
-    if (!raw && mode === "app") {
-      try {
-        localStorage.removeItem(PERIODS_STORAGE_KEY);
-      } catch {}
-
-      setSubjects([]);
-      setPeriods([]);
-      setTasks([]);
-      setStudySessions([]);
-      setReminders([]);
-
-      hydrated.current = true;
-      markReadyNextPaint();
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw as string);
-
-      setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
-
-      setPeriods(
-        Array.isArray(parsed.periods)
-          ? parsed.periods.map((p: any) => ({
-              id: String(p.id),
-              name: String(p.name),
-              startDate: p?.startDate ? new Date(p.startDate) : new Date(),
-              endDate: p?.endDate ? new Date(p.endDate) : new Date(),
-            }))
-          : mode === "demo"
-          ? DEMO_PERIODS
-          : []
-      );
-
-      setTasks(
-        pruneAutoDeletedCompletedTasks(
-          (parsed.tasks ?? []).map((t: any) => ({
-            ...t,
-            dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
-            completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
-            result: t?.result
-              ? {
-                  ...t.result,
-                  score: typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
-                  outOf: typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
-                  dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
-                }
-              : undefined,
-          }))
-        )
-      );
-
-      setStudySessions(
-        (parsed.studySessions ?? []).map((s: any) => ({
-          ...s,
-          title: s?.title?.trim() || "Study session",
-          date: s?.date ? new Date(s.date) : new Date(),
-          completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
-        }))
-      );
-
-      setReminders(
-        (parsed.reminders ?? []).map((r: any) => ({
-          ...r,
-          title: String(r?.title ?? "").trim(),
-          notes: r?.notes ? String(r.notes) : undefined,
-          dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
-          completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
-          createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
-        }))
-      );
-    } catch {
-      if (mode === "demo") {
+      if (!raw) {
         const seeded = makeDefaultData();
         seedDemoPeriodsKeyIfMissing(seeded.periods);
 
@@ -308,36 +286,116 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         setTasks(seeded.tasks);
         setStudySessions(seeded.studySessions);
         setReminders(seeded.reminders);
-      } else {
-        // ✅ If app storage is corrupted, also clear periods key so the user starts clean
-        try {
-          localStorage.removeItem(PERIODS_STORAGE_KEY);
-        } catch {}
 
-        setSubjects([]);
-        setPeriods([]);
-        setTasks([]);
-        setStudySessions([]);
-        setReminders([]);
+        hydrated.current = true;
+        markReadyNextPaint();
+        return;
       }
-    } finally {
+
+      try {
+        applyParsedState(JSON.parse(raw));
+      } catch {
+        const seeded = makeDefaultData();
+        seedDemoPeriodsKeyIfMissing(seeded.periods);
+
+        setSubjects(seeded.subjects);
+        setPeriods(seeded.periods);
+        setTasks(seeded.tasks);
+        setStudySessions(seeded.studySessions);
+        setReminders(seeded.reminders);
+      } finally {
+        hydrated.current = true;
+        markReadyNextPaint();
+      }
+
+      return;
+    }
+
+    if (!userLoaded) return;
+
+    if (!isSignedIn || !supabase) {
       hydrated.current = true;
       markReadyNextPaint();
+      return;
     }
-  }, [mode, storageKey]);
+
+    (async () => {
+      const remote = await fetchPlannerState(supabase);
+
+      if (remote && Object.keys(remote).length > 0) {
+        applyParsedState(remote);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(remote));
+        } catch {}
+        hydrated.current = true;
+        markReadyNextPaint();
+        return;
+      }
+
+      const rawLocal = (() => {
+        try {
+          return localStorage.getItem(storageKey);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (rawLocal) {
+        try {
+          const parsedLocal = JSON.parse(rawLocal);
+          applyParsedState(parsedLocal);
+          await upsertPlannerState(supabase, parsedLocal);
+          hydrated.current = true;
+          markReadyNextPaint();
+          return;
+        } catch {}
+      }
+
+      setSubjects([]);
+      setPeriods([]);
+      setTasks([]);
+      setStudySessions([]);
+      setReminders([]);
+
+      await upsertPlannerState(supabase, { subjects: [], periods: [], tasks: [], studySessions: [], reminders: [] });
+
+      hydrated.current = true;
+      markReadyNextPaint();
+    })().catch((e) => {
+      console.error("Failed to init planner state:", e);
+      hydrated.current = true;
+      markReadyNextPaint();
+    });
+  }, [mode, storageKey, userLoaded, isSignedIn, supabase]);
+
+  const saveRemoteDebounced = useMemo(
+    () =>
+      debounce(async (snapshot: Record<string, unknown>) => {
+        if (!supabase) return;
+        await upsertPlannerState(supabase, snapshot);
+      }, 700),
+    [supabase]
+  );
 
   useEffect(() => {
     if (!hydrated.current) return;
 
+    const snapshot = makeStateSnapshot();
+
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ subjects, periods, tasks, studySessions, reminders }));
+      localStorage.setItem(storageKey, JSON.stringify(snapshot));
     } catch {}
-  }, [subjects, periods, tasks, studySessions, reminders, storageKey]);
 
-  /* -------------------- Clear / Reset -------------------- */
+    if (mode === "app" && isSignedIn && supabase) {
+      saveRemoteDebounced(snapshot);
+    }
+  }, [subjects, periods, tasks, studySessions, reminders, storageKey, mode, isSignedIn, supabase, saveRemoteDebounced]);
 
-  const handleClearAllData = () => {
-    localStorage.removeItem(storageKey);
+  const handleClearAllData = async () => {
+    try {
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(PERIODS_STORAGE_KEY);
+    } catch {}
 
     if (mode === "demo") {
       const seeded = makeDefaultData();
@@ -348,18 +406,25 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
       setReminders(seeded.reminders);
-    } else {
-      setSubjects([]);
-      setPeriods([]);
-      setTasks([]);
-      setStudySessions([]);
-      setReminders([]);
+      setActiveTab("dashboard");
+      return;
     }
 
+    setSubjects([]);
+    setPeriods([]);
+    setTasks([]);
+    setStudySessions([]);
+    setReminders([]);
     setActiveTab("dashboard");
-  };
 
-  /* -------------------- Handlers -------------------- */
+    if (isSignedIn && supabase) {
+      try {
+        await clearPlannerState(supabase);
+      } catch (e) {
+        console.error("Failed to clear remote planner state:", e);
+      }
+    }
+  };
 
   const handleAddSubject = (name: string, color: string) =>
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
@@ -424,8 +489,6 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
-  /* -------------------- Render -------------------- */
-
   const tabs: Array<[Tab, string]> = [
     ["dashboard", "Dashboard"],
     ["calendar", "Calendar"],
@@ -437,6 +500,19 @@ function App({ mode = "app" }: { mode?: AppMode }) {
   ];
 
   if (!isReady) return <LoadingScreen label="Opening your planner…" />;
+
+  if (mode === "app" && userLoaded && !isSignedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <div className="font-semibold text-lg">Sign in to sync your planner</div>
+          <SignInButton mode="modal">
+            <button className="rounded-xl border border-border px-4 py-2 hover:bg-muted transition">Sign in</button>
+          </SignInButton>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -514,9 +590,7 @@ function App({ mode = "app" }: { mode?: AppMode }) {
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
-            <div className="text-[12px] leading-5 text-muted-foreground">
-              Best on desktop. Mobile is great for quick check-ins.
-            </div>
+            <div className="text-[12px] leading-5 text-muted-foreground">Best on desktop. Mobile is great for quick check-ins.</div>
 
             <button
               onClick={dismissMobileDesktopHint}
@@ -545,28 +619,25 @@ function App({ mode = "app" }: { mode?: AppMode }) {
         )}
 
         {activeTab === "calendar" && (
-  <Calendar
-    studySessions={studySessions}
-    tasks={tasks}
-    reminders={reminders}
-    subjects={subjects}
-    onAddTask={handleAddTask}
-    onUpdateTask={handleUpdateTask}
-    onDeleteTask={handleDeleteTask}
-    onToggleTaskCompleted={toggleTaskCompleted}
-    onAddStudySession={handleAddStudySession}
-    onUpdateStudySession={handleUpdateStudySession}
-    onDeleteStudySession={handleDeleteStudySession}
-    onToggleStudySessionCompleted={handleToggleSessionCompleted}
-    onAddReminder={handleAddReminder}
-    onUpdateReminder={handleUpdateReminder}
-    onDeleteReminder={handleDeleteReminder}
-    onToggleReminderCompleted={handleToggleReminderCompleted}
-  />
-)}
-
-
-
+          <Calendar
+            studySessions={studySessions}
+            tasks={tasks}
+            reminders={reminders}
+            subjects={subjects}
+            onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
+            onToggleTaskCompleted={toggleTaskCompleted}
+            onAddStudySession={handleAddStudySession}
+            onUpdateStudySession={handleUpdateStudySession}
+            onDeleteStudySession={handleDeleteStudySession}
+            onToggleStudySessionCompleted={handleToggleSessionCompleted}
+            onAddReminder={handleAddReminder}
+            onUpdateReminder={handleUpdateReminder}
+            onDeleteReminder={handleDeleteReminder}
+            onToggleReminderCompleted={handleToggleReminderCompleted}
+          />
+        )}
 
         {activeTab === "tasks" && (
           <Tasks
@@ -625,5 +696,3 @@ function App({ mode = "app" }: { mode?: AppMode }) {
     </div>
   );
 }
-
-export default App;
