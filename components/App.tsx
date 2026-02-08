@@ -21,11 +21,16 @@ import LoadingScreen from "@/components/LoadingScreen";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { fetchPlannerState, upsertPlannerState, clearPlannerState } from "@/lib/plannerStateSupabase";
+import { WhatsNewModal } from "@/components/WhatsNewModal";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+const WHATS_NEW_VERSION = "2026-02-08-sync";
+const WHATS_NEW_SEEN_KEY = "msp-whats-new-seen";
+const FEEDBACK_EMAIL = "mystudyplanner.studio@gmail.com";
 
 type Tab =
   | "dashboard"
@@ -106,7 +111,14 @@ const makeDefaultData = () => {
       completed: false,
       createdAt: today,
     },
-    { id: "r2", title: "Email teacher about extension question", dueDate: tomorrow, repeat: "none", completed: false, createdAt: today },
+    {
+      id: "r2",
+      title: "Email teacher about extension question",
+      dueDate: tomorrow,
+      repeat: "none",
+      completed: false,
+      createdAt: today,
+    },
     { id: "r3", title: "Buy new pens", notes: "Black + blue", repeat: "none", completed: false, createdAt: today },
   ];
 
@@ -181,6 +193,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   useEffect(() => {
     try {
@@ -273,6 +286,25 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const makeStateSnapshot = () => ({ subjects, periods, tasks, studySessions, reminders });
 
+  const closeWhatsNew = () => {
+    setShowWhatsNew(false);
+    try {
+      localStorage.setItem(WHATS_NEW_SEEN_KEY, WHATS_NEW_VERSION);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (!userLoaded) return;
+    if (mode === "app" && !isSignedIn) return;
+
+    try {
+      const seen = localStorage.getItem(WHATS_NEW_SEEN_KEY);
+      if (seen !== WHATS_NEW_VERSION) setShowWhatsNew(true);
+    } catch {
+      setShowWhatsNew(true);
+    }
+  }, [userLoaded, isSignedIn, mode]);
+
   useEffect(() => {
     if (mode === "demo") {
       const raw = localStorage.getItem(storageKey);
@@ -323,15 +355,14 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       const remote = await fetchPlannerState(supabase);
 
       const remoteHasPlannerData =
-  !!remote &&
-  (Array.isArray((remote as any).tasks) ||
-    Array.isArray((remote as any).subjects) ||
-    Array.isArray((remote as any).periods) ||
-    Array.isArray((remote as any).studySessions) ||
-    Array.isArray((remote as any).reminders));
+        !!remote &&
+        (Array.isArray((remote as any).tasks) ||
+          Array.isArray((remote as any).subjects) ||
+          Array.isArray((remote as any).periods) ||
+          Array.isArray((remote as any).studySessions) ||
+          Array.isArray((remote as any).reminders));
 
-if (remoteHasPlannerData) {
-
+      if (remoteHasPlannerData) {
         applyParsedState(remote);
         try {
           localStorage.setItem(storageKey, JSON.stringify(remote));
@@ -525,6 +556,21 @@ if (remoteHasPlannerData) {
 
   return (
     <div className="min-h-screen bg-background">
+      <WhatsNewModal
+        open={showWhatsNew}
+        versionLabel="Update: Sync across devices"
+        feedbackEmail={FEEDBACK_EMAIL}
+        items={[
+          { title: "Sync across devices (new)", body: "Your planner now syncs across devices when you’re signed in." },
+          {
+            title: "Import existing tasks",
+            body: "If you had tasks saved on this device before sync, they’ll be imported automatically the first time you open this update.",
+          },
+          { title: "Feedback", body: "Got suggestions or bugs? Tap Email and send them through." },
+        ]}
+        onClose={closeWhatsNew}
+      />
+
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6 min-w-0">
@@ -599,7 +645,9 @@ if (remoteHasPlannerData) {
       {showMobileDesktopHint && (
         <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
-            <div className="text-[12px] leading-5 text-muted-foreground">Best on desktop. Mobile is great for quick check-ins.</div>
+            <div className="text-[12px] leading-5 text-muted-foreground">
+              Best on desktop. Mobile is great for quick check-ins.
+            </div>
 
             <button
               onClick={dismissMobileDesktopHint}
