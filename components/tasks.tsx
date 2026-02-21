@@ -1,4 +1,4 @@
-// tasks.tsx
+// components/tasks.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -24,6 +24,16 @@ type PeriodHydrated = {
   startDate: Date;
   endDate: Date;
 };
+
+type TaskFormErrors = Partial<Record<"title" | "subjectId" | "dueDate", string>>;
+
+const RequiredMark = ({ required }: { required?: boolean }) =>
+  required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null;
+
+const FieldError = ({ message }: { message?: string }) =>
+  message ? <div className="mt-1 text-xs text-red-600">{message}</div> : null;
+
+const labelClass = "text-sm font-medium text-foreground";
 
 const parseDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
@@ -131,6 +141,8 @@ export function Tasks({
     dueDate: "",
   });
 
+  const [formErrors, setFormErrors] = useState<TaskFormErrors>({});
+
   const [showCompleted, setShowCompleted] = useState(false);
 
   // ✅ Load periods from localStorage (created in Settings)
@@ -195,15 +207,39 @@ export function Tasks({
     return ALL_ACCENT;
   };
 
+  const resetForm = () => {
+    setFormData({ title: "", subjectId: "", dueDate: "" });
+    setFormErrors({});
+  };
+
+  const validateForm = (): boolean => {
+    const next: TaskFormErrors = {};
+
+    if (!formData.title.trim()) next.title = "Title is required";
+    if (!formData.subjectId) next.subjectId = "Subject is required";
+    if (!formData.dueDate) next.dueDate = "Due date is required";
+
+    setFormErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const clearError = (key: keyof TaskFormErrors) => {
+    setFormErrors((e) => {
+      if (!e[key]) return e;
+      const copy = { ...e };
+      delete copy[key];
+      return copy;
+    });
+  };
+
   const handleSubmit = (type: "task" | "assignment" | "exam" | "homework") => {
-    if (!formData.title || !formData.subjectId || !formData.dueDate) return;
+    if (!validateForm()) return;
 
     const newDueDate = new Date(formData.dueDate);
 
     if (editingId) {
       const existing = tasks.find((t) => t.id === editingId);
 
-      // Stable history: keep existing periodId unless due date changed.
       const dueChanged =
         existing?.dueDate && startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
@@ -211,7 +247,7 @@ export function Tasks({
       const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
 
       onUpdateTask(editingId, {
-        title: formData.title,
+        title: formData.title.trim(),
         subjectId: formData.subjectId,
         dueDate: newDueDate,
         type,
@@ -226,7 +262,7 @@ export function Tasks({
       const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
 
       onAddTask({
-        title: formData.title,
+        title: formData.title.trim(),
         subjectId: formData.subjectId,
         dueDate: newDueDate,
         type,
@@ -234,12 +270,13 @@ export function Tasks({
       });
     }
 
-    setFormData({ title: "", subjectId: "", dueDate: "" });
+    resetForm();
     setShowAddForm(null);
   };
 
   const handleEdit = (task: Task) => {
     setEditingId(task.id);
+    setFormErrors({});
     setFormData({
       title: task.title,
       subjectId: task.subjectId,
@@ -257,8 +294,13 @@ export function Tasks({
   const handleCancel = () => {
     setShowAddForm(null);
     setEditingId(null);
-    setFormData({ title: "", subjectId: "", dueDate: "" });
+    resetForm();
   };
+
+  const inputBase =
+    "w-full rounded-xl border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+  const inputOk = "border-border";
+  const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
 
   const renderAddForm = (type: "task" | "assignment" | "exam" | "homework") => (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
@@ -266,34 +308,70 @@ export function Tasks({
         {editingId ? "Edit" : "New"} {type}
       </div>
 
-      <input
-        type="text"
-        placeholder="Title"
-        value={formData.title}
-        onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-        autoFocus
-      />
+      <div>
+        <label className={labelClass} htmlFor={`task-title-${type}`}>
+          Title
+          <RequiredMark required />
+        </label>
+        <input
+          id={`task-title-${type}`}
+          type="text"
+          placeholder="Title"
+          value={formData.title}
+          onChange={(e) => {
+            setFormData((p) => ({ ...p, title: e.target.value }));
+            clearError("title");
+          }}
+          className={[inputBase, formErrors.title ? inputErr : inputOk].join(" ")}
+          autoFocus
+          aria-invalid={!!formErrors.title}
+        />
+        <FieldError message={formErrors.title} />
+      </div>
 
-      <select
-        value={formData.subjectId}
-        onChange={(e) => setFormData((p) => ({ ...p, subjectId: e.target.value }))}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      >
-        <option value="">Select subject</option>
-        {subjects.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
+      <div>
+        <label className={labelClass} htmlFor={`task-subject-${type}`}>
+          Subject
+          <RequiredMark required />
+        </label>
+        <select
+          id={`task-subject-${type}`}
+          value={formData.subjectId}
+          onChange={(e) => {
+            setFormData((p) => ({ ...p, subjectId: e.target.value }));
+            clearError("subjectId");
+          }}
+          className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
+          aria-invalid={!!formErrors.subjectId}
+        >
+          <option value="">Select subject</option>
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <FieldError message={formErrors.subjectId} />
+      </div>
 
-      <input
-        type="date"
-        value={formData.dueDate}
-        onChange={(e) => setFormData((p) => ({ ...p, dueDate: e.target.value }))}
-        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      />
+      <div>
+        <label className={labelClass} htmlFor={`task-date-${type}`}>
+          Due date
+          <RequiredMark required />
+        </label>
+        <input
+          id={`task-date-${type}`}
+          type="date"
+          value={formData.dueDate}
+          onChange={(e) => {
+            setFormData((p) => ({ ...p, dueDate: e.target.value }));
+            clearError("dueDate");
+          }}
+          className={[inputBase, formErrors.dueDate ? inputErr : inputOk].join(" ")}
+          aria-invalid={!!formErrors.dueDate}
+        />
+        <FieldError message={formErrors.dueDate} />
+      </div>
 
       <div className="flex gap-2 pt-1">
         <button
@@ -362,7 +440,7 @@ export function Tasks({
             setExpandedSections((prev) => ({ ...prev, [type]: true }));
             setShowAddForm(showAddForm === type ? null : type);
             setEditingId(null);
-            setFormData({ title: "", subjectId: "", dueDate: "" });
+            resetForm();
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
