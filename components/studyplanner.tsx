@@ -200,7 +200,7 @@ export function StudyPlanner({
     setFormErrors({});
   };
 
-  // ✅ Only ACTIVE tasks are linkable (not completed), and include ALL task types (task/assignment/exam/homework)
+  // ✅ Only ACTIVE tasks are linkable (not completed)
   const linkableTasks = useMemo(() => {
     return tasks
       .filter((t) => !t.completed)
@@ -209,7 +209,6 @@ export function StudyPlanner({
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [tasks, sessionForm.subjectId]);
 
-  // If editing a session that is linked to a now-completed / missing task, keep it visible so we don’t drop the link.
   const currentLinkedTask = useMemo(() => {
     if (!sessionForm.linkedTaskId) return null;
     return getTaskById(sessionForm.linkedTaskId) ?? null;
@@ -231,10 +230,10 @@ export function StudyPlanner({
     return {
       count: inWeek.length,
       minutes,
-      label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })}`,
+      label: `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString(
+        "en-US",
+        { month: "short", day: "numeric" }
+      )}`,
     };
   }, [studySessions]);
 
@@ -293,7 +292,6 @@ export function StudyPlanner({
     closePanel();
   };
 
-  // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = time12To24(sessionForm.startTime);
 
   const confirmDelete = () => {
@@ -534,7 +532,6 @@ export function StudyPlanner({
                   value={sessionForm.subjectId}
                   onChange={(e) => {
                     const nextSubjectId = e.target.value;
-
                     const linked = sessionForm.linkedTaskId ? getTaskById(sessionForm.linkedTaskId) : null;
                     const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
 
@@ -619,8 +616,9 @@ export function StudyPlanner({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
+              {/* ✅ FIXED: prevents overlap + consistent spacing */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+                <div className="space-y-1">
                   <label className={labelClass} htmlFor="session-date">
                     Date
                     <RequiredMark required />
@@ -634,7 +632,7 @@ export function StudyPlanner({
                       clearError("date");
                     }}
                     className={[
-                      "h-11 rounded-xl border bg-input-background px-3 text-sm focus:outline-none focus:ring-2",
+                      "h-11 w-full rounded-xl border bg-input-background px-3 text-sm focus:outline-none focus:ring-2",
                       formErrors.date ? "border-red-500/50 focus:ring-red-500/20" : "border-border focus:ring-primary/30",
                     ].join(" ")}
                     aria-invalid={!!formErrors.date}
@@ -642,7 +640,7 @@ export function StudyPlanner({
                   <FieldError message={formErrors.date} />
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <label className={labelClass} htmlFor="session-time">
                     Start
                     <RequiredMark required />
@@ -656,7 +654,7 @@ export function StudyPlanner({
                       clearError("startTime");
                     }}
                     className={[
-                      "h-11 rounded-xl border bg-input-background px-3 text-sm focus:outline-none focus:ring-2",
+                      "h-11 w-full rounded-xl border bg-input-background px-3 text-sm focus:outline-none focus:ring-2",
                       formErrors.startTime
                         ? "border-red-500/50 focus:ring-red-500/20"
                         : "border-border focus:ring-primary/30",
@@ -666,7 +664,7 @@ export function StudyPlanner({
                   <FieldError message={formErrors.startTime} />
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <label className={labelClass} htmlFor="session-duration">
                     Duration
                   </label>
