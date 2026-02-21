@@ -1,3 +1,4 @@
+// components/settings.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -73,7 +74,6 @@ interface SettingsProps {
   appMode: AppMode;
   onClearAllData: () => void;
 
-  // ✅ allow Dashboard to open + expand a section
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
 }
@@ -95,6 +95,54 @@ function safeUUID() {
   const c: any = globalThis as any;
   if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
   return `p_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+}
+
+/* -------------------- Better subject colors -------------------- */
+/**
+ * High-contrast palette: distinct on light + dark backgrounds.
+ * Keep HEX strings stable so users’ existing choices still match.
+ */
+const SUBJECT_COLOR_PALETTE = [
+  "#2563EB",
+  "#DC2626",
+  "#16A34A",
+  "#7C3AED",
+  "#EA580C",
+  "#0EA5E9",
+  "#DB2777",
+  "#CA8A04",
+  "#059669",
+  "#9333EA",
+  "#4F46E5",
+  "#B91C1C",
+  "#15803D",
+  "#A21CAF",
+  "#C2410C",
+  "#0284C7",
+  "#BE185D",
+  "#A16207",
+  "#047857",
+  "#6D28D9",
+  "#1D4ED8",
+  "#991B1B",
+  "#166534",
+  "#86198F",
+  "#9A3412",
+  "#0369A1",
+  "#9D174D",
+  "#854D0E",
+  "#065F46",
+  "#5B21B6",
+];
+
+function normalizeHex(hex: string) {
+  return String(hex || "").trim().toLowerCase();
+}
+
+function pickNextColor(usedColors: string[]) {
+  const used = new Set(usedColors.map(normalizeHex));
+  const next = SUBJECT_COLOR_PALETTE.find((c) => !used.has(normalizeHex(c)));
+  return next ?? SUBJECT_COLOR_PALETTE[usedColors.length % SUBJECT_COLOR_PALETTE.length];
 }
 
 /* -------------------- Backup helpers -------------------- */
@@ -149,7 +197,7 @@ export function Settings({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({ name: "", color: "#7A9B7F" });
+  const [formData, setFormData] = useState({ name: "", color: pickNextColor([]) });
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -183,66 +231,10 @@ export function Settings({
   const subjectNameInputRef = useRef<HTMLInputElement>(null);
   const termNameInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Curated palette
-   */
-  const colorPalette = [
-    "#7A9B7F",
-    "#6B8E73",
-    "#8BA888",
-    "#9CAF88",
-    "#668C6A",
-    "#7FA582",
-    "#92B894",
-    "#4F7E62",
-    "#6F9A7B",
-    "#5C8F6E",
-    "#5E9D9A",
-    "#4D8E8A",
-    "#78B7B3",
-    "#3F7F7C",
-    "#6FAEAA",
-    "#2F6F6C",
-    "#6B9BC3",
-    "#5A8AAA",
-    "#7BA5C7",
-    "#4A7A9E",
-    "#3E6F93",
-    "#84B2D6",
-    "#587EA5",
-    "#4B6F8E",
-    "#9B7FA8",
-    "#8B73A0",
-    "#A888B5",
-    "#7A6B92",
-    "#B39BC6",
-    "#6F5F86",
-    "#8F7AB2",
-    "#C4956E",
-    "#B8885C",
-    "#D4A574",
-    "#A67C52",
-    "#D9B08C",
-    "#B57F55",
-    "#C98B5F",
-    "#C8B36A",
-    "#BDA85C",
-    "#D6C27A",
-    "#B87B7B",
-    "#A66B6B",
-    "#C88A8A",
-    "#9E5F5F",
-    "#C27C99",
-    "#B36B88",
-    "#A85F77",
-    "#8E8E8E",
-    "#6F6F6F",
-    "#A3A3A3",
-  ];
+  const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
 
   // Normalize term names for reliable duplicate checking
-  const normalizeTermName = (s: string) =>
-    s.trim().replace(/\s+/g, " ").toLowerCase();
+  const normalizeTermName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
   // -------- Periods: load + persist --------
   useEffect(() => {
@@ -275,9 +267,7 @@ export function Settings({
         endDate: p.endDate.toISOString(),
       }));
       localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [periods]);
 
   // -------- Periods handlers --------
@@ -342,7 +332,6 @@ export function Settings({
       setBackupOpen(false);
       setPeriodsOpen(true);
 
-      // Open the “new term” form too (good onboarding)
       openNewPeriod();
 
       requestAnimationFrame(() => {
@@ -380,10 +369,11 @@ export function Settings({
     return { tasks: t, items: i, sessions: s };
   }, [deletingSubjectId, tasks, studyItems, studySessions]);
 
-  const deletingPeriod = useMemo(
-    () => periods.find((p) => p.id === deletingPeriodId) || null,
-    [periods, deletingPeriodId]
-  );
+  const deletingPeriod = useMemo(() => periods.find((p) => p.id === deletingPeriodId) || null, [periods, deletingPeriodId]);
+
+  const ensureNewSubjectDefaults = () => {
+    setFormData({ name: "", color: pickNextColor(usedSubjectColors) });
+  };
 
   const handleSubmit = () => {
     if (!formData.name || !formData.color) return;
@@ -396,7 +386,7 @@ export function Settings({
       setShowAddForm(false);
     }
 
-    setFormData({ name: "", color: "#7A9B7F" });
+    ensureNewSubjectDefaults();
   };
 
   const handleEdit = (subject: Subject) => {
@@ -409,7 +399,7 @@ export function Settings({
   const handleCancel = () => {
     setShowAddForm(false);
     setEditingId(null);
-    setFormData({ name: "", color: "#7A9B7F" });
+    ensureNewSubjectDefaults();
   };
 
   const confirmDelete = () => {
@@ -438,11 +428,8 @@ export function Settings({
       return;
     }
 
-    // ✅ Fix: normalize names + ignore the row being edited
     const n = normalizeTermName(name);
-    const nameClash = periods.some(
-      (p) => p.id !== editingPeriodId && normalizeTermName(p.name) === n
-    );
+    const nameClash = periods.some((p) => p.id !== editingPeriodId && normalizeTermName(p.name) === n);
     if (nameClash) {
       setPeriodFormError("That term name already exists.");
       return;
@@ -450,9 +437,7 @@ export function Settings({
 
     if (editingPeriodId) {
       setPeriods((prev) => {
-        const next = prev.map((p) =>
-          p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
-        );
+        const next = prev.map((p) => (p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p));
         next.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
         return next;
       });
@@ -625,10 +610,9 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={[
-                "w-5 h-5 text-muted-foreground transition-transform",
-                subjectsOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
+              className={["w-5 h-5 text-muted-foreground transition-transform", subjectsOpen ? "rotate-180" : "rotate-0"].join(
+                " "
+              )}
             />
           </button>
 
@@ -641,6 +625,9 @@ export function Settings({
                     setSubjectsOpen(true);
                     setShowAddForm(true);
                     setEditingId(null);
+                    setDeletingSubjectId(null);
+                    ensureNewSubjectDefaults();
+                    requestAnimationFrame(() => subjectNameInputRef.current?.focus());
                   }}
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 >
@@ -651,8 +638,16 @@ export function Settings({
 
               {(showAddForm || editingId) && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    {editingId ? "Edit subject" : "New subject"}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-sm font-semibold text-foreground">{editingId ? "Edit subject" : "New subject"}</div>
+
+                    <div className="inline-flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Preview</span>
+                      <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: formData.color }} />
+                        <span className="text-foreground/90">{formData.name.trim() || "Subject"}</span>
+                      </span>
+                    </div>
                   </div>
 
                   <input
@@ -666,34 +661,53 @@ export function Settings({
                   />
 
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Colour <span className="opacity-70">(or pick a custom one below)</span>
-                    </label>
+                    <label className="text-xs font-medium text-muted-foreground">Colour</label>
 
                     <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-2">
-                      {colorPalette.map((color) => (
-                        <button
-                          type="button"
-                          key={color}
-                          onClick={() => setFormData({ ...formData, color })}
-                          className={[
-                            "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                            formData.color === color
-                              ? "ring-2 ring-primary scale-105"
-                              : "hover:scale-105",
-                          ].join(" ")}
-                          style={{ backgroundColor: color }}
-                          aria-label={`Pick ${color}`}
-                        />
-                      ))}
+                      {SUBJECT_COLOR_PALETTE.map((color) => {
+                        const selected = normalizeHex(formData.color) === normalizeHex(color);
+                        return (
+                          <button
+                            type="button"
+                            key={color}
+                            onClick={() => setFormData({ ...formData, color })}
+                            className={[
+                              "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-transform border",
+                              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                              selected ? "scale-105 ring-2 ring-primary border-border" : "hover:scale-105 border-border",
+                            ].join(" ")}
+                            style={{ backgroundColor: color }}
+                            aria-label={`Pick ${color}`}
+                            title={color}
+                          />
+                        );
+                      })}
                     </div>
 
-                    <input
-                      type="color"
-                      value={formData.color}
-                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                      className="w-full h-10 rounded-xl border border-border cursor-pointer bg-card"
-                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData((p) => ({ ...p, color: pickNextColor(usedSubjectColors) }))}
+                        className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      >
+                        Pick a new colour
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Custom</span>
+                        <input
+                          type="color"
+                          value={formData.color}
+                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                          className="h-10 w-16 rounded-xl border border-border cursor-pointer bg-card"
+                          aria-label="Pick custom color"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-muted-foreground">
+                      Tip: pick colours that look different at a glance (helps the calendar).
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
@@ -719,9 +733,7 @@ export function Settings({
                 {subjects.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No subjects yet</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Create one to start organising your work.
-                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">Create one to start organising your work.</div>
                   </div>
                 ) : (
                   subjects.map((subject) => (
@@ -730,14 +742,9 @@ export function Settings({
                       className="group rounded-2xl border border-border bg-card px-4 py-3 shadow-sm hover:shadow-md transition flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="h-10 w-10 rounded-xl border border-border"
-                          style={{ backgroundColor: subject.color }}
-                        />
+                        <div className="h-10 w-10 rounded-xl border border-border" style={{ backgroundColor: subject.color }} />
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">
-                            {subject.name}
-                          </div>
+                          <div className="text-sm font-medium text-foreground truncate">{subject.name}</div>
                           <div className="text-xs text-muted-foreground">{subject.color}</div>
                         </div>
                       </div>
@@ -777,16 +784,13 @@ export function Settings({
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Terms</div>
-              <div className="text-xs text-muted-foreground">
-                Define your school terms so tasks can be grouped automatically.
-              </div>
+              <div className="text-xs text-muted-foreground">Define your school terms so tasks can be grouped automatically.</div>
             </div>
 
             <ChevronDown
-              className={[
-                "w-5 h-5 text-muted-foreground transition-transform",
-                periodsOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
+              className={["w-5 h-5 text-muted-foreground transition-transform", periodsOpen ? "rotate-180" : "rotate-0"].join(
+                " "
+              )}
             />
           </button>
 
@@ -805,15 +809,11 @@ export function Settings({
 
               {showAddPeriodForm && (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    {editingPeriodId ? "Edit term" : "New term"}
-                  </div>
+                  <div className="text-sm font-semibold text-foreground">{editingPeriodId ? "Edit term" : "New term"}</div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-1">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Name
-                      </label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
                       <input
                         ref={termNameInputRef}
                         type="text"
@@ -826,9 +826,7 @@ export function Settings({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Start date
-                      </label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Start date</label>
                       <input
                         type="date"
                         value={periodForm.startDate}
@@ -838,9 +836,7 @@ export function Settings({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        End date
-                      </label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">End date</label>
                       <input
                         type="date"
                         value={periodForm.endDate}
@@ -949,10 +945,9 @@ export function Settings({
             </div>
 
             <ChevronDown
-              className={[
-                "w-5 h-5 text-muted-foreground transition-transform",
-                backupOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
+              className={["w-5 h-5 text-muted-foreground transition-transform", backupOpen ? "rotate-180" : "rotate-0"].join(
+                " "
+              )}
             />
           </button>
 
@@ -962,8 +957,7 @@ export function Settings({
                 Use this to <span className="text-foreground/90 font-medium">save a copy</span> of your planner data,
                 move to another device/browser, or recover if your browser storage is cleared.
                 <span className="block mt-1">
-                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this
-                  device.
+                  Restoring a backup will <span className="text-foreground/90 font-medium">replace</span> data on this device.
                 </span>
               </div>
 
@@ -999,9 +993,7 @@ export function Settings({
                 </div>
               ) : null}
 
-              <div className="text-[11px] text-muted-foreground">
-                Tip: store your backup in iCloud Drive / Google Drive so you can restore anytime.
-              </div>
+              <div className="text-[11px] text-muted-foreground">Tip: store your backup in iCloud Drive / Google Drive.</div>
             </div>
           )}
         </div>
@@ -1175,9 +1167,7 @@ export function Settings({
                 </div>
               </div>
 
-              <div className="text-[11px] text-muted-foreground">
-                After restoring, the page will reload automatically.
-              </div>
+              <div className="text-[11px] text-muted-foreground">After restoring, the page will reload automatically.</div>
             </div>
 
             <div className="p-5 flex gap-2 justify-end">
@@ -1206,9 +1196,7 @@ export function Settings({
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowClearConfirm(false)} />
           <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">
-                {appMode === "demo" ? "Reset demo data?" : "Clear all data?"}
-              </div>
+              <div className="text-sm font-semibold text-foreground">{appMode === "demo" ? "Reset demo data?" : "Clear all data?"}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {appMode === "demo"
                   ? "This will reset the demo back to the original sample subjects, tasks, and sessions."
