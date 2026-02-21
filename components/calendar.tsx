@@ -1,3 +1,4 @@
+// components/calendar.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
@@ -48,6 +49,19 @@ interface CalendarProps {
   onUpdateReminder?: (id: string, reminder: Omit<Reminder, "id">) => void;
   onDeleteReminder?: (id: string) => void;
 }
+
+/* -------------------- small form helpers -------------------- */
+type TaskFormErrors = Partial<Record<"title" | "subjectId" | "dueDate", string>>;
+type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>>;
+type ReminderFormErrors = Partial<Record<"title" | "dueDate", string>>;
+
+const RequiredMark = ({ required }: { required?: boolean }) =>
+  required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null;
+
+const FieldError = ({ message }: { message?: string }) =>
+  message ? <div className="mt-1 text-xs text-red-600">{message}</div> : null;
+
+const labelClass = "text-sm font-medium text-foreground";
 
 /* -------------------- helpers -------------------- */
 const toLocalDateInputValue = (d: Date) => {
@@ -133,8 +147,6 @@ const time24To12 = (t: string) => {
 const time12To24 = (t: string) => {
   if (!t) return "";
   const s = t.trim().toUpperCase();
-
-  // Matches: "4:00 PM", "4 PM", "12:15 AM"
   const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
   if (!m) return "";
 
@@ -153,7 +165,6 @@ const time12To24 = (t: string) => {
 const displaySessionTime = (t: string) => {
   const s = (t ?? "").trim();
   if (!s) return "";
-  // If stored as 24h "HH:MM", display nicely
   if (/^\d{2}:\d{2}$/.test(s)) return time24To12(s);
   return s;
 };
@@ -204,7 +215,6 @@ function CalendarView({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // ✅ close helpers (fixes the “selected day border stays” issue)
   const closePopover = () => {
     setShowPopover(false);
     setSelectedDate(null);
@@ -246,11 +256,9 @@ function CalendarView({
     return `${active.name} · Week ${wk}`;
   }, [currentDate, periods]);
 
-  // tasks edit
+  // edit ids
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  // sessions edit
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  // reminders edit
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
 
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
@@ -264,7 +272,6 @@ function CalendarView({
     type: "task" as "task" | "assignment" | "exam" | "homework",
   });
 
-  // ✅ Study Sessions form
   const [sessionFormData, setSessionFormData] = useState({
     title: "",
     subjectId: "",
@@ -274,12 +281,32 @@ function CalendarView({
     linkedTaskId: "",
   });
 
-  // ✅ Reminders form
   const [reminderFormData, setReminderFormData] = useState({
     title: "",
     dueDate: "",
     time: "",
   });
+
+  const [taskErrors, setTaskErrors] = useState<TaskFormErrors>({});
+  const [sessionErrors, setSessionErrors] = useState<SessionFormErrors>({});
+  const [reminderErrors, setReminderErrors] = useState<ReminderFormErrors>({});
+
+  const inputBase =
+    "w-full rounded-xl border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+  const inputOk = "border-border";
+  const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
+
+  const clearError = <T extends Record<string, string | undefined>>(
+    setFn: React.Dispatch<React.SetStateAction<T>>,
+    key: keyof T
+  ) => {
+    setFn((e) => {
+      if (!e[key]) return e;
+      const copy = { ...e };
+      delete copy[key];
+      return copy;
+    });
+  };
 
   const subjectById = useMemo(() => {
     const map = new Map<string, Subject>();
@@ -293,12 +320,12 @@ function CalendarView({
     return map;
   }, [tasks]);
 
-  // ✅ Hide completed items (so they disappear instantly when completed)
+  // ✅ Hide completed items
   const activeTasks = useMemo(() => tasks.filter((t: any) => !t.completed), [tasks]);
   const activeSessions = useMemo(() => studySessions.filter((s: any) => !s.completed), [studySessions]);
   const activeReminders = useMemo(() => reminders.filter((r: any) => !r.completed), [reminders]);
 
-  // ✅ Link study sessions to ANY active task (incl. Homework), filtered by selected subject if set
+  // ✅ Linkable tasks
   const linkableTasks = useMemo(() => {
     return activeTasks
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
@@ -306,7 +333,6 @@ function CalendarView({
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [activeTasks, sessionFormData.subjectId]);
 
-  // If editing a session linked to a now-completed/missing task, keep it visible (disabled)
   const currentLinkedTask = useMemo(() => {
     const id = (sessionFormData.linkedTaskId ?? "").trim();
     if (!id) return null;
@@ -342,7 +368,6 @@ function CalendarView({
     const dateTasks = activeTasks.filter((task) => isSameDay(task.dueDate, date));
     const dateSessions = activeSessions.filter((session) => isSameDay(session.date, date));
     const dateReminders = activeReminders.filter((r) => (r.dueDate ? isSameDay(r.dueDate, date) : false));
-
     return { tasks: dateTasks, sessions: dateSessions, reminders: dateReminders };
   };
 
@@ -358,6 +383,10 @@ function CalendarView({
     setEditingTaskId(null);
     setEditingSessionId(null);
     setEditingReminderId(null);
+
+    setTaskErrors({});
+    setSessionErrors({});
+    setReminderErrors({});
 
     if (type === "study") {
       setSessionFormData({
@@ -392,6 +421,7 @@ function CalendarView({
 
     setEditingTaskId(task.id);
     setSelectedDate(task.dueDate);
+    setTaskErrors({});
 
     setTaskFormData({
       title: task.title,
@@ -409,6 +439,7 @@ function CalendarView({
 
     setEditingSessionId(session.id);
     setSelectedDate(session.date);
+    setSessionErrors({});
 
     setSessionFormData({
       title: session.title ?? "",
@@ -429,6 +460,7 @@ function CalendarView({
 
     setEditingReminderId(reminder.id);
     setSelectedDate(reminder.dueDate);
+    setReminderErrors({});
 
     setReminderFormData({
       title: reminder.title ?? "",
@@ -440,8 +472,36 @@ function CalendarView({
     setShowPopover(false);
   };
 
+  const validateTaskForm = () => {
+    const next: TaskFormErrors = {};
+    if (!taskFormData.title.trim()) next.title = "Title is required";
+    if (!taskFormData.subjectId) next.subjectId = "Subject is required";
+    if (!taskFormData.dueDate) next.dueDate = "Due date is required";
+    setTaskErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const validateSessionForm = () => {
+    const next: SessionFormErrors = {};
+    if (!sessionFormData.title.trim()) next.title = "Title is required";
+    if (!sessionFormData.subjectId) next.subjectId = "Subject is required";
+    if (!sessionFormData.date) next.date = "Date is required";
+    if (!sessionFormData.startTime.trim()) next.startTime = "Start time is required";
+    if (!sessionFormData.duration.trim()) next.duration = "Duration is required";
+    setSessionErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const validateReminderForm = () => {
+    const next: ReminderFormErrors = {};
+    if (!reminderFormData.title.trim()) next.title = "Title is required";
+    if (!reminderFormData.dueDate) next.dueDate = "Date is required";
+    setReminderErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleTaskSubmit = () => {
-    if (!taskFormData.title || !taskFormData.subjectId || !taskFormData.dueDate) return;
+    if (!validateTaskForm()) return;
 
     const newDueDate = new Date(taskFormData.dueDate);
 
@@ -455,7 +515,7 @@ function CalendarView({
       const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
 
       const payload: Omit<Task, "id"> = {
-        title: taskFormData.title,
+        title: taskFormData.title.trim(),
         subjectId: taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
@@ -470,7 +530,7 @@ function CalendarView({
       const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
 
       const payload: Omit<Task, "id"> = {
-        title: taskFormData.title,
+        title: taskFormData.title.trim(),
         subjectId: taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
@@ -487,14 +547,7 @@ function CalendarView({
   };
 
   const handleSessionSubmit = () => {
-    if (
-      !sessionFormData.title ||
-      !sessionFormData.subjectId ||
-      !sessionFormData.date ||
-      !sessionFormData.startTime ||
-      !sessionFormData.duration
-    )
-      return;
+    if (!validateSessionForm()) return;
 
     const payload: Omit<StudySession, "id"> = {
       title: sessionFormData.title.trim(),
@@ -528,7 +581,7 @@ function CalendarView({
   };
 
   const handleReminderSubmit = () => {
-    if (!reminderFormData.title || !reminderFormData.dueDate) return;
+    if (!validateReminderForm()) return;
 
     const newDueDate = new Date(reminderFormData.dueDate);
     const trimmedTitle = reminderFormData.title.trim();
@@ -569,6 +622,10 @@ function CalendarView({
     setEditingSessionId(null);
     setEditingReminderId(null);
 
+    setTaskErrors({});
+    setSessionErrors({});
+    setReminderErrors({});
+
     setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
     setSessionFormData({
       title: "",
@@ -598,7 +655,7 @@ function CalendarView({
     </button>
   );
 
-  // ✅ subtle “complete” control (no tick/checkmark)
+  // subtle “complete” control (no tick/checkmark)
   const CompleteDot = ({
     onClick,
     aria,
@@ -614,18 +671,15 @@ function CalendarView({
         "mt-0.5 h-5 w-5 rounded-full border border-border",
         "bg-background/40 hover:bg-muted/60 transition shrink-0",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-        // slightly clearer than before, but not loud
       ].join(" ")}
     >
       <span className="sr-only">{aria}</span>
-      {/* tiny inner dot only on hover/focus to indicate action */}
       <div className="h-full w-full grid place-items-center">
         <div className="h-2 w-2 rounded-full bg-primary opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 transition-opacity" />
       </div>
     </button>
   );
 
-  // ✅ card (chip)
   const renderChip = ({
     title,
     subjectId,
@@ -662,11 +716,9 @@ function CalendarView({
       (task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders)
     );
 
-    // ✅ Capitalised labels
     const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
     const bottomRight = task ? typeLabel(task.type) : session ? "Study Session" : "";
 
-    // ✅ completion support for all card types (only if handler provided)
     const canToggleTask = Boolean(task && onToggleTaskCompleted);
     const canToggleSession = Boolean(session && onToggleStudySessionCompleted);
     const canToggleReminder = Boolean(reminder && onToggleReminderCompleted);
@@ -679,7 +731,6 @@ function CalendarView({
       else if (reminder && onToggleReminderCompleted) onToggleReminderCompleted(reminder.id);
     };
 
-    // ✅ Only reserve right-side space for time if there is time text
     const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
 
     return (
@@ -706,7 +757,6 @@ function CalendarView({
         style={{ borderLeftWidth: 3, borderLeftColor: dot }}
         title={title}
       >
-        {/* ✅ Subtle complete control (no checkmark) */}
         {showToggle ? (
           <CompleteDot
             onClick={handleToggle}
@@ -721,7 +771,6 @@ function CalendarView({
             {title}
           </div>
 
-          {/* Bottom row */}
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             <div className="min-w-0 flex-1 truncate">{bottomLeft}</div>
             {bottomRight ? <div className="shrink-0 ml-auto">{bottomRight}</div> : null}
@@ -748,7 +797,7 @@ function CalendarView({
       cells.push(
         <div
           key={`empty-${i}`}
-          className="min-h-[140px] p-2 bg-muted/20 border-r border-b border-border"
+          className="min-h-[170px] p-2 bg-muted/20 border-r border-b border-border"
           aria-hidden="true"
         />
       );
@@ -786,7 +835,7 @@ function CalendarView({
             if (e.key === "Enter" || e.key === " ") handleDayClick(date);
           }}
           className={[
-            "min-h-[140px] text-left p-2 border-r border-b border-border hover:bg-muted/40 transition",
+            "min-h-[170px] text-left p-2.5 border-r border-b border-border hover:bg-muted/40 transition",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
             "flex flex-col cursor-pointer bg-card",
             isToday ? "bg-primary/[0.04]" : "",
@@ -811,7 +860,7 @@ function CalendarView({
             ) : null}
           </div>
 
-          <div className="mt-2 space-y-1 min-h-0">
+          <div className="mt-2 space-y-1.5 min-h-0">
             {previewItems.map((x, idx) => {
               if (x.kind === "task") {
                 return (
@@ -843,7 +892,9 @@ function CalendarView({
               );
             })}
 
-            {totalCount > 3 ? <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div> : null}
+            {totalCount > 3 ? (
+              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
+            ) : null}
           </div>
         </div>
       );
@@ -894,7 +945,7 @@ function CalendarView({
                 if (e.key === "Enter" || e.key === " ") handleDayClick(date);
               }}
               className={[
-                "min-h-[520px] p-3 text-left border-r border-border cursor-pointer transition",
+                "min-h-[580px] p-3 text-left border-r border-border cursor-pointer transition",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 isToday ? "bg-primary/[0.04]" : "bg-card hover:bg-muted/40",
                 isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
@@ -961,7 +1012,9 @@ function CalendarView({
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">{currentDate.toLocaleDateString("en-US", { weekday: "long" })}</div>
+            <div className="text-xs text-muted-foreground">
+              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
+            </div>
             <div className="mt-1 text-xl font-semibold text-foreground">
               {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
@@ -1041,12 +1094,12 @@ function CalendarView({
   // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = useMemo(() => {
     const s = (sessionFormData.startTime ?? "").trim();
-    if (/^\d{2}:\d{2}$/.test(s)) return s; // already 24h format
+    if (/^\d{2}:\d{2}$/.test(s)) return s;
     return time12To24(s);
   }, [sessionFormData.startTime]);
 
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
+    <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 md:px-8 py-7 space-y-5">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
         <p className="text-sm text-muted-foreground">Click a day to add a task, reminder, or study session.</p>
@@ -1205,37 +1258,57 @@ function CalendarView({
             <div className="p-5 space-y-4">
               {showAddForm === "study" ? (
                 <>
-                  <input
-                    type="text"
-                    placeholder="Session title (e.g. Trig graphs revision)"
-                    value={sessionFormData.title}
-                    onChange={(e) => setSessionFormData({ ...sessionFormData, title: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  />
+                  <div>
+                    <label className={labelClass}>
+                      Title
+                      <RequiredMark required />
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Session title (e.g. Trig graphs revision)"
+                      value={sessionFormData.title}
+                      onChange={(e) => {
+                        setSessionFormData({ ...sessionFormData, title: e.target.value });
+                        clearError(setSessionErrors, "title");
+                      }}
+                      className={[inputBase, sessionErrors.title ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!sessionErrors.title}
+                    />
+                    <FieldError message={sessionErrors.title} />
+                  </div>
 
-                  <select
-                    value={sessionFormData.subjectId}
-                    onChange={(e) => {
-                      const nextSubjectId = e.target.value;
+                  <div>
+                    <label className={labelClass}>
+                      Subject
+                      <RequiredMark required />
+                    </label>
+                    <select
+                      value={sessionFormData.subjectId}
+                      onChange={(e) => {
+                        const nextSubjectId = e.target.value;
 
-                      const linked = sessionFormData.linkedTaskId ? taskById.get(sessionFormData.linkedTaskId) : null;
-                      const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
+                        const linked = sessionFormData.linkedTaskId ? taskById.get(sessionFormData.linkedTaskId) : null;
+                        const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
 
-                      setSessionFormData((p) => ({
-                        ...p,
-                        subjectId: nextSubjectId,
-                        linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
-                      }));
-                    }}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    <option value="">Select subject</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
+                        setSessionFormData((p) => ({
+                          ...p,
+                          subjectId: nextSubjectId,
+                          linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
+                        }));
+                        clearError(setSessionErrors, "subjectId");
+                      }}
+                      className={[inputBase, sessionErrors.subjectId ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!sessionErrors.subjectId}
+                    >
+                      <option value="">Select subject</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError message={sessionErrors.subjectId} />
+                  </div>
 
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Link to task (optional)</div>
@@ -1261,8 +1334,9 @@ function CalendarView({
                           linkedTaskId: nextId,
                           subjectId: linked.subjectId,
                         }));
+                        clearError(setSessionErrors, "subjectId");
                       }}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className={[inputBase, inputOk].join(" ")}
                     >
                       <option value="">Not linked</option>
 
@@ -1293,41 +1367,78 @@ function CalendarView({
                     <div className="text-[11px] text-muted-foreground">Only shows active (not completed) tasks.</div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2">
-                    <label className="text-xs text-muted-foreground flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4" />
+                  <div>
+                    <label className={labelClass}>
                       Date
+                      <RequiredMark required />
                     </label>
+                    <div className="mt-1">
+                      <label className="text-xs text-muted-foreground flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        Date
+                      </label>
+                    </div>
                     <input
                       type="date"
                       value={sessionFormData.date}
-                      onChange={(e) => setSessionFormData({ ...sessionFormData, date: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      onChange={(e) => {
+                        setSessionFormData({ ...sessionFormData, date: e.target.value });
+                        clearError(setSessionErrors, "date");
+                      }}
+                      className={[inputBase, sessionErrors.date ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!sessionErrors.date}
                     />
+                    <FieldError message={sessionErrors.date} />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input
-                      type="time"
-                      value={startTimeUiValue}
-                      onChange={(e) =>
-                        setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) })
-                      }
-                      className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                    <div>
+                      <label className={labelClass}>
+                        Start time
+                        <RequiredMark required />
+                      </label>
+                      <input
+                        type="time"
+                        value={startTimeUiValue}
+                        onChange={(e) => {
+                          setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) });
+                          clearError(setSessionErrors, "startTime");
+                        }}
+                        className={[
+                          "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                          sessionErrors.startTime ? "border-red-500/50 focus-visible:ring-red-500/20" : "border-border focus-visible:ring-primary/30",
+                        ].join(" ")}
+                        aria-invalid={!!sessionErrors.startTime}
+                      />
+                      <FieldError message={sessionErrors.startTime} />
+                    </div>
 
-                    <select
-                      value={sessionFormData.duration}
-                      onChange={(e) => setSessionFormData({ ...sessionFormData, duration: e.target.value })}
-                      className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    >
-                      <option value="">Select duration</option>
-                      {DURATION_OPTIONS.map((d) => (
-                        <option key={d.value} value={d.value}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <label className={labelClass}>
+                        Duration
+                        <RequiredMark required />
+                      </label>
+                      <select
+                        value={sessionFormData.duration}
+                        onChange={(e) => {
+                          setSessionFormData({ ...sessionFormData, duration: e.target.value });
+                          clearError(setSessionErrors, "duration");
+                        }}
+                        className={[
+                          "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                          sessionErrors.duration ? "border-red-500/50 focus-visible:ring-red-500/20" : "border-border focus-visible:ring-primary/30",
+                        ].join(" ")}
+                        aria-invalid={!!sessionErrors.duration}
+                      >
+                        <option value="">Select duration</option>
+                        {DURATION_OPTIONS.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                      <FieldError message={sessionErrors.duration} />
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
@@ -1362,25 +1473,47 @@ function CalendarView({
                 </>
               ) : showAddForm === "reminder" ? (
                 <>
-                  <input
-                    type="text"
-                    placeholder="Reminder title (e.g. Pack calculator)"
-                    value={reminderFormData.title}
-                    onChange={(e) => setReminderFormData({ ...reminderFormData, title: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  />
-
-                  <div className="grid grid-cols-1 gap-2">
-                    <label className="text-xs text-muted-foreground flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4" />
-                      Date
+                  <div>
+                    <label className={labelClass}>
+                      Title
+                      <RequiredMark required />
                     </label>
+                    <input
+                      type="text"
+                      placeholder="Reminder title (e.g. Pack calculator)"
+                      value={reminderFormData.title}
+                      onChange={(e) => {
+                        setReminderFormData({ ...reminderFormData, title: e.target.value });
+                        clearError(setReminderErrors, "title");
+                      }}
+                      className={[inputBase, reminderErrors.title ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!reminderErrors.title}
+                    />
+                    <FieldError message={reminderErrors.title} />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      Date
+                      <RequiredMark required />
+                    </label>
+                    <div className="mt-1">
+                      <label className="text-xs text-muted-foreground flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        Date
+                      </label>
+                    </div>
                     <input
                       type="date"
                       value={reminderFormData.dueDate}
-                      onChange={(e) => setReminderFormData({ ...reminderFormData, dueDate: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      onChange={(e) => {
+                        setReminderFormData({ ...reminderFormData, dueDate: e.target.value });
+                        clearError(setReminderErrors, "dueDate");
+                      }}
+                      className={[inputBase, reminderErrors.dueDate ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!reminderErrors.dueDate}
                     />
+                    <FieldError message={reminderErrors.dueDate} />
                   </div>
 
                   <div className="grid grid-cols-1 gap-2">
@@ -1425,33 +1558,66 @@ function CalendarView({
                 </>
               ) : (
                 <>
-                  <input
-                    type="text"
-                    placeholder="Title"
-                    value={taskFormData.title}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  />
+                  <div>
+                    <label className={labelClass}>
+                      Title
+                      <RequiredMark required />
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={taskFormData.title}
+                      onChange={(e) => {
+                        setTaskFormData({ ...taskFormData, title: e.target.value });
+                        clearError(setTaskErrors, "title");
+                      }}
+                      className={[inputBase, taskErrors.title ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!taskErrors.title}
+                    />
+                    <FieldError message={taskErrors.title} />
+                  </div>
 
-                  <select
-                    value={taskFormData.subjectId}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, subjectId: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    <option value="">Select subject</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className={labelClass}>
+                      Subject
+                      <RequiredMark required />
+                    </label>
+                    <select
+                      value={taskFormData.subjectId}
+                      onChange={(e) => {
+                        setTaskFormData({ ...taskFormData, subjectId: e.target.value });
+                        clearError(setTaskErrors, "subjectId");
+                      }}
+                      className={[inputBase, taskErrors.subjectId ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!taskErrors.subjectId}
+                    >
+                      <option value="">Select subject</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError message={taskErrors.subjectId} />
+                  </div>
 
-                  <input
-                    type="date"
-                    value={taskFormData.dueDate}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                  />
+                  <div>
+                    <label className={labelClass}>
+                      Due date
+                      <RequiredMark required />
+                    </label>
+                    <input
+                      type="date"
+                      value={taskFormData.dueDate}
+                      onChange={(e) => {
+                        setTaskFormData({ ...taskFormData, dueDate: e.target.value });
+                        clearError(setTaskErrors, "dueDate");
+                      }}
+                      className={[inputBase, taskErrors.dueDate ? inputErr : inputOk].join(" ")}
+                      aria-invalid={!!taskErrors.dueDate}
+                    />
+                    <FieldError message={taskErrors.dueDate} />
+                  </div>
 
                   <div className="flex gap-2 pt-1">
                     {editingTaskId && onDeleteTask ? (
