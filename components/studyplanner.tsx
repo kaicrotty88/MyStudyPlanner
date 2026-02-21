@@ -1,8 +1,20 @@
+// components/studyplanner.tsx
 "use client";
 
 import React, { useMemo, useState } from "react";
 import { Plus, Edit2, Trash2, X, CheckCircle2, Link2 } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
+
+/* -------------------- Small form helpers -------------------- */
+type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime", string>>;
+
+const RequiredMark = ({ required }: { required?: boolean }) =>
+  required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null;
+
+const FieldError = ({ message }: { message?: string }) =>
+  message ? <div className="mt-1 text-xs text-red-600">{message}</div> : null;
+
+const labelClass = "text-sm font-medium text-foreground";
 
 /* -------------------- Time helpers -------------------- */
 const parseDurationToMinutes = (duration: string): number => {
@@ -144,8 +156,49 @@ export function StudyPlanner({
     linkedTaskId: "",
   });
 
+  const [formErrors, setFormErrors] = useState<SessionFormErrors>({});
+
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
+
+  const inputBase =
+    "w-full rounded-xl border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
+  const inputOk = "border-border";
+  const inputErr = "border-red-500/50 focus:ring-red-500/20";
+
+  const clearError = (key: keyof SessionFormErrors) => {
+    setFormErrors((e) => {
+      if (!e[key]) return e;
+      const copy = { ...e };
+      delete copy[key];
+      return copy;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const next: SessionFormErrors = {};
+
+    if (!sessionForm.title.trim()) next.title = "Title is required";
+    if (!sessionForm.subjectId) next.subjectId = "Subject is required";
+    if (!sessionForm.date) next.date = "Date is required";
+    if (!sessionForm.startTime) next.startTime = "Start time is required";
+
+    setFormErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const resetForm = (preset?: Partial<typeof sessionForm>) => {
+    setSessionForm({
+      title: "",
+      subjectId: activeTab !== "all" ? activeTab : "",
+      date: "",
+      startTime: "",
+      duration: "60 min",
+      linkedTaskId: "",
+      ...(preset ?? {}),
+    });
+    setFormErrors({});
+  };
 
   // ✅ Only ACTIVE tasks are linkable (not completed), and include ALL task types (task/assignment/exam/homework)
   const linkableTasks = useMemo(() => {
@@ -194,14 +247,7 @@ export function StudyPlanner({
     setEditingId(null);
     setDeletingId(null);
     setPanelOpen(true);
-    setSessionForm({
-      title: "",
-      subjectId: activeTab !== "all" ? activeTab : "",
-      date: "",
-      startTime: "",
-      duration: "60 min",
-      linkedTaskId: "",
-    });
+    resetForm();
   };
 
   const openEdit = (s: StudySession) => {
@@ -216,15 +262,17 @@ export function StudyPlanner({
       duration: s.duration || "60 min",
       linkedTaskId: s.linkedTaskId || "",
     });
+    setFormErrors({});
   };
 
   const closePanel = () => {
     setEditingId(null);
     setPanelOpen(false);
+    setFormErrors({});
   };
 
   const handleSubmit = () => {
-    if (!sessionForm.title || !sessionForm.subjectId || !sessionForm.date || !sessionForm.startTime) return;
+    if (!validateForm()) return;
 
     const payload: Omit<StudySession, "id"> = {
       title: sessionForm.title.trim(),
@@ -282,6 +330,7 @@ export function StudyPlanner({
           <button
             onClick={() => setShowCompleted((v) => !v)}
             className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            type="button"
           >
             {showCompleted ? "Hide completed" : "Show completed"}
           </button>
@@ -289,6 +338,7 @@ export function StudyPlanner({
           <button
             onClick={openNew}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            type="button"
           >
             <Plus className="w-4 h-4" />
             Log session
@@ -304,6 +354,7 @@ export function StudyPlanner({
             "px-3 py-1.5 rounded-full text-sm transition",
             activeTab === "all" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
           ].join(" ")}
+          type="button"
         >
           All
         </button>
@@ -319,6 +370,7 @@ export function StudyPlanner({
                 active ? "bg-muted text-foreground" : "text-foreground hover:bg-muted",
               ].join(" ")}
               style={active ? { boxShadow: `0 0 0 2px ${s.color}22` } : undefined}
+              type="button"
             >
               <span className="inline-flex items-center gap-2 min-w-0">
                 <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
@@ -354,12 +406,12 @@ export function StudyPlanner({
               return (
                 <div
                   key={s.id}
-                  className={["group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition", s.completed ? "opacity-80" : ""].join(
-                    " "
-                  )}
+                  className={[
+                    "group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition",
+                    s.completed ? "opacity-80" : "",
+                  ].join(" ")}
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    {/* ✅ Bigger, clearer complete button */}
                     <button
                       type="button"
                       onClick={() => onToggleSessionCompleted(s.id)}
@@ -398,8 +450,7 @@ export function StudyPlanner({
                             {typeLabel(linked.type)} • {linked.title}
                           </span>
                           <span className="opacity-60">
-                            (due{" "}
-                            {linked.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })})
+                            (due {linked.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })})
                           </span>
                         </div>
                       ) : null}
@@ -443,45 +494,71 @@ export function StudyPlanner({
                   Add title, subject, time, duration — and optionally link a task.
                 </div>
               </div>
-              <button onClick={closePanel} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition" aria-label="Close" type="button">
+              <button
+                onClick={closePanel}
+                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
+                aria-label="Close"
+                type="button"
+              >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
-              <input
-                value={sessionForm.title}
-                onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-                placeholder="Session title (e.g. Trig graphs revision)"
-                className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+              <div>
+                <label className={labelClass} htmlFor="session-title">
+                  Title
+                  <RequiredMark required />
+                </label>
+                <input
+                  id="session-title"
+                  value={sessionForm.title}
+                  onChange={(e) => {
+                    setSessionForm({ ...sessionForm, title: e.target.value });
+                    clearError("title");
+                  }}
+                  placeholder="Session title (e.g. Trig graphs revision)"
+                  className={[inputBase, formErrors.title ? inputErr : inputOk].join(" ")}
+                  aria-invalid={!!formErrors.title}
+                />
+                <FieldError message={formErrors.title} />
+              </div>
 
-              <select
-                value={sessionForm.subjectId}
-                onChange={(e) => {
-                  const nextSubjectId = e.target.value;
+              <div>
+                <label className={labelClass} htmlFor="session-subject">
+                  Subject
+                  <RequiredMark required />
+                </label>
+                <select
+                  id="session-subject"
+                  value={sessionForm.subjectId}
+                  onChange={(e) => {
+                    const nextSubjectId = e.target.value;
 
-                  // If a link exists and the new subject doesn't match it, clear the link.
-                  const linked = sessionForm.linkedTaskId ? getTaskById(sessionForm.linkedTaskId) : null;
-                  const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
+                    const linked = sessionForm.linkedTaskId ? getTaskById(sessionForm.linkedTaskId) : null;
+                    const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
 
-                  setSessionForm((p) => ({
-                    ...p,
-                    subjectId: nextSubjectId,
-                    linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
-                  }));
-                }}
-                className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="">Select subject</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                    setSessionForm((p) => ({
+                      ...p,
+                      subjectId: nextSubjectId,
+                      linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
+                    }));
+                    clearError("subjectId");
+                  }}
+                  className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
+                  aria-invalid={!!formErrors.subjectId}
+                >
+                  <option value="">Select subject</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={formErrors.subjectId} />
+              </div>
 
-              {/* ✅ Link to task (active tasks only) */}
+              {/* Link to task (optional) */}
               <div className="space-y-1">
                 <div className="text-xs font-medium text-muted-foreground">Link to task (optional)</div>
 
@@ -501,18 +578,17 @@ export function StudyPlanner({
                       return;
                     }
 
-                    // ✅ Auto-sync subject to the linked task’s subject
                     setSessionForm((p) => ({
                       ...p,
                       linkedTaskId: nextId,
                       subjectId: linked.subjectId,
                     }));
+                    clearError("subjectId");
                   }}
-                  className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className={[inputBase, inputOk].join(" ")}
                 >
                   <option value="">Not linked</option>
 
-                  {/* If editing an old session linked to a completed task, keep it visible (disabled) */}
                   {currentLinkedTask && currentLinkedTask.completed ? (
                     <option value={currentLinkedTask.id} disabled>
                       {typeLabel(currentLinkedTask.type)} • {currentLinkedTask.title} (completed)
@@ -544,31 +620,69 @@ export function StudyPlanner({
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="date"
-                  value={sessionForm.date}
-                  onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
-                  className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+                <div>
+                  <label className={labelClass} htmlFor="session-date">
+                    Date
+                    <RequiredMark required />
+                  </label>
+                  <input
+                    id="session-date"
+                    type="date"
+                    value={sessionForm.date}
+                    onChange={(e) => {
+                      setSessionForm({ ...sessionForm, date: e.target.value });
+                      clearError("date");
+                    }}
+                    className={[
+                      "h-11 rounded-xl border bg-input-background px-3 text-sm focus:outline-none focus:ring-2",
+                      formErrors.date ? "border-red-500/50 focus:ring-red-500/20" : "border-border focus:ring-primary/30",
+                    ].join(" ")}
+                    aria-invalid={!!formErrors.date}
+                  />
+                  <FieldError message={formErrors.date} />
+                </div>
 
-                <input
-                  type="time"
-                  value={startTimeUiValue}
-                  onChange={(e) => setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) })}
-                  className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+                <div>
+                  <label className={labelClass} htmlFor="session-time">
+                    Start
+                    <RequiredMark required />
+                  </label>
+                  <input
+                    id="session-time"
+                    type="time"
+                    value={startTimeUiValue}
+                    onChange={(e) => {
+                      setSessionForm({ ...sessionForm, startTime: time24To12(e.target.value) });
+                      clearError("startTime");
+                    }}
+                    className={[
+                      "h-11 rounded-xl border bg-input-background px-3 text-sm focus:outline-none focus:ring-2",
+                      formErrors.startTime
+                        ? "border-red-500/50 focus:ring-red-500/20"
+                        : "border-border focus:ring-primary/30",
+                    ].join(" ")}
+                    aria-invalid={!!formErrors.startTime}
+                  />
+                  <FieldError message={formErrors.startTime} />
+                </div>
 
-                <select
-                  value={sessionForm.duration}
-                  onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
-                  className="h-11 rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  {DURATION_OPTIONS.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <label className={labelClass} htmlFor="session-duration">
+                    Duration
+                  </label>
+                  <select
+                    id="session-duration"
+                    value={sessionForm.duration}
+                    onChange={(e) => setSessionForm({ ...sessionForm, duration: e.target.value })}
+                    className="h-11 w-full rounded-xl border border-border bg-input-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    {DURATION_OPTIONS.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-1">
