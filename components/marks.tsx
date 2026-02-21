@@ -1,7 +1,8 @@
+// components/marks.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Edit2 } from "lucide-react";
+import { Edit2, Trash2, X } from "lucide-react";
 
 import type { Task, Subject } from "./models";
 
@@ -33,6 +34,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deletingMarkTask, setDeletingMarkTask] = useState<Task | null>(null);
 
   const [formData, setFormData] = useState({
     score: "",
@@ -43,7 +45,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   // ✅ Load Terms (Periods) from localStorage (same as Tasks/Settings)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
-  // Small helper so we can reuse the exact same read logic
   const readPeriodsFromStorage = (): PeriodHydrated[] => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
@@ -59,24 +60,18 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
       hydrated.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-      // ✅ Prefer ONLY Terms 1–4 (your original intention)
       const onlyTerms1to4 = hydrated.filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()));
-
-      // If the strict filter finds nothing (common in real data naming),
-      // fall back to showing all periods so the UI doesn’t silently disappear.
       return onlyTerms1to4.length ? onlyTerms1to4 : hydrated;
     } catch {
       return [];
     }
   };
 
-  // Initial load + refresh when returning to tab / when storage changes in other tabs
   useEffect(() => {
     const refresh = () => {
       const next = readPeriodsFromStorage();
       setPeriods(next);
 
-      // If current selection no longer exists, reset to all
       if (selectedPeriod !== "all" && !next.some((p) => p.id === selectedPeriod)) {
         setSelectedPeriod("all");
       }
@@ -84,12 +79,10 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
     refresh();
 
-    // If periods are edited in another tab/window, this will update
     const onStorage = (e: StorageEvent) => {
       if (e.key === PERIODS_STORAGE_KEY) refresh();
     };
 
-    // If you edit periods in Settings then navigate back, focus refresh catches it
     const onFocus = () => refresh();
 
     window.addEventListener("storage", onStorage);
@@ -110,7 +103,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
   /* -------------------- Derived data -------------------- */
 
-  // ✅ ONLY assignments + exams
   const assessableTasks = useMemo(() => {
     return tasks.filter((t) => t.type === "assignment" || t.type === "exam");
   }, [tasks]);
@@ -125,7 +117,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
       base = base.filter((t) => t.periodId === selectedPeriod);
     }
 
-    // Pending first, then newest
     return [...base].sort((a, b) => {
       const aPending = a.result ? 0 : 1;
       const bPending = b.result ? 0 : 1;
@@ -136,11 +127,23 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
   const subjectById = (id: string) => subjects.find((s) => s.id === id);
 
-  const percentage = (score: number, outOf: number) =>
-    outOf > 0 ? Math.round((score / outOf) * 100) : 0;
+  const percentage = (score: number, outOf: number) => (outOf > 0 ? Math.round((score / outOf) * 100) : 0);
 
   const pendingCount = filteredTasks.filter((t) => !t.result).length;
   const recordedCount = filteredTasks.filter((t) => Boolean(t.result)).length;
+
+  /* -------------------- Helpers -------------------- */
+
+  const buildUpdatePayload = (task: Task, nextResult: Task["result"] | undefined): Omit<Task, "id"> => ({
+    title: task.title,
+    subjectId: task.subjectId,
+    dueDate: task.dueDate,
+    type: task.type,
+    periodId: task.periodId,
+    completed: task.completed,
+    completedAt: task.completedAt,
+    result: nextResult,
+  });
 
   /* -------------------- Handlers -------------------- */
 
@@ -159,19 +162,39 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   };
 
   const saveResult = () => {
-    if (!editingTask || !formData.score || !formData.outOf) return;
+    if (!editingTask) return;
 
-    onUpdateTask(editingTask.id, {
-      ...editingTask,
-      result: {
-        score: Number(formData.score),
-        outOf: Number(formData.outOf),
-        notes: formData.notes.trim() || undefined,
-        dateRecorded: new Date(),
-      },
-    });
+    const scoreRaw = formData.score.trim();
+    const outOfRaw = formData.outOf.trim();
+    if (!scoreRaw || !outOfRaw) return;
 
+    const score = Number(scoreRaw);
+    const outOf = Number(outOfRaw);
+    if (!Number.isFinite(score) || !Number.isFinite(outOf) || outOf <= 0) return;
+
+    const nextResult: Task["result"] = {
+      score,
+      outOf,
+      notes: formData.notes.trim() || undefined,
+      dateRecorded: new Date(),
+    };
+
+    onUpdateTask(editingTask.id, buildUpdatePayload(editingTask, nextResult));
     closeEdit();
+  };
+
+  const requestDeleteMark = (task: Task) => {
+    setDeletingMarkTask(task);
+  };
+
+  const cancelDeleteMark = () => {
+    setDeletingMarkTask(null);
+  };
+
+  const confirmDeleteMark = () => {
+    if (!deletingMarkTask) return;
+    onUpdateTask(deletingMarkTask.id, buildUpdatePayload(deletingMarkTask, undefined));
+    setDeletingMarkTask(null);
   };
 
   /* -------------------- UI -------------------- */
@@ -236,10 +259,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                       title={s.name}
                     >
                       <span className="inline-flex items-center gap-2 max-w-[140px]">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: s.color }}
-                        />
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
                         <span className="truncate">{s.name}</span>
                       </span>
                     </button>
@@ -256,9 +276,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                     className={[
                       "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                      selectedPeriod === "all"
-                        ? "bg-muted text-foreground"
-                        : "text-foreground/90 hover:bg-muted",
+                      selectedPeriod === "all" ? "bg-muted text-foreground" : "text-foreground/90 hover:bg-muted",
                     ].join(" ")}
                   >
                     All terms
@@ -291,17 +309,15 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
         {filteredTasks.length === 0 ? (
           <div className="p-10 text-center bg-background/40">
             <div className="text-sm font-medium text-foreground">No assessments</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Assignments and exams will appear here automatically.
-            </div>
+            <div className="mt-1 text-xs text-muted-foreground">Assignments and exams will appear here automatically.</div>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            <div className="hidden md:grid grid-cols-[1.4fr_0.9fr_0.6fr_0.5fr] gap-4 px-5 py-3 text-xs font-medium text-muted-foreground bg-card">
+            <div className="hidden md:grid grid-cols-[1.4fr_0.9fr_0.6fr_0.6fr] gap-4 px-5 py-3 text-xs font-medium text-muted-foreground bg-card">
               <div>Assessment</div>
               <div>Subject</div>
               <div className="text-right">Result</div>
-              <div className="text-right">Action</div>
+              <div className="text-right">Actions</div>
             </div>
 
             {filteredTasks.map((task) => {
@@ -324,7 +340,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                   className="px-4 md:px-5 py-3 hover:bg-muted/10 transition"
                   style={{ borderLeft: `3px solid ${subject?.color ?? "transparent"}` }}
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-[1.4fr_0.9fr_0.6fr_0.5fr] gap-4 items-center">
+                  <div className="grid grid-cols-1 md:grid-cols-[1.4fr_0.9fr_0.6fr_0.6fr] gap-4 items-center">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{task.title}</div>
                       <div className="mt-0.5 text-xs text-muted-foreground flex flex-wrap items-center gap-2">
@@ -348,10 +364,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
                     <div className="text-sm text-foreground/90">
                       <span className="inline-flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: subject?.color ?? "transparent" }}
-                        />
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject?.color ?? "transparent" }} />
                         <span className="truncate">{subject?.name ?? "Unassigned"}</span>
                       </span>
                     </div>
@@ -369,21 +382,35 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                       )}
                     </div>
 
-                    <div className="md:text-right">
+                    <div className="md:text-right flex md:justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => openEdit(task)}
                         className={[
                           "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
                           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                          hasResult
-                            ? "border border-border bg-card hover:bg-muted"
-                            : "bg-primary text-primary-foreground hover:bg-primary/90",
+                          hasResult ? "border border-border bg-card hover:bg-muted" : "bg-primary text-primary-foreground hover:bg-primary/90",
                         ].join(" ")}
                       >
                         <Edit2 className="h-4 w-4" />
                         {hasResult ? "Edit" : "Enter"}
                       </button>
+
+                      {hasResult ? (
+                        <button
+                          type="button"
+                          onClick={() => requestDeleteMark(task)}
+                          className={[
+                            "inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition",
+                            "border border-border bg-card hover:bg-muted",
+                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30",
+                          ].join(" ")}
+                          aria-label="Delete mark"
+                          title="Delete mark"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -398,11 +425,19 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closeEdit} />
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <div className="text-sm font-semibold text-foreground">
-                {editingTask.result ? "Edit result" : "Enter result"}
+            <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-foreground">{editingTask.result ? "Edit result" : "Enter result"}</div>
+                <div className="text-xs text-muted-foreground">{editingTask.title}</div>
               </div>
-              <div className="text-xs text-muted-foreground">{editingTask.title}</div>
+              <button
+                type="button"
+                onClick={closeEdit}
+                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
             </div>
 
             <div className="p-5 space-y-3">
@@ -448,6 +483,38 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {/* Delete mark confirm */}
+      {deletingMarkTask ? (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={cancelDeleteMark} />
+          <div className="fixed z-50 top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">Delete this mark?</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                This will remove the recorded score for <span className="text-foreground/90 font-medium">{deletingMarkTask.title}</span>.
+              </div>
+            </div>
+
+            <div className="p-5 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={cancelDeleteMark}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteMark}
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+              >
+                Delete mark
+              </button>
             </div>
           </div>
         </>
