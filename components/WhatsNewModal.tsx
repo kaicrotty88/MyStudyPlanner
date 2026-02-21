@@ -1,77 +1,72 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { X, Sparkles } from "lucide-react";
 
-export type WhatsNewItem = {
-  title: string;
-  body: string;
+type WhatsNewModalProps = {
+  open: boolean;
+  onClose: () => void;
+  versionLabel: string;
+  updates: string[];
 };
 
-export function WhatsNewModal({
-  open,
-  versionLabel,
-  items,
-  feedbackEmail,
-  onClose,
-}: {
-  open: boolean;
-  versionLabel: string;
-  items: WhatsNewItem[];
-  feedbackEmail: string;
-  onClose: () => void;
-}) {
+export default function WhatsNewModal({ open, onClose, versionLabel, updates }: WhatsNewModalProps) {
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
-  const mailto = `mailto:${feedbackEmail}?subject=${encodeURIComponent(
-    "MyStudyPlanner feedback"
-  )}&body=${encodeURIComponent("Hey! Here's some feedback / a suggestion:\n\n")}`;
-
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl">
-        <div className="p-5 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-lg font-semibold">What’s new</div>
-              <div className="text-xs text-muted-foreground">{versionLabel}</div>
-            </div>
+    <>
+      <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />
 
-            <button
-              onClick={onClose}
-              className="rounded-xl border border-border px-3 py-1.5 text-sm hover:bg-muted transition"
-            >
-              Close
-            </button>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="What’s new"
+        className="fixed z-50 top-1/2 left-1/2 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card shadow-xl overflow-hidden"
+      >
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+              <span className="h-9 w-9 rounded-xl border border-border bg-muted/30 grid place-items-center">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <span className="truncate">What’s new</span>
+              <span className="text-xs text-muted-foreground font-medium">{versionLabel}</span>
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">Here’s what changed:</div>
           </div>
 
-          <div className="space-y-3">
-            {items.map((it, idx) => (
-              <div key={idx} className="rounded-xl border border-border/70 bg-background/40 p-3">
-                <div className="text-sm font-medium">{it.title}</div>
-                <div className="text-sm text-muted-foreground mt-1 leading-5">{it.body}</div>
-              </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          <ul className="space-y-2">
+            {updates.map((u, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-sm text-foreground">
+                <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                <span className="leading-5">{u}</span>
+              </li>
             ))}
-          </div>
-
-          <div className="rounded-xl border border-border/70 bg-background/40 p-3 flex items-center justify-between gap-3">
-            <div className="text-sm">
-              <div className="font-medium">Send feedback</div>
-              <div className="text-muted-foreground text-xs">{feedbackEmail}</div>
-            </div>
-            <a
-              href={mailto}
-              className="rounded-xl border border-border px-3 py-1.5 text-sm hover:bg-muted transition"
-            >
-              Email
-            </a>
-          </div>
-
-          <div className="text-[12px] text-muted-foreground">
-            If you had tasks before sync: open the app on the device where they exist to import them.
-          </div>
+          </ul>
         </div>
       </div>
-    </div>
+    </>
   );
 }

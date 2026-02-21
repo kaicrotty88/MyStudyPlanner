@@ -1,4 +1,3 @@
-// components/App.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -21,16 +20,26 @@ import LoadingScreen from "@/components/LoadingScreen";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { fetchPlannerState, upsertPlannerState, clearPlannerState } from "@/lib/plannerStateSupabase";
-import { WhatsNewModal } from "@/components/WhatsNewModal";
+
+import WhatsNewModal from "@/components/WhatsNewModal";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-const WHATS_NEW_VERSION = "2026-02-08-sync";
-const WHATS_NEW_SEEN_KEY = "msp-whats-new-seen";
-const FEEDBACK_EMAIL = "mystudyplanner.studio@gmail.com";
+// Bump this to show the popup again (per user).
+const WHATS_NEW_VERSION_KEY = "2026-02-21";
+const WHATS_NEW_VERSION_LABEL = "Update";
+const WHATS_NEW_UPDATES = [
+  "Sync across devices for signed-in users.",
+  "Added further colour options.",
+  "You can now delete marks.",
+  "Fixed onboarding / sync issues.",
+  "Required fields now show a red asterisk for clarity.",
+  "Calendar is now larger so items truncate less.",
+  "Feedback: go to Settings → bottom email.",
+];
 
 type Tab =
   | "dashboard"
@@ -173,7 +182,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
   const [isReady, setIsReady] = useState(false);
 
-  const { isLoaded: userLoaded, isSignedIn } = useUser();
+  const { isLoaded: userLoaded, isSignedIn, user } = useUser();
   const { session } = useSession();
 
   const supabase = useMemo(() => {
@@ -193,6 +202,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
+
+  // ✅ what’s new
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   useEffect(() => {
@@ -286,24 +297,33 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const makeStateSnapshot = () => ({ subjects, periods, tasks, studySessions, reminders });
 
-  const closeWhatsNew = () => {
-    setShowWhatsNew(false);
-    try {
-      localStorage.setItem(WHATS_NEW_SEEN_KEY, WHATS_NEW_VERSION);
-    } catch {}
-  };
-
+  // ✅ show once per signed-in user; never demo
   useEffect(() => {
+    if (mode !== "app") return;
     if (!userLoaded) return;
-    if (mode === "app" && !isSignedIn) return;
+    if (!isSignedIn) return;
+    if (!user?.id) return;
 
+    const key = `msp-whatsnew:${WHATS_NEW_VERSION_KEY}:${user.id}`;
     try {
-      const seen = localStorage.getItem(WHATS_NEW_SEEN_KEY);
-      if (seen !== WHATS_NEW_VERSION) setShowWhatsNew(true);
+      if (localStorage.getItem(key) === "1") return;
+      setShowWhatsNew(true);
     } catch {
       setShowWhatsNew(true);
     }
-  }, [userLoaded, isSignedIn, mode]);
+  }, [mode, userLoaded, isSignedIn, user?.id]);
+
+  const closeWhatsNew = () => {
+    if (mode === "app" && user?.id) {
+      const key = `msp-whatsnew:${WHATS_NEW_VERSION_KEY}:${user.id}`;
+      try {
+        localStorage.setItem(key, "1");
+      } catch {}
+    }
+    setShowWhatsNew(false);
+  };
+
+  /* -------------------- Persistence -------------------- */
 
   useEffect(() => {
     if (mode === "demo") {
@@ -431,6 +451,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     }
   }, [subjects, periods, tasks, studySessions, reminders, storageKey, mode, isSignedIn, supabase, saveRemoteDebounced]);
 
+  /* -------------------- Clear / Reset -------------------- */
+
   const handleClearAllData = async () => {
     try {
       localStorage.removeItem(storageKey);
@@ -465,6 +487,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       }
     }
   };
+
+  /* -------------------- Handlers -------------------- */
 
   const handleAddSubject = (name: string, color: string) =>
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
@@ -529,6 +553,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
+  /* -------------------- Render -------------------- */
+
   const tabs: Array<[Tab, string]> = [
     ["dashboard", "Dashboard"],
     ["calendar", "Calendar"],
@@ -557,18 +583,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   return (
     <div className="min-h-screen bg-background">
       <WhatsNewModal
-        open={showWhatsNew}
-        versionLabel="Update: Sync across devices"
-        feedbackEmail={FEEDBACK_EMAIL}
-        items={[
-          { title: "Sync across devices (new)", body: "Your planner now syncs across devices when you’re signed in." },
-          {
-            title: "Import existing tasks",
-            body: "If you had tasks saved on this device before sync, they’ll be imported automatically the first time you open this update.",
-          },
-          { title: "Feedback", body: "Got suggestions or bugs? Tap Email and send them through." },
-        ]}
+        open={mode === "app" && Boolean(isSignedIn) && showWhatsNew}
         onClose={closeWhatsNew}
+        versionLabel={WHATS_NEW_VERSION_LABEL}
+        updates={WHATS_NEW_UPDATES}
       />
 
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -653,6 +671,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               onClick={dismissMobileDesktopHint}
               className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
               aria-label="Dismiss"
+              type="button"
             >
               <X className="h-4 w-4" />
             </button>
