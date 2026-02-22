@@ -1,66 +1,22 @@
 // app/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
-import Script from "next/script";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "MyStudyPlanner — Free Online Study Planner for Students",
+  title: "MyStudyPlanner",
   description:
-    "A calm online study planner for high school and university students. Organise subjects, assessments, deadlines, and study sessions — with optional save & sync across devices.",
+    "A calm study planner for high school and university students. Plan study, organise assessments, track progress without clutter.",
   alternates: { canonical: "/" },
-  openGraph: {
-    title: "MyStudyPlanner — Free Online Study Planner",
-    description:
-      "A calm online study planner for students. Organise subjects, assessments, deadlines, and study sessions — with optional save & sync across devices.",
-    url: "/",
-    siteName: "MyStudyPlanner",
-    type: "website",
-  },
-  twitter: {
-    card: "summary",
-    title: "MyStudyPlanner — Free Online Study Planner",
-    description:
-      "A calm online study planner for students. Organise subjects, assessments, deadlines, and study sessions — with optional save & sync across devices.",
-  },
-  keywords: [
-    "study planner",
-    "online study planner",
-    "student planner",
-    "homework planner",
-    "assessment tracker",
-    "study log",
-    "school planner",
-    "university planner",
-    "study timetable",
-  ],
 };
 
 export default async function Page() {
   const { userId } = await auth();
   if (userId) redirect("/app");
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: "MyStudyPlanner",
-    applicationCategory: "EducationalApplication",
-    operatingSystem: "Web",
-    isAccessibleForFree: true,
-    description:
-      "A calm online study planner for high school and university students. Organise subjects, assessments, deadlines, and study sessions — with optional save & sync across devices.",
-  };
-
   return (
     <div className="min-h-screen bg-background">
-      <Script
-        id="msp-jsonld"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-
-      {/* Header */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
@@ -77,55 +33,47 @@ export default async function Page() {
         </div>
       </header>
 
-      {/* Hero */}
       <main className="mx-auto max-w-6xl px-6 md:px-10">
         <section className="relative py-12 md:py-14">
-          {/* Soft backdrop */}
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-primary/8 blur-3xl" />
             <div className="absolute right-[-120px] top-24 h-80 w-80 rounded-full bg-muted/35 blur-3xl" />
           </div>
 
           <div className="grid gap-10 md:grid-cols-12 md:items-start">
-            {/* Left */}
-            <div className="md:col-span-7">
-              <h1 className="max-w-[17ch] text-4xl font-semibold tracking-tight text-foreground md:text-6xl md:leading-[1.03]">
+            <div className="md:col-span-7 text-center md:text-left">
+              <h1 className="max-w-[17ch] mx-auto md:mx-0 text-4xl font-semibold tracking-tight text-foreground md:text-6xl md:leading-[1.03]">
                 A study planner that understands how school actually works.
               </h1>
 
-              <p className="mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-                Subjects, assessments, deadlines, and study sessions pile up fast. MyStudyPlanner keeps everything in one
-                calm place – so you focus on the work, not managing tools. A free online study planner for high school
-                and university students.
+              <p className="mt-4 max-w-xl mx-auto md:mx-0 text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
+                Subjects, assessments, deadlines, and study sessions pile up fast. MyStudyPlanner keeps everything in
+                one calm place – so you focus on the work, not managing tools. A free online study planner for high
+                school and university students.
               </p>
 
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+              {/* Equal-width buttons so it doesn’t feel “off-center” */}
+              <div className="mt-7 grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2 mx-auto md:mx-0">
                 <Link
                   href="/demo"
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-95 transition"
-                  aria-label="Try it now with sample data"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-95 transition"
                 >
                   Try it now
-                  <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary border border-primary/20">
-                    Sample data
-                  </span>
                 </Link>
 
                 <Link
                   href="/sign-up"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground shadow-sm hover:bg-muted/60 transition"
-                  aria-label="Create a free account"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm hover:bg-muted/60 transition"
                 >
                   Create account
                 </Link>
               </div>
 
-              <div className="mt-3 text-[11px] text-muted-foreground opacity-80">
+              <div className="mt-3 max-w-md mx-auto md:mx-0 text-[11px] text-muted-foreground opacity-80">
                 Opens with sample data. Create an account to save and sync across devices.
               </div>
             </div>
 
-            {/* Right */}
             <div className="md:col-span-5">
               <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-border">
@@ -179,7 +127,6 @@ export default async function Page() {
           </div>
         </section>
 
-        {/* Footer */}
         <footer className="border-t border-border py-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} MyStudyPlanner</div>
