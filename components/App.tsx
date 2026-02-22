@@ -1,4 +1,4 @@
-// components/App.tsx
+// File: components/App.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -187,8 +187,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const { isLoaded: userLoaded, isSignedIn, user } = useUser();
   const { session } = useSession();
 
-  const isDemo = mode === "demo";
-
   const supabase = useMemo(() => {
     if (!session) return null;
     return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
@@ -325,8 +323,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setShowWhatsNew(false);
   };
 
-  /* -------------------- Persistence -------------------- */
-
   useEffect(() => {
     if (mode === "demo") {
       const raw = localStorage.getItem(storageKey);
@@ -448,12 +444,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       localStorage.setItem(storageKey, JSON.stringify(snapshot));
     } catch {}
 
-    if (mode === "app" && isSignedIn && supabase) {
+    if (mode === "app" && Boolean(isSignedIn) && supabase) {
       saveRemoteDebounced(snapshot);
     }
   }, [subjects, periods, tasks, studySessions, reminders, storageKey, mode, isSignedIn, supabase, saveRemoteDebounced]);
-
-  /* -------------------- Clear / Reset -------------------- */
 
   const handleClearAllData = async () => {
     try {
@@ -481,7 +475,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setReminders([]);
     setActiveTab("dashboard");
 
-    if (isSignedIn && supabase) {
+    if (Boolean(isSignedIn) && supabase) {
       try {
         await clearPlannerState(supabase);
       } catch (e) {
@@ -489,8 +483,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       }
     }
   };
-
-  /* -------------------- Handlers -------------------- */
 
   const handleAddSubject = (name: string, color: string) =>
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
@@ -555,8 +547,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
-  /* -------------------- Render -------------------- */
-
   const tabs: Array<[Tab, string]> = [
     ["dashboard", "Dashboard"],
     ["calendar", "Calendar"],
@@ -569,13 +559,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   if (!isReady) return <LoadingScreen label="Opening your planner…" />;
 
-  if (mode === "app" && userLoaded && !isSignedIn) {
+  if (mode === "app" && userLoaded && !Boolean(isSignedIn)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
           <div className="font-semibold text-lg">Sign in to sync your planner</div>
           <SignInButton mode="modal">
-            <button className="rounded-xl border border-border px-4 py-2 hover:bg-muted transition">Sign in</button>
+            <button className="rounded-xl border border-border px-4 py-2 hover:bg-muted transition" type="button">
+              Sign in
+            </button>
           </SignInButton>
         </div>
       </div>
@@ -592,25 +584,16 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       />
 
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-5 min-w-0">
+        <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-6 min-w-0">
             <div className="flex flex-col leading-tight min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
-
-                {isDemo ? (
-                  <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground">
-                    Sample data
-                  </span>
-                ) : null}
-              </div>
-
+              <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
               <span className="text-[11px] text-muted-foreground truncate">Made by students, for students</span>
             </div>
 
             <div className="hidden md:flex gap-1">
               {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClass(activeTab === k)}>
+                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClass(activeTab === k)} type="button">
                   {l}
                 </button>
               ))}
@@ -620,26 +603,14 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
 
-            <button onClick={() => setActiveTab("settings")} className={navTabButtonClass(activeTab === "settings")}>
+            <button onClick={() => setActiveTab("settings")} className={navTabButtonClass(activeTab === "settings")} type="button">
               Settings
             </button>
 
-            {/* Demo: CTAs are moved to a dedicated info strip on desktop to stop the header looking squished */}
-            {isDemo ? (
-              <div className="flex md:hidden items-center gap-2">
-                <Link
-                  href="/sign-in"
-                  className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                >
-                  Create account
-                </Link>
-              </div>
+            {mode === "demo" ? (
+              <span className="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground">
+                Sample data preview
+              </span>
             ) : (
               <div className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-1.5 hover:bg-muted/40 transition-colors">
                 <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
@@ -676,24 +647,45 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
         </div>
 
-        {/* Demo-only desktop strip (prevents the main header from being cramped) */}
-        {isDemo ? (
-          <div className="hidden md:block border-t border-border bg-card/80">
-            <div className="mx-auto max-w-7xl px-6 md:px-10 h-11 flex items-center justify-between gap-4">
-              <div className="min-w-0 text-xs text-muted-foreground truncate">
-                You’re trying MyStudyPlanner with sample data. Create an account to save & sync across devices.
+        <div className="md:hidden border-t border-border">
+          <div className="mx-auto max-w-7xl px-3 py-2">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              {tabs.map(([k, l]) => (
+                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClassMobile(activeTab === k)} type="button">
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {mode === "demo" ? (
+          <div className="border-t border-border bg-primary/10">
+            <div className="mx-auto max-w-7xl px-6 md:px-10 py-2.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+                    Preview mode
+                  </span>
+                  <span className="hidden sm:block text-xs text-muted-foreground">
+                    You’re using sample data. Changes won’t sync or be saved to an account.
+                  </span>
+                  <span className="sm:hidden text-[11px] text-muted-foreground">
+                    Sample data • not saved
+                  </span>
+                </div>
               </div>
 
-              <div className="shrink-0 flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <Link
                   href="/sign-in"
-                  className="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  className="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition"
                 >
                   Sign in
                 </Link>
                 <Link
                   href="/sign-up"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
                 >
                   Create account
                 </Link>
@@ -701,18 +693,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             </div>
           </div>
         ) : null}
-
-        <div className="md:hidden border-t border-border">
-          <div className="mx-auto max-w-7xl px-3 py-2">
-            <div className="flex gap-1 overflow-x-auto no-scrollbar">
-              {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClassMobile(activeTab === k)}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       </nav>
 
       {showMobileDesktopHint && (
