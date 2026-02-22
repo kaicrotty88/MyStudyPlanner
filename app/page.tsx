@@ -70,7 +70,7 @@ export default async function Page() {
               </div>
 
               <div className="mt-3 max-w-md mx-auto md:mx-0 text-[11px] text-muted-foreground opacity-80">
-                Opens with sample data. Create an account to save and sync across devices.
+                100% free. No ads. Opens with sample data. Create an account to save and sync across devices.
               </div>
             </div>
 
