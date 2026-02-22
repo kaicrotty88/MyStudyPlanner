@@ -1,6 +1,8 @@
+// components/App.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import { Dashboard } from "./dashboard";
 import { Calendar } from "./calendar";
@@ -184,6 +186,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const { isLoaded: userLoaded, isSignedIn, user } = useUser();
   const { session } = useSession();
+
+  const isDemo = mode === "demo";
 
   const supabase = useMemo(() => {
     if (!session) return null;
@@ -593,8 +597,25 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6 min-w-0">
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground truncate">Made by students, for students</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
+
+                {isDemo ? (
+                  <span className="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground">
+                    Sample data
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[11px] text-muted-foreground truncate">Made by students, for students</span>
+
+                {isDemo ? (
+                  <span className="hidden md:inline text-[11px] text-muted-foreground truncate">
+                    • Create an account to save & sync
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             <div className="hidden md:flex gap-1">
@@ -613,48 +634,73 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               Settings
             </button>
 
-            <div className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-1.5 hover:bg-muted/40 transition-colors">
-              <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
+            {isDemo ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/sign-in"
+                  className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  Create account
+                </Link>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-1.5 hover:bg-muted/40 transition-colors">
+                <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
 
-              <UserButton
-                afterSignOutUrl="/sign-in"
-                appearance={{
-                  variables: {
-                    colorPrimary: "hsl(var(--primary))",
-                    colorText: "hsl(var(--foreground))",
-                    colorTextSecondary: "hsl(var(--muted-foreground))",
-                    colorBackground: "hsl(var(--card))",
-                    colorNeutral: "hsl(var(--border))",
-                    borderRadius: "12px",
-                    fontFamily: "inherit",
-                  },
-                  elements: {
-                    userButtonAvatarBox: "ring-1 ring-border",
-                    userButtonPopoverCard: "border border-border shadow-lg bg-card",
-                    userButtonPopoverFooter: "hidden",
-                  },
-                }}
-              >
-                <UserButton.MenuItems>
-                  <UserButton.Action
-                    label="Account"
-                    labelIcon={<User className="h-4 w-4" />}
-                    onClick={() => setActiveTab("settings")}
-                  />
-                </UserButton.MenuItems>
-              </UserButton>
-            </div>
+                <UserButton
+                  afterSignOutUrl="/sign-in"
+                  appearance={{
+                    variables: {
+                      colorPrimary: "hsl(var(--primary))",
+                      colorText: "hsl(var(--foreground))",
+                      colorTextSecondary: "hsl(var(--muted-foreground))",
+                      colorBackground: "hsl(var(--card))",
+                      colorNeutral: "hsl(var(--border))",
+                      borderRadius: "12px",
+                      fontFamily: "inherit",
+                    },
+                    elements: {
+                      userButtonAvatarBox: "ring-1 ring-border",
+                      userButtonPopoverCard: "border border-border shadow-lg bg-card",
+                      userButtonPopoverFooter: "hidden",
+                    },
+                  }}
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Action
+                      label="Account"
+                      labelIcon={<User className="h-4 w-4" />}
+                      onClick={() => setActiveTab("settings")}
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="md:hidden border-t border-border">
           <div className="mx-auto max-w-7xl px-3 py-2">
-            <div className="flex gap-1 overflow-x-auto no-scrollbar">
-              {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClassMobile(activeTab === k)}>
-                  {l}
-                </button>
-              ))}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                {tabs.map(([k, l]) => (
+                  <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClassMobile(activeTab === k)}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              {isDemo ? (
+                <span className="shrink-0 inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground">
+                  Sample
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
