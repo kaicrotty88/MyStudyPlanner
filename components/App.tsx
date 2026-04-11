@@ -185,10 +185,10 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
 
 function LockedPremiumView({
   feature,
-  onBack,
+  onGoToSettings,
 }: {
   feature: "marks" | "insights";
-  onBack: () => void;
+  onGoToSettings: () => void;
 }) {
   const title = feature === "marks" ? "Marks" : "Insights";
   const description =
@@ -245,10 +245,10 @@ function LockedPremiumView({
 
               <button
                 type="button"
-                onClick={onBack}
+                onClick={onGoToSettings}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground transition hover:bg-muted"
               >
-                Back to dashboard
+                Go to Settings
               </button>
             </div>
           </div>
@@ -856,14 +856,20 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           (hasPremium ? (
             <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
           ) : (
-            <LockedPremiumView feature="insights" onBack={() => setActiveTab("dashboard")} />
+            <LockedPremiumView
+              feature="insights"
+              onGoToSettings={() => setActiveTab("settings")}
+            />
           ))}
 
         {activeTab === "marks" &&
           (hasPremium ? (
             <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
           ) : (
-            <LockedPremiumView feature="marks" onBack={() => setActiveTab("dashboard")} />
+            <LockedPremiumView
+              feature="marks"
+              onGoToSettings={() => setActiveTab("settings")}
+            />
           ))}
 
         {activeTab === "reminders" && (
