@@ -8,14 +8,13 @@ import type { Subject, Task, StudySession, Reminder } from "./models";
 type ViewMode = "day" | "week" | "month";
 type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | "reminder" | null;
 
-// Must match Settings + Tasks
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
 type PeriodStored = {
   id: string;
   name: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
+  startDate: string;
+  endDate: string;
 };
 
 type PeriodHydrated = {
@@ -48,7 +47,6 @@ interface CalendarProps {
   onDeleteReminder?: (id: string) => void;
 }
 
-/* -------------------- small form helpers -------------------- */
 type TaskFormErrors = Partial<Record<"title" | "subjectId" | "dueDate", string>>;
 type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>>;
 type ReminderFormErrors = Partial<Record<"title" | "dueDate", string>>;
@@ -61,7 +59,6 @@ const FieldError = ({ message }: { message?: string }) =>
 
 const labelClass = "text-sm font-medium text-foreground";
 
-/* -------------------- helpers -------------------- */
 const toLocalDateInputValue = (d: Date) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -129,7 +126,6 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
-/* -------------------- Time formatting (UI) -------------------- */
 const time24To12 = (t: string) => {
   if (!t) return "";
   const [hh, mm] = t.split(":").map((x) => Number(x));
@@ -709,7 +705,7 @@ function CalendarView({
     const isExam = task?.type === "exam";
     const isAssignment = task?.type === "assignment";
 
-    const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
+    const bottomLeft = reminder ? "" : subject?.name ?? "Unassigned";
     const bottomRight = task
       ? typeLabel(task.type)
       : session
@@ -783,16 +779,21 @@ function CalendarView({
         ) : null}
 
         <div className={["min-w-0 flex-1", rightPaddingClass].join(" ")}>
-          <div className="text-xs text-foreground leading-snug font-medium" style={lineClampStyle(titleLines)}>
+          <div className="text-[11px] text-foreground leading-tight font-medium" style={lineClampStyle(titleLines)}>
             {title}
           </div>
 
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
-            <div className="min-w-0 flex-[1_1_0%] truncate">{bottomLeft}</div>
+          <div className="mt-1 flex items-center gap-1 min-w-0">
+            {bottomLeft ? (
+              <div className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">{bottomLeft}</div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
             {bottomRight ? (
               <div
                 className={[
-                  "shrink-0 max-w-[46%] rounded-full border px-1.5 py-0.5 text-[9px] font-semibold tracking-wide truncate",
+                  "shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold leading-none whitespace-nowrap",
                   badgeClasses,
                 ].join(" ")}
               >
@@ -1428,7 +1429,9 @@ function CalendarView({
                         }}
                         className={[
                           "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                          sessionErrors.startTime ? "border-red-500/50 focus-visible:ring-red-500/20" : "border-border focus-visible:ring-primary/30",
+                          sessionErrors.startTime
+                            ? "border-red-500/50 focus-visible:ring-red-500/20"
+                            : "border-border focus-visible:ring-primary/30",
                         ].join(" ")}
                         aria-invalid={!!sessionErrors.startTime}
                       />
@@ -1448,7 +1451,9 @@ function CalendarView({
                         }}
                         className={[
                           "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                          sessionErrors.duration ? "border-red-500/50 focus-visible:ring-red-500/20" : "border-border focus-visible:ring-primary/30",
+                          sessionErrors.duration
+                            ? "border-red-500/50 focus-visible:ring-red-500/20"
+                            : "border-border focus-visible:ring-primary/30",
                         ].join(" ")}
                         aria-invalid={!!sessionErrors.duration}
                       >
