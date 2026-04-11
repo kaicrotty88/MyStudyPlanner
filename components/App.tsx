@@ -258,6 +258,107 @@ function LockedPremiumView({
   );
 }
 
+function PremiumModal({
+  open,
+  onClose,
+  plan,
+  mode,
+}: {
+  open: boolean;
+  onClose: () => void;
+  plan: Plan;
+  mode: AppMode;
+}) {
+  if (!open) return null;
+
+  const isDemo = mode === "demo";
+  const isPremium = plan === "premium";
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 px-4">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+          <div className="border-b border-border bg-muted/10 px-6 py-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-background/70">
+                  <Sparkles className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <h2 className="mt-4 text-xl font-semibold tracking-tight text-foreground">Premium</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Unlock the more advanced parts of MyStudyPlanner.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-6 px-6 py-6">
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Current plan</div>
+              <div className="mt-2 text-sm font-semibold text-foreground">
+                {isDemo ? "Preview mode (Premium unlocked)" : isPremium ? "Premium" : "Free"}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {isDemo
+                  ? "Demo mode includes Premium features so people can try them."
+                  : isPremium
+                  ? "You have access to Premium features."
+                  : "Marks and Insights are currently locked on the Free plan."}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border bg-background/60 p-4">
+                <div className="text-sm font-semibold text-foreground">Marks</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Log results across the year and keep marks in one place.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/60 p-4">
+                <div className="text-sm font-semibold text-foreground">Insights</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Unlock deeper analytics and more advanced study trends.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/60 p-4">
+                <div className="text-sm font-semibold text-foreground">Custom widgets</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Personalise your dashboard and insights layout later.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                Billing is not connected yet, so this is the placeholder entry point for Premium.
+              </div>
+
+              <button
+                type="button"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              >
+                {isDemo ? "Included in demo" : isPremium ? "Manage plan" : "Upgrade soon"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -282,8 +383,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
-
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const plan: Plan = mode === "demo" ? "premium" : TEMP_APP_PLAN;
   const hasPremium = plan === "premium";
@@ -652,6 +753,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         updates={WHATS_NEW_UPDATES}
       />
 
+      <PremiumModal
+        open={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        plan={plan}
+        mode={mode}
+      />
+
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6 min-w-0">
@@ -674,6 +782,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
           <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
+
+            <button
+              onClick={() => setShowPremiumModal(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              type="button"
+            >
+              <Sparkles className="h-4 w-4" />
+              Premium
+            </button>
 
             <button onClick={() => setActiveTab("settings")} className={navTabButtonClass(activeTab === "settings")} type="button">
               Settings
@@ -730,6 +847,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                   </span>
                 </button>
               ))}
+            </div>
+
+            <div className="mt-2">
+              <button
+                onClick={() => setShowPremiumModal(true)}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                type="button"
+              >
+                <Sparkles className="h-4 w-4" />
+                Premium
+              </button>
             </div>
           </div>
         </div>
