@@ -709,7 +709,7 @@ function CalendarView({
     const isExam = task?.type === "exam";
     const isAssignment = task?.type === "assignment";
 
-    const bottomLeft = reminder ? "Unassigned" : subject?.name ?? "Unassigned";
+    const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
     const bottomRight = task
       ? typeLabel(task.type)
       : session
