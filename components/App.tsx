@@ -21,6 +21,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { fetchPlannerState, upsertPlannerState, clearPlannerState } from "@/lib/plannerStateSupabase";
+import { fetchUserPlan } from "@/lib/profileSupabase";
 
 import WhatsNewModal from "@/components/WhatsNewModal";
 
@@ -28,9 +29,6 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
-
-// Temporary plan until billing is wired up.
-const TEMP_APP_PLAN = "free" as const;
 
 // Bump this to show the popup again (per user).
 const WHATS_NEW_VERSION_KEY = "2026-02-21";
@@ -283,8 +281,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [plan, setPlan] = useState<Plan>(mode === "demo" ? "premium" : "free");
 
-  const plan: Plan = mode === "demo" ? "premium" : TEMP_APP_PLAN;
   const hasPremium = plan === "premium";
   const isPremiumTab = (tab: Tab) => tab === "insights" || tab === "marks";
 
@@ -378,6 +376,36 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   };
 
   const makeStateSnapshot = () => ({ subjects, periods, tasks, studySessions, reminders });
+
+  useEffect(() => {
+    if (mode === "demo") {
+      setPlan("premium");
+      return;
+    }
+
+    if (!userLoaded) return;
+
+    if (!isSignedIn || !supabase) {
+      setPlan("free");
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const nextPlan = await fetchUserPlan(supabase);
+        if (!cancelled) setPlan(nextPlan);
+      } catch (e) {
+        console.error("Failed to fetch user plan:", e);
+        if (!cancelled) setPlan("free");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, userLoaded, isSignedIn, supabase]);
 
   useEffect(() => {
     if (mode !== "app") return;
