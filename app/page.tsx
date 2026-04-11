@@ -6,10 +6,11 @@ import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
-  title: "MyStudyPlanner | Calm Online Study Planner for Students",
+  title: "MyStudyPlanner | Student Study Planner",
   description:
-    "MyStudyPlanner is a calm online study planner for high school and university students. Organise subjects, track assessments, plan study sessions, and stay on top of deadlines without clutter.",
+    "MyStudyPlanner helps students organise subjects, track assessments, plan study sessions, and stay on top of school in one place.",
   keywords: [
+    "student study planner",
     "online study planner",
     "study planner for students",
     "high school study planner",
@@ -21,18 +22,18 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "MyStudyPlanner | Calm Online Study Planner for Students",
+    title: "MyStudyPlanner | Student Study Planner",
     description:
-      "Organise subjects, track assessments, plan study sessions, and stay on top of deadlines in one calm place.",
+      "Organise subjects, track assessments, plan study sessions, and stay on top of school in one place.",
     url: "/",
     siteName: "MyStudyPlanner",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MyStudyPlanner | Calm Online Study Planner for Students",
+    title: "MyStudyPlanner | Student Study Planner",
     description:
-      "A calm online study planner for high school and university students.",
+      "A study planner that helps students organise school, assessments, and study sessions in one place.",
   },
 };
 
@@ -50,7 +51,7 @@ export default async function Page() {
       name: "University student",
     },
     {
-      quote: "It feels calm, simple, and actually built for how students work.",
+      quote: "It feels simple and actually built for how students work.",
       name: "High school student",
     },
     {
@@ -101,17 +102,12 @@ export default async function Page() {
           </div>
 
           <div className="mx-auto max-w-3xl px-6 pb-10 pt-12 text-center md:px-10 md:pb-14 md:pt-16">
-            <div className="inline-flex items-center rounded-full border border-border bg-card/70 px-3 py-1 text-[11px] text-muted-foreground shadow-sm">
-              Calm planning for real student life
-            </div>
-
-            <h1 className="mx-auto mt-4 max-w-[10.5ch] text-5xl font-semibold tracking-tight text-foreground md:mt-5 md:text-7xl md:leading-[0.95]">
-              Stay on top of school without the clutter.
+            <h1 className="mx-auto max-w-[11ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
+              Study planning that actually makes sense.
             </h1>
 
-            <p className="mx-auto mt-4 max-w-[36rem] text-[15px] leading-7 text-muted-foreground md:mt-5 md:text-lg md:leading-8">
-              MyStudyPlanner helps students organise subjects, track assessments, and log study sessions in one calm
-              place.
+            <p className="mx-auto mt-4 max-w-[38rem] text-[15px] leading-7 text-muted-foreground md:mt-5 md:text-lg md:leading-8">
+              Organise subjects, keep up with assessments, and log study sessions in one place built for students.
             </p>
 
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -140,7 +136,7 @@ export default async function Page() {
           <div className="mx-auto max-w-6xl px-6 md:px-10">
             <div className="mb-6 text-center">
               <div className="text-sm font-semibold text-foreground">What students say</div>
-              <p className="mt-1 text-sm text-muted-foreground">A planner that feels lighter to use.</p>
+              <p className="mt-1 text-sm text-muted-foreground">A planner that feels easier to keep up with.</p>
             </div>
 
             <div className="relative overflow-hidden">
