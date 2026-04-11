@@ -50,20 +50,12 @@ export default async function Page() {
             <span className="text-[11px] text-muted-foreground">Built by students, for students</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/about"
-              className="hidden rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/50 hover:text-foreground md:inline-flex"
-            >
-              About
-            </Link>
-            <Link
-              href="/sign-in"
-              className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
-            >
-              Sign in
-            </Link>
-          </div>
+          <Link
+            href="/sign-in"
+            className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+          >
+            Sign in
+          </Link>
         </div>
       </header>
 
