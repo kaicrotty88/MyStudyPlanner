@@ -16,7 +16,7 @@ import { Reminders } from "./reminders";
 import type { Subject, Task, StudySession, Period, Reminder } from "./models";
 
 import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
-import { User, X } from "lucide-react";
+import { User, X, Lock, Sparkles } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
@@ -28,6 +28,9 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+
+// Temporary plan until billing is wired up.
+const TEMP_APP_PLAN = "free" as const;
 
 // Bump this to show the popup again (per user).
 const WHATS_NEW_VERSION_KEY = "2026-02-21";
@@ -53,6 +56,7 @@ type Tab =
   | "settings";
 
 type AppMode = "demo" | "app";
+type Plan = "free" | "premium";
 type SettingsOpenSection = "subjects" | "terms" | "backup" | null;
 
 const defaultSubjects: Subject[] = [
@@ -179,6 +183,81 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
   };
 }
 
+function LockedPremiumView({
+  feature,
+  onBack,
+}: {
+  feature: "marks" | "insights";
+  onBack: () => void;
+}) {
+  const title = feature === "marks" ? "Marks" : "Insights";
+  const description =
+    feature === "marks"
+      ? "Track results across the year and keep all your marks in one place."
+      : "Unlock advanced analytics and deeper insights into your study and results.";
+
+  return (
+    <div className="mx-auto max-w-5xl px-6 md:px-10 py-8">
+      <div className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="border-b border-border bg-muted/10 px-6 py-5 md:px-8">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-background/70">
+            <Lock className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{title} is a Premium feature</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+
+        <div className="px-6 py-6 md:px-8 md:py-8 space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="text-sm font-semibold text-foreground">Marks</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Log results, keep track of assessments, and build a record across the year.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="text-sm font-semibold text-foreground">Insights</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                See stronger analytics, patterns, and performance trends over time.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="text-sm font-semibold text-foreground">Custom widgets</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Personalise your dashboard and insights layout with interchangeable widgets.
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-muted/20 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Sparkles className="h-4 w-4" />
+                  Premium setup is coming next
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Billing is not connected yet, so this feature is locked for now in the app and open in demo mode.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+              >
+                Back to dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App({ mode = "app" }: { mode?: AppMode }) {
   const hydrated = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -205,6 +284,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
 
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+
+  const plan: Plan = mode === "demo" ? "premium" : TEMP_APP_PLAN;
+  const hasPremium = plan === "premium";
+  const isPremiumTab = (tab: Tab) => tab === "insights" || tab === "marks";
 
   useEffect(() => {
     try {
@@ -529,6 +612,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
+  const openTab = (tab: Tab) => {
+    setActiveTab(tab);
+  };
+
   const tabs: Array<[Tab, string]> = [
     ["dashboard", "Dashboard"],
     ["calendar", "Calendar"],
@@ -575,8 +662,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
             <div className="hidden md:flex gap-1">
               {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClass(activeTab === k)} type="button">
-                  {l}
+                <button key={k} onClick={() => openTab(k)} className={navTabButtonClass(activeTab === k)} type="button">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>{l}</span>
+                    {isPremiumTab(k) && !hasPremium ? <Lock className="h-3.5 w-3.5 opacity-70" /> : null}
+                  </span>
                 </button>
               ))}
             </div>
@@ -633,8 +723,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           <div className="mx-auto max-w-7xl px-3 py-2">
             <div className="flex gap-1 overflow-x-auto no-scrollbar">
               {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => setActiveTab(k)} className={navTabButtonClassMobile(activeTab === k)} type="button">
-                  {l}
+                <button key={k} onClick={() => openTab(k)} className={navTabButtonClassMobile(activeTab === k)} type="button">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>{l}</span>
+                    {isPremiumTab(k) && !hasPremium ? <Lock className="h-3.5 w-3.5 opacity-70" /> : null}
+                  </span>
                 </button>
               ))}
             </div>
@@ -756,9 +849,19 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           />
         )}
 
-        {activeTab === "insights" && <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />}
+        {activeTab === "insights" &&
+          (hasPremium ? (
+            <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
+          ) : (
+            <LockedPremiumView feature="insights" onBack={() => setActiveTab("dashboard")} />
+          ))}
 
-        {activeTab === "marks" && <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />}
+        {activeTab === "marks" &&
+          (hasPremium ? (
+            <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
+          ) : (
+            <LockedPremiumView feature="marks" onBack={() => setActiveTab("dashboard")} />
+          ))}
 
         {activeTab === "reminders" && (
           <Reminders
