@@ -1,4 +1,3 @@
-// components/calendar.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
@@ -733,6 +732,30 @@ function CalendarView({
 
     const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
 
+    const emphasisClasses = task
+      ? task.type === "exam"
+        ? "border-rose-300/70 bg-rose-50/90 dark:bg-rose-950/25 dark:border-rose-800/60 shadow-sm"
+        : task.type === "assignment"
+          ? "border-amber-300/70 bg-amber-50/90 dark:bg-amber-950/25 dark:border-amber-800/60 shadow-sm"
+          : task.type === "homework"
+            ? "border-sky-300/60 bg-sky-50/80 dark:bg-sky-950/20 dark:border-sky-800/50"
+            : "border-border bg-background/40"
+      : reminder
+        ? "border-border bg-background/40"
+        : "border-border bg-background/40";
+
+    const badgeClasses = task
+      ? task.type === "exam"
+        ? "border-rose-300/70 bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60"
+        : task.type === "assignment"
+          ? "border-amber-300/70 bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
+          : task.type === "homework"
+            ? "border-sky-300/70 bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60"
+            : "border-border bg-muted/50 text-muted-foreground"
+      : session
+        ? "border-border bg-muted/50 text-muted-foreground"
+        : "border-border bg-muted/50 text-muted-foreground";
+
     return (
       <div
         role={canOpen ? "button" : undefined}
@@ -751,10 +774,11 @@ function CalendarView({
           }
         }}
         className={[
-          "group relative flex items-start gap-2 rounded-lg border border-border bg-background/40 px-2 py-1.5 hover:bg-background/60 transition",
+          "group relative flex items-start gap-2 rounded-lg border px-2 py-1.5 hover:bg-background/60 transition",
+          emphasisClasses,
           canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
         ].join(" ")}
-        style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+        style={{ borderLeftWidth: 4, borderLeftColor: dot }}
         title={title}
       >
         {showToggle ? (
@@ -767,13 +791,22 @@ function CalendarView({
         ) : null}
 
         <div className={["min-w-0 flex-1", rightPaddingClass].join(" ")}>
-          <div className="text-xs text-foreground leading-snug" style={lineClampStyle(titleLines)}>
+          <div className="text-xs text-foreground leading-snug font-medium" style={lineClampStyle(titleLines)}>
             {title}
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
             <div className="min-w-0 flex-1 truncate">{bottomLeft}</div>
-            {bottomRight ? <div className="shrink-0 ml-auto">{bottomRight}</div> : null}
+            {bottomRight ? (
+              <div
+                className={[
+                  "shrink-0 ml-auto rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide",
+                  badgeClasses,
+                ].join(" ")}
+              >
+                {bottomRight}
+              </div>
+            ) : null}
           </div>
         </div>
 
