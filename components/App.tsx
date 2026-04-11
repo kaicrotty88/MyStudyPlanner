@@ -1,4 +1,3 @@
-// File: components/App.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -325,39 +324,21 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   useEffect(() => {
     if (mode === "demo") {
-      const raw = localStorage.getItem(storageKey);
-
-      if (!raw) {
-        const seeded = makeDefaultData();
-        seedDemoPeriodsKeyIfMissing(seeded.periods);
-
-        setSubjects(seeded.subjects);
-        setPeriods(seeded.periods);
-        setTasks(seeded.tasks);
-        setStudySessions(seeded.studySessions);
-        setReminders(seeded.reminders);
-
-        hydrated.current = true;
-        markReadyNextPaint();
-        return;
-      }
-
       try {
-        applyParsedState(JSON.parse(raw));
-      } catch {
-        const seeded = makeDefaultData();
-        seedDemoPeriodsKeyIfMissing(seeded.periods);
+        localStorage.removeItem(DEMO_STORAGE_KEY);
+      } catch {}
 
-        setSubjects(seeded.subjects);
-        setPeriods(seeded.periods);
-        setTasks(seeded.tasks);
-        setStudySessions(seeded.studySessions);
-        setReminders(seeded.reminders);
-      } finally {
-        hydrated.current = true;
-        markReadyNextPaint();
-      }
+      const seeded = makeDefaultData();
+      seedDemoPeriodsKeyIfMissing(seeded.periods);
 
+      setSubjects(seeded.subjects);
+      setPeriods(seeded.periods);
+      setTasks(seeded.tasks);
+      setStudySessions(seeded.studySessions);
+      setReminders(seeded.reminders);
+
+      hydrated.current = true;
+      markReadyNextPaint();
       return;
     }
 
@@ -437,6 +418,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   useEffect(() => {
     if (!hydrated.current) return;
+    if (mode === "demo") return;
 
     const snapshot = makeStateSnapshot();
 
