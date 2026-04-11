@@ -97,24 +97,24 @@ export default async function Page() {
       <main>
         <section className="relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 -z-10">
-            <div className="absolute left-1/2 top-16 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl" />
+            <div className="absolute left-1/2 top-12 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:top-16 md:h-72 md:w-72" />
           </div>
 
-          <div className="mx-auto max-w-4xl px-6 pb-14 pt-16 text-center md:px-10 md:pb-20 md:pt-24">
+          <div className="mx-auto max-w-3xl px-6 pb-10 pt-12 text-center md:px-10 md:pb-14 md:pt-16">
             <div className="inline-flex items-center rounded-full border border-border bg-card/70 px-3 py-1 text-[11px] text-muted-foreground shadow-sm">
               Calm planning for real student life
             </div>
 
-            <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.98]">
+            <h1 className="mx-auto mt-4 max-w-[10.5ch] text-5xl font-semibold tracking-tight text-foreground md:mt-5 md:text-7xl md:leading-[0.95]">
               Stay on top of school without the clutter.
             </h1>
 
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-muted-foreground md:text-xl">
+            <p className="mx-auto mt-4 max-w-[36rem] text-[15px] leading-7 text-muted-foreground md:mt-5 md:text-lg md:leading-8">
               MyStudyPlanner helps students organise subjects, track assessments, and log study sessions in one calm
               place.
             </p>
 
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href="/demo"
                 className="inline-flex h-11 min-w-[180px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
