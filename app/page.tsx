@@ -40,25 +40,27 @@ export default async function Page() {
   const { userId } = await auth();
   if (userId) redirect("/app");
 
-  const steps = [
+  const testimonials = [
     {
-      title: "Add your subjects",
-      desc: "Set up your subjects once so your planner matches your real school week.",
+      quote:
+        "This is the first planner that doesn’t make me feel behind the second I open it.",
+      name: "Year 12 student",
     },
     {
-      title: "Track assessments",
-      desc: "Keep exams, assignments, and due dates visible instead of buried in notes.",
+      quote:
+        "I can actually see my week clearly without 15 widgets fighting for attention.",
+      name: "University student",
     },
     {
-      title: "Log study sessions",
-      desc: "Build consistency with quick session logging that does not feel like extra work.",
+      quote:
+        "It feels calm, simple, and actually built for how students work.",
+      name: "High school student",
     },
-  ];
-
-  const highlights = [
-    "Built for high school and university students",
-    "Free to try with demo data",
-    "Clean layout with no busy dashboard",
+    {
+      quote:
+        "Logging study is quick enough that I actually keep doing it.",
+      name: "First-year uni student",
+    },
   ];
 
   return (
@@ -88,25 +90,25 @@ export default async function Page() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 md:px-10">
-        <section className="relative py-12 md:py-16">
+        <section className="relative py-14 md:py-20">
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-primary/8 blur-3xl" />
             <div className="absolute right-[-120px] top-24 h-80 w-80 rounded-full bg-muted/35 blur-3xl" />
           </div>
 
-          <div className="grid gap-10 md:grid-cols-12 md:items-center">
+          <div className="grid gap-8 md:grid-cols-12 md:items-center">
             <div className="md:col-span-7 text-center md:text-left">
               <div className="inline-flex items-center rounded-full border border-border bg-card/70 px-3 py-1 text-[11px] text-muted-foreground shadow-sm">
                 Calm planning for real student life
               </div>
 
-              <h1 className="mx-auto mt-4 max-w-[15ch] text-4xl font-semibold tracking-tight text-foreground md:mx-0 md:text-6xl md:leading-[1.03]">
+              <h1 className="mx-auto mt-4 max-w-[13ch] text-4xl font-semibold tracking-tight text-foreground md:mx-0 md:text-6xl md:leading-[1.03]">
                 Stay on top of school without the clutter.
               </h1>
 
               <p className="mx-auto mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground md:mx-0 md:text-lg md:leading-8">
-                MyStudyPlanner helps high school and university students organise subjects, track assessments, plan
-                study sessions, and stay consistent in one calm place.
+                MyStudyPlanner helps students organise subjects, track assessments, and log study sessions in one calm
+                place.
               </p>
 
               <div className="mt-7 grid w-full max-w-md grid-cols-1 gap-3 sm:mx-auto sm:grid-cols-2 md:mx-0">
@@ -126,27 +128,16 @@ export default async function Page() {
               </div>
 
               <div className="mx-auto mt-3 max-w-md text-[11px] text-muted-foreground opacity-80 md:mx-0">
-                Free to explore. Opens with demo data. Create an account to save and sync across devices.
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-                {highlights.map((item) => (
-                  <div
-                    key={item}
-                    className="inline-flex items-center rounded-full border border-border bg-background/70 px-3 py-1.5 text-[11px] text-muted-foreground"
-                  >
-                    {item}
-                  </div>
-                ))}
+                Free to explore. Opens with demo data. Create an account to save across devices.
               </div>
             </div>
 
             <div className="md:col-span-5">
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                 <div className="border-b border-border px-5 py-4">
-                  <div className="text-sm font-semibold text-foreground">Built for real student life</div>
+                  <div className="text-sm font-semibold text-foreground">Why students like it</div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Clean, practical, and designed around how school actually runs.
+                    Clean, practical, and easy to keep using.
                   </div>
                 </div>
 
@@ -156,7 +147,7 @@ export default async function Page() {
                     <div>
                       <div className="text-sm font-medium text-foreground">See your week clearly</div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        One place for subjects, study, and assessments without the busy feeling.
+                        One place for subjects, study, and assessments.
                       </div>
                     </div>
                   </div>
@@ -168,7 +159,7 @@ export default async function Page() {
                     <div>
                       <div className="text-sm font-medium text-foreground">Stay consistent</div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        Log study sessions quickly and build momentum without overplanning every detail.
+                        Log study sessions quickly without overplanning.
                       </div>
                     </div>
                   </div>
@@ -180,7 +171,7 @@ export default async function Page() {
                     <div>
                       <div className="text-sm font-medium text-foreground">Spot patterns early</div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        Track marks, workload, and progress so you can adjust before things pile up.
+                        Track workload and progress before things pile up.
                       </div>
                     </div>
                   </div>
@@ -194,47 +185,30 @@ export default async function Page() {
           </div>
         </section>
 
-        <section className="pb-12 md:pb-14">
-          <div className="rounded-3xl border border-border bg-card shadow-sm">
-            <div className="border-b border-border px-6 py-5 md:px-8">
-              <div className="text-sm font-semibold text-foreground">How it works</div>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Start simple. Set up what matters, keep your deadlines visible, and log study as you go.
+        <section className="pb-12 md:pb-16">
+          <div className="space-y-4">
+            <div className="text-center">
+              <div className="text-sm font-semibold text-foreground">What students say</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A calmer kind of planner.
               </p>
             </div>
 
-            <div className="grid gap-4 px-6 py-6 md:grid-cols-3 md:px-8">
-              {steps.map((step, index) => (
-                <div key={step.title} className="rounded-2xl border border-border bg-background/60 p-5">
-                  <div className="text-xs font-semibold text-muted-foreground">0{index + 1}</div>
-                  <div className="mt-2 text-sm font-semibold text-foreground">{step.title}</div>
-                  <div className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.desc}</div>
-                </div>
-              ))}
-            </div>
+            <div className="relative overflow-hidden">
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent" />
 
-            <div className="flex flex-col gap-3 border-t border-border px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8">
-              <div className="text-sm text-muted-foreground">
-                Want more detail? Learn more about{" "}
-                <Link href="/about" className="text-foreground underline underline-offset-4 transition hover:opacity-80">
-                  why MyStudyPlanner exists
-                </Link>{" "}
-                or{" "}
-                <Link
-                  href="/how-it-works"
-                  className="text-foreground underline underline-offset-4 transition hover:opacity-80"
-                >
-                  how it works
-                </Link>
-                .
+              <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory">
+                {[...testimonials, ...testimonials].map((item, index) => (
+                  <div
+                    key={`${item.name}-${index}`}
+                    className="min-w-[280px] max-w-[280px] snap-start rounded-2xl border border-border bg-card p-5 shadow-sm md:min-w-[320px] md:max-w-[320px]"
+                  >
+                    <p className="text-sm leading-6 text-foreground">“{item.quote}”</p>
+                    <div className="mt-4 text-xs text-muted-foreground">{item.name}</div>
+                  </div>
+                ))}
               </div>
-
-              <Link
-                href="/demo"
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:opacity-95"
-              >
-                Open demo
-              </Link>
             </div>
           </div>
         </section>
