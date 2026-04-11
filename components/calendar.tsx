@@ -787,12 +787,12 @@ function CalendarView({
             {title}
           </div>
 
-          <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
-            <div className="min-w-0 flex-1 truncate">{bottomLeft}</div>
+          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
+            <div className="min-w-0 flex-[1_1_0%] truncate">{bottomLeft}</div>
             {bottomRight ? (
               <div
                 className={[
-                  "shrink-0 ml-auto rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide",
+                  "shrink-0 max-w-[46%] rounded-full border px-1.5 py-0.5 text-[9px] font-semibold tracking-wide truncate",
                   badgeClasses,
                 ].join(" ")}
               >
