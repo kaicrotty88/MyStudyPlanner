@@ -129,33 +129,6 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
-const hexToRgba = (hex: string, alpha: number) => {
-  const cleaned = hex.replace("#", "").trim();
-
-  if (cleaned.length !== 3 && cleaned.length !== 6) {
-    return `rgba(148, 163, 184, ${alpha})`;
-  }
-
-  const normalized =
-    cleaned.length === 3
-      ? cleaned
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : cleaned;
-
-  const num = Number.parseInt(normalized, 16);
-  if (Number.isNaN(num)) {
-    return `rgba(148, 163, 184, ${alpha})`;
-  }
-
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
 /* -------------------- Time formatting (UI) -------------------- */
 const time24To12 = (t: string) => {
   if (!t) return "";
@@ -714,8 +687,6 @@ function CalendarView({
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
     const dot = subject?.color ?? "#94a3b8";
-    const baseTint = hexToRgba(dot, 0.12);
-    const baseBorder = hexToRgba(dot, 0.28);
 
     const titleLines = compact ? 2 : 3;
 
@@ -735,8 +706,17 @@ function CalendarView({
       (task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders)
     );
 
-    const bottomLeft = reminder ? "Reminder" : subject?.name ?? "Unassigned";
-    const bottomRight = task ? typeLabel(task.type) : session ? "Study Session" : "";
+    const isExam = task?.type === "exam";
+    const isAssignment = task?.type === "assignment";
+
+    const bottomLeft = reminder ? "Unassigned" : subject?.name ?? "Unassigned";
+    const bottomRight = task
+      ? typeLabel(task.type)
+      : session
+        ? "Study Session"
+        : reminder
+          ? "Reminder"
+          : "";
 
     const canToggleTask = Boolean(task && onToggleTaskCompleted);
     const canToggleSession = Boolean(session && onToggleStudySessionCompleted);
@@ -752,23 +732,16 @@ function CalendarView({
 
     const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
 
-    const isExam = task?.type === "exam";
-    const isAssignment = task?.type === "assignment";
-    const useSpecialHighlight = isExam || isAssignment;
-
     const chipClassName = [
       "group relative flex items-start gap-2 rounded-lg border px-2 py-1.5 transition",
-      useSpecialHighlight
-        ? "hover:bg-background/60 shadow-sm"
-        : "hover:brightness-[0.98] dark:hover:brightness-110",
       canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
       isExam
-        ? "border-rose-300/70 bg-rose-50/90 dark:bg-rose-950/25 dark:border-rose-800/60"
+        ? "border-rose-300/70 bg-rose-50/90 dark:bg-rose-950/25 dark:border-rose-800/60 shadow-sm hover:bg-rose-50 dark:hover:bg-rose-950/35"
         : "",
       isAssignment
-        ? "border-amber-300/70 bg-amber-50/90 dark:bg-amber-950/25 dark:border-amber-800/60"
+        ? "border-amber-300/70 bg-amber-50/90 dark:bg-amber-950/25 dark:border-amber-800/60 shadow-sm hover:bg-amber-50 dark:hover:bg-amber-950/35"
         : "",
-      !useSpecialHighlight ? "border-transparent" : "",
+      !isExam && !isAssignment ? "border-border bg-background/40 hover:bg-background/60" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -778,15 +751,6 @@ function CalendarView({
       : isAssignment
         ? "border-amber-300/70 bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
         : "border-border bg-muted/50 text-muted-foreground";
-
-    const chipStyle = useSpecialHighlight
-      ? { borderLeftWidth: 4, borderLeftColor: dot }
-      : {
-          borderLeftWidth: 4,
-          borderLeftColor: dot,
-          backgroundColor: baseTint,
-          borderColor: baseBorder,
-        };
 
     return (
       <div
@@ -806,7 +770,7 @@ function CalendarView({
           }
         }}
         className={chipClassName}
-        style={chipStyle}
+        style={{ borderLeftWidth: 4, borderLeftColor: dot }}
         title={title}
       >
         {showToggle ? (
