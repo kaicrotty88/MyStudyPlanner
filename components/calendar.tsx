@@ -35,7 +35,6 @@ interface CalendarProps {
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
   onDeleteTask?: (id: string) => void;
 
-  // ✅ Complete toggles (so cards can be completed directly in calendar)
   onToggleTaskCompleted?: (taskId: string) => void;
   onToggleStudySessionCompleted?: (sessionId: string) => void;
   onToggleReminderCompleted?: (reminderId: string) => void;
@@ -91,11 +90,10 @@ const endOfWeek = (d: Date) => {
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-// Monday-start week (better for school week numbers)
 const startOfWeekMonday = (d: Date) => {
   const x = startOfDay(d);
-  const day = x.getDay(); // 0=Sun..6=Sat
-  const diff = (day + 6) % 7; // Mon=0, Tue=1, ... Sun=6
+  const day = x.getDay();
+  const diff = (day + 6) % 7;
   x.setDate(x.getDate() - diff);
   return x;
 };
@@ -111,7 +109,7 @@ const weekOfTerm = (today: Date, termStart: Date) => {
   const wsToday = startOfWeekMonday(today).getTime();
   const wsStart = startOfWeekMonday(termStart).getTime();
   const diffWeeks = Math.floor((wsToday - wsStart) / (7 * 24 * 60 * 60 * 1000));
-  return diffWeeks + 1; // Week 1 at start week
+  return diffWeeks + 1;
 };
 
 const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
@@ -131,8 +129,34 @@ function typeLabel(t: Task["type"]) {
   return "Task";
 }
 
+const hexToRgba = (hex: string, alpha: number) => {
+  const cleaned = hex.replace("#", "").trim();
+
+  if (cleaned.length !== 3 && cleaned.length !== 6) {
+    return `rgba(148, 163, 184, ${alpha})`;
+  }
+
+  const normalized =
+    cleaned.length === 3
+      ? cleaned
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : cleaned;
+
+  const num = Number.parseInt(normalized, 16);
+  if (Number.isNaN(num)) {
+    return `rgba(148, 163, 184, ${alpha})`;
+  }
+
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 /* -------------------- Time formatting (UI) -------------------- */
-// Convert "HH:MM" (24h) -> "h:mm AM/PM"
 const time24To12 = (t: string) => {
   if (!t) return "";
   const [hh, mm] = t.split(":").map((x) => Number(x));
@@ -142,7 +166,6 @@ const time24To12 = (t: string) => {
   return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
 };
 
-// Convert "h:mm AM/PM" -> "HH:MM" (24h)
 const time12To24 = (t: string) => {
   if (!t) return "";
   const s = t.trim().toUpperCase();
@@ -224,7 +247,6 @@ function CalendarView({
     setSelectedDate(null);
   };
 
-  // ✅ Load terms/periods from localStorage
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
   useEffect(() => {
     try {
@@ -255,7 +277,6 @@ function CalendarView({
     return `${active.name} · Week ${wk}`;
   }, [currentDate, periods]);
 
-  // edit ids
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
@@ -319,12 +340,10 @@ function CalendarView({
     return map;
   }, [tasks]);
 
-  // ✅ Hide completed items
   const activeTasks = useMemo(() => tasks.filter((t: any) => !t.completed), [tasks]);
   const activeSessions = useMemo(() => studySessions.filter((s: any) => !s.completed), [studySessions]);
   const activeReminders = useMemo(() => reminders.filter((r: any) => !r.completed), [reminders]);
 
-  // ✅ Linkable tasks
   const linkableTasks = useMemo(() => {
     return activeTasks
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
@@ -654,7 +673,6 @@ function CalendarView({
     </button>
   );
 
-  // subtle “complete” control (no tick/checkmark)
   const CompleteDot = ({
     onClick,
     aria,
@@ -696,6 +714,8 @@ function CalendarView({
   }) => {
     const subject = subjectId ? subjectById.get(subjectId) : undefined;
     const dot = subject?.color ?? "#94a3b8";
+    const baseTint = hexToRgba(dot, 0.12);
+    const baseBorder = hexToRgba(dot, 0.28);
 
     const titleLines = compact ? 2 : 3;
 
@@ -732,29 +752,41 @@ function CalendarView({
 
     const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
 
-    const emphasisClasses = task
-      ? task.type === "exam"
-        ? "border-rose-300/70 bg-rose-50/90 dark:bg-rose-950/25 dark:border-rose-800/60 shadow-sm"
-        : task.type === "assignment"
-          ? "border-amber-300/70 bg-amber-50/90 dark:bg-amber-950/25 dark:border-amber-800/60 shadow-sm"
-          : task.type === "homework"
-            ? "border-sky-300/60 bg-sky-50/80 dark:bg-sky-950/20 dark:border-sky-800/50"
-            : "border-border bg-background/40"
-      : reminder
-        ? "border-border bg-background/40"
-        : "border-border bg-background/40";
+    const isExam = task?.type === "exam";
+    const isAssignment = task?.type === "assignment";
+    const useSpecialHighlight = isExam || isAssignment;
 
-    const badgeClasses = task
-      ? task.type === "exam"
-        ? "border-rose-300/70 bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60"
-        : task.type === "assignment"
-          ? "border-amber-300/70 bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
-          : task.type === "homework"
-            ? "border-sky-300/70 bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60"
-            : "border-border bg-muted/50 text-muted-foreground"
-      : session
-        ? "border-border bg-muted/50 text-muted-foreground"
+    const chipClassName = [
+      "group relative flex items-start gap-2 rounded-lg border px-2 py-1.5 transition",
+      useSpecialHighlight
+        ? "hover:bg-background/60 shadow-sm"
+        : "hover:brightness-[0.98] dark:hover:brightness-110",
+      canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
+      isExam
+        ? "border-rose-300/70 bg-rose-50/90 dark:bg-rose-950/25 dark:border-rose-800/60"
+        : "",
+      isAssignment
+        ? "border-amber-300/70 bg-amber-50/90 dark:bg-amber-950/25 dark:border-amber-800/60"
+        : "",
+      !useSpecialHighlight ? "border-transparent" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const badgeClasses = isExam
+      ? "border-rose-300/70 bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60"
+      : isAssignment
+        ? "border-amber-300/70 bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
         : "border-border bg-muted/50 text-muted-foreground";
+
+    const chipStyle = useSpecialHighlight
+      ? { borderLeftWidth: 4, borderLeftColor: dot }
+      : {
+          borderLeftWidth: 4,
+          borderLeftColor: dot,
+          backgroundColor: baseTint,
+          borderColor: baseBorder,
+        };
 
     return (
       <div
@@ -773,12 +805,8 @@ function CalendarView({
             handleOpen();
           }
         }}
-        className={[
-          "group relative flex items-start gap-2 rounded-lg border px-2 py-1.5 hover:bg-background/60 transition",
-          emphasisClasses,
-          canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
-        ].join(" ")}
-        style={{ borderLeftWidth: 4, borderLeftColor: dot }}
+        className={chipClassName}
+        style={chipStyle}
         title={title}
       >
         {showToggle ? (
@@ -1124,7 +1152,6 @@ function CalendarView({
     else direction === "prev" ? previousDay() : nextDay();
   };
 
-  // UI value for <input type="time"> needs "HH:MM"
   const startTimeUiValue = useMemo(() => {
     const s = (sessionFormData.startTime ?? "").trim();
     if (/^\d{2}:\d{2}$/.test(s)) return s;
@@ -1197,7 +1224,6 @@ function CalendarView({
         </SectionShell>
       </div>
 
-      {/* Popover */}
       {showPopover && selectedDate ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closePopover} />
@@ -1257,7 +1283,6 @@ function CalendarView({
         </>
       ) : null}
 
-      {/* Add/Edit Forms Modal */}
       {showAddForm ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={handleCancel} />
