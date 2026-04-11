@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, Trash, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, Trash, ChevronDown, Sparkles, Lock } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -217,6 +217,7 @@ export function Settings({
   const termNameInputRef = useRef<HTMLInputElement>(null);
 
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
+  const currentPlanLabel = appMode === "demo" ? "Preview mode" : "Free";
 
   const normalizeTermName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
@@ -577,6 +578,79 @@ export function Settings({
       </div>
 
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5 space-y-4">
+        <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Sparkles className="w-4 h-4" />
+                Plan
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Manage your current plan and see what Premium will unlock.
+              </div>
+            </div>
+
+            <div className="inline-flex items-center rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-medium text-foreground">
+              {currentPlanLabel}
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                Marks
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Log results across the year and keep all your marks in one place.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                Insights
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Unlock more advanced analytics and stronger study trends.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                Custom widgets
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Personalise your dashboard and insights layout later.
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-border bg-muted/20 px-4 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">
+                  {appMode === "demo" ? "Premium is included in preview mode" : "Premium billing is coming soon"}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {appMode === "demo"
+                    ? "Demo mode includes Premium features so people can try them."
+                    : "Marks and Insights are locked for now in the app while billing is being set up."}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground opacity-60 cursor-not-allowed"
+              >
+                {appMode === "demo" ? "Included in demo" : "Upgrade soon"}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div ref={subjectsCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
