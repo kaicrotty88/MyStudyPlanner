@@ -41,36 +41,8 @@ export default async function Page() {
   const { userId } = await auth();
   if (userId) redirect("/app");
 
-  const testimonials = [
-    {
-      quote: "This is the first planner that doesn’t make me feel behind the second I open it.",
-      name: "Year 12 student",
-    },
-    {
-      quote: "I can actually see my week clearly without 15 widgets fighting for attention.",
-      name: "University student",
-    },
-    {
-      quote: "It feels simple and actually built for how students work.",
-      name: "High school student",
-    },
-    {
-      quote: "Logging study is quick enough that I actually keep doing it.",
-      name: "First-year uni student",
-    },
-  ];
-
-  const marqueeItems = [...testimonials, ...testimonials];
-
   return (
     <div className="min-h-screen bg-background">
-      <style>{`
-        @keyframes testimonials-marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-      `}</style>
-
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
@@ -95,13 +67,13 @@ export default async function Page() {
         </div>
       </header>
 
-      <main>
-        <section className="relative overflow-hidden">
+      <main className="flex min-h-[calc(100vh-3.5rem)] flex-col">
+        <section className="relative overflow-hidden flex-1">
           <div className="pointer-events-none absolute inset-0 -z-10">
             <div className="absolute left-1/2 top-12 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:top-16 md:h-72 md:w-72" />
           </div>
 
-          <div className="mx-auto max-w-3xl px-6 pb-10 pt-12 text-center md:px-10 md:pb-14 md:pt-16">
+          <div className="mx-auto flex max-w-3xl flex-col items-center justify-center px-6 py-16 text-center md:px-10 md:py-24">
             <h1 className="mx-auto max-w-[11ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
               Study planning that actually makes sense.
             </h1>
@@ -129,37 +101,6 @@ export default async function Page() {
             <p className="mt-4 text-xs text-muted-foreground">
               Free to explore. Opens with demo data. Create an account to save across devices.
             </p>
-          </div>
-        </section>
-
-        <section className="pb-16 md:pb-20">
-          <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <div className="mb-6 text-center">
-              <div className="text-sm font-semibold text-foreground">What students say</div>
-              <p className="mt-1 text-sm text-muted-foreground">A planner that feels easier to keep up with.</p>
-            </div>
-
-            <div className="relative overflow-hidden">
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-background to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent" />
-
-              <div
-                className="flex w-max gap-4"
-                style={{
-                  animation: "testimonials-marquee 32s linear infinite",
-                }}
-              >
-                {marqueeItems.map((item, index) => (
-                  <div
-                    key={`${item.name}-${index}`}
-                    className="flex min-h-[170px] w-[300px] flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-sm md:w-[340px]"
-                  >
-                    <p className="text-base leading-7 text-foreground">“{item.quote}”</p>
-                    <div className="mt-6 text-sm text-muted-foreground">{item.name}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </section>
 
