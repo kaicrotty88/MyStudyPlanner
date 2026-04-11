@@ -1,4 +1,3 @@
-// components/settings.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -53,7 +52,6 @@ type PeriodStored = {
   endDate: string;
 };
 
-// Storage keys (must match App)
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
@@ -62,18 +60,14 @@ type SettingsOpenSection = "subjects" | "terms" | "backup";
 
 interface SettingsProps {
   subjects: Subject[];
-
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
-
   onAddSubject: (name: string, color: string) => void;
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
-
   appMode: AppMode;
   onClearAllData: () => void;
-
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
 }
@@ -97,11 +91,6 @@ function safeUUID() {
   return `p_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
-/* -------------------- Better subject colors -------------------- */
-/**
- * High-contrast palette: distinct on light + dark backgrounds.
- * Keep HEX strings stable so users’ existing choices still match.
- */
 const SUBJECT_COLOR_PALETTE = [
   "#2563EB",
   "#DC2626",
@@ -145,7 +134,6 @@ function pickNextColor(usedColors: string[]) {
   return next ?? SUBJECT_COLOR_PALETTE[usedColors.length % SUBJECT_COLOR_PALETTE.length];
 }
 
-/* -------------------- Backup helpers -------------------- */
 type BackupV1 = {
   version: 1;
   exportedAt: string;
@@ -203,7 +191,6 @@ export function Settings({
 
   const [subjectsOpen, setSubjectsOpen] = useState(false);
 
-  // ✅ Periods section
   const [periodsOpen, setPeriodsOpen] = useState(false);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [showAddPeriodForm, setShowAddPeriodForm] = useState(false);
@@ -216,14 +203,12 @@ export function Settings({
   });
   const [periodFormError, setPeriodFormError] = useState<string>("");
 
-  // ✅ Backup section (collapsible)
   const [backupOpen, setBackupOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string>("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
-  // ✅ Refs for “open section + focus”
   const subjectsCardRef = useRef<HTMLDivElement>(null);
   const termsCardRef = useRef<HTMLDivElement>(null);
   const backupCardRef = useRef<HTMLDivElement>(null);
@@ -233,10 +218,8 @@ export function Settings({
 
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
 
-  // Normalize term names for reliable duplicate checking
   const normalizeTermName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
-  // -------- Periods: load + persist --------
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
@@ -270,7 +253,6 @@ export function Settings({
     } catch {}
   }, [periods]);
 
-  // -------- Periods handlers --------
   const openNewPeriod = () => {
     setPeriodFormError("");
     setEditingPeriodId(null);
@@ -309,7 +291,6 @@ export function Settings({
     });
   };
 
-  // ✅ When Dashboard asks to open a specific section
   useEffect(() => {
     if (!openSection) return;
 
@@ -479,7 +460,6 @@ export function Settings({
     return `${start} → ${end}`;
   };
 
-  /* -------------------- Backup handlers -------------------- */
   const handleExportBackup = () => {
     setImportError("");
 
@@ -597,7 +577,6 @@ export function Settings({
       </div>
 
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5 space-y-4">
-        {/* Subjects */}
         <div ref={subjectsCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
@@ -775,7 +754,6 @@ export function Settings({
           )}
         </div>
 
-        {/* Terms / Periods */}
         <div ref={termsCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
@@ -932,7 +910,6 @@ export function Settings({
           )}
         </div>
 
-        {/* Backup */}
         <div ref={backupCardRef} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <button
             type="button"
@@ -998,7 +975,6 @@ export function Settings({
           )}
         </div>
 
-        {/* Clear all data */}
         <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4 flex items-center justify-between">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-foreground">Clear all data</div>
@@ -1017,7 +993,20 @@ export function Settings({
           </button>
         </div>
 
-        {/* Legal */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4">
+          <div className="text-sm font-semibold text-foreground">Learn</div>
+          <div className="mt-1 text-xs text-muted-foreground">Learn more about MyStudyPlanner and how it works.</div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link href="/about" className="text-muted-foreground hover:text-foreground transition">
+              About
+            </Link>
+            <Link href="/how-it-works" className="text-muted-foreground hover:text-foreground transition">
+              How it works
+            </Link>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4">
           <div className="text-sm font-semibold text-foreground">Legal</div>
           <div className="mt-1 text-xs text-muted-foreground">Privacy and terms.</div>
@@ -1033,7 +1022,6 @@ export function Settings({
         </div>
       </div>
 
-      {/* Contact */}
       <div className="pt-2 text-center text-xs text-muted-foreground">
         Need help? Contact us at{" "}
         <a href="mailto:mystudyplanner.studio@gmail.com" className="underline hover:text-foreground transition-colors">
@@ -1041,7 +1029,6 @@ export function Settings({
         </a>
       </div>
 
-      {/* Delete subject modal */}
       {deletingSubject && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingSubjectId(null)} />
@@ -1090,7 +1077,6 @@ export function Settings({
         </>
       )}
 
-      {/* Delete term modal */}
       {deletingPeriod && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingPeriodId(null)} />
@@ -1133,7 +1119,6 @@ export function Settings({
         </>
       )}
 
-      {/* Import confirm modal */}
       {showImportConfirm && pendingBackup ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowImportConfirm(false)} />
@@ -1190,7 +1175,6 @@ export function Settings({
         </>
       ) : null}
 
-      {/* Clear all modal */}
       {showClearConfirm && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowClearConfirm(false)} />
