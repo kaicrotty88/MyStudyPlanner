@@ -77,6 +77,13 @@ export default function AboutPage() {
       />
 
       <header className="max-w-3xl space-y-4">
+        <Link
+          href="/"
+          className="inline-flex items-center text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          ← Back
+        </Link>
+
         <p className="text-sm text-muted-foreground">About</p>
 
         <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
@@ -89,12 +96,6 @@ export default function AboutPage() {
         </p>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Link
-            href="/demo"
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
-          >
-            Open demo
-          </Link>
           <Link
             href="/how-it-works"
             className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
@@ -152,32 +153,6 @@ export default function AboutPage() {
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 The point is to help you stay on top of things, not make planning feel heavier than the work itself.
               </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border bg-muted/20 p-6 md:p-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">Want to see the product?</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Try the demo or read how it works.
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/demo"
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:opacity-95"
-              >
-                Open demo
-              </Link>
-              <Link
-                href="/how-it-works"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-medium text-foreground transition hover:bg-muted/60"
-              >
-                How it works
-              </Link>
             </div>
           </div>
         </div>
