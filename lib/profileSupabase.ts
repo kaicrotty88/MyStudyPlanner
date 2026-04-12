@@ -14,19 +14,14 @@ export type ProfileRow = {
   updated_at?: string;
 };
 
-export async function fetchProfile(supabase: SupabaseClient): Promise<ProfileRow | null> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) throw userError;
-  if (!user) return null;
-
+export async function fetchProfile(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from(TABLE)
     .select("user_id, plan, subscription_status, stripe_customer_id, stripe_subscription_id, created_at, updated_at")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;
@@ -34,23 +29,18 @@ export async function fetchProfile(supabase: SupabaseClient): Promise<ProfileRow
   return (data as ProfileRow | null) ?? null;
 }
 
-export async function ensureProfile(supabase: SupabaseClient): Promise<ProfileRow> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) throw userError;
-  if (!user) throw new Error("No signed-in user found.");
-
-  const existing = await fetchProfile(supabase);
+export async function ensureProfile(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<ProfileRow> {
+  const existing = await fetchProfile(supabase, userId);
   if (existing) return existing;
 
   const { data, error } = await supabase
     .from(TABLE)
     .upsert(
       {
-        user_id: user.id,
+        user_id: userId,
         plan: "free",
         subscription_status: "inactive",
         updated_at: new Date().toISOString(),
@@ -65,27 +55,23 @@ export async function ensureProfile(supabase: SupabaseClient): Promise<ProfileRo
   return data as ProfileRow;
 }
 
-export async function fetchUserPlan(supabase: SupabaseClient): Promise<Plan> {
-  const profile = await ensureProfile(supabase);
+export async function fetchUserPlan(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<Plan> {
+  const profile = await ensureProfile(supabase, userId);
   return profile.plan;
 }
 
 export async function updateUserPlan(
   supabase: SupabaseClient,
+  userId: string,
   plan: Plan,
   subscriptionStatus = plan === "premium" ? "active" : "inactive"
 ): Promise<void> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) throw userError;
-  if (!user) throw new Error("No signed-in user found.");
-
   const { error } = await supabase.from(TABLE).upsert(
     {
-      user_id: user.id,
+      user_id: userId,
       plan,
       subscription_status: subscriptionStatus,
       updated_at: new Date().toISOString(),

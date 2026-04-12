@@ -385,7 +385,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
     if (!userLoaded) return;
 
-    if (!isSignedIn || !supabase) {
+    if (!isSignedIn || !supabase || !user?.id) {
       setPlan("free");
       return;
     }
@@ -394,7 +394,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
     (async () => {
       try {
-        const nextPlan = await fetchUserPlan(supabase);
+        const nextPlan = await fetchUserPlan(supabase, user.id);
         if (!cancelled) setPlan(nextPlan);
       } catch (e) {
         console.error("Failed to fetch user plan:", e);
@@ -405,7 +405,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     return () => {
       cancelled = true;
     };
-  }, [mode, userLoaded, isSignedIn, supabase]);
+  }, [mode, userLoaded, isSignedIn, supabase, user?.id]);
 
   useEffect(() => {
     if (mode !== "app") return;
