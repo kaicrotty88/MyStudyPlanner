@@ -231,6 +231,7 @@ export function Settings({
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
   const [currentPlan, setCurrentPlan] = useState<Plan>(appMode === "demo" ? "premium" : "free");
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string>("");
   const currentPlanLabel =
     appMode === "demo" ? "Preview mode" : currentPlan === "premium" ? "Premium" : "Free";
@@ -617,7 +618,7 @@ export function Settings({
   }, [pendingBackup]);
 
   const handleStartCheckout = async () => {
-    if (appMode !== "app" || currentPlan === "premium") return;
+    if (appMode !== "app" || currentPlan === "premium" || isOpeningPortal) return;
 
     setCheckoutError("");
     setIsStartingCheckout(true);
@@ -638,6 +639,31 @@ export function Settings({
       console.error("Failed to start checkout:", error);
       setCheckoutError("Couldn’t open checkout right now. Please try again.");
       setIsStartingCheckout(false);
+    }
+  };
+
+  const handleOpenPortal = async () => {
+    if (appMode !== "app" || currentPlan !== "premium") return;
+
+    setCheckoutError("");
+    setIsOpeningPortal(true);
+
+    try {
+      const response = await fetch("/api/stripe/portal", {
+        method: "POST",
+      });
+
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Failed to open billing portal.");
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Failed to open billing portal:", error);
+      setCheckoutError("Couldn’t open billing settings right now. Please try again.");
+      setIsOpeningPortal(false);
     }
   };
 
@@ -712,21 +738,23 @@ export function Settings({
                   {appMode === "demo"
                     ? "Demo mode includes Premium features so people can try them."
                     : currentPlan === "premium"
-                    ? "Marks, Insights, and future Premium features are unlocked on this account."
+                    ? "Manage your subscription and billing details."
                     : "Unlock Marks, Insights, and future Premium features with a subscription."}
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={handleStartCheckout}
-                disabled={appMode === "demo" || currentPlan === "premium" || isStartingCheckout}
+                onClick={currentPlan === "premium" ? handleOpenPortal : handleStartCheckout}
+                disabled={appMode === "demo" || isStartingCheckout || isOpeningPortal}
                 className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {appMode === "demo"
                   ? "Included in demo"
                   : currentPlan === "premium"
-                  ? "Premium active"
+                  ? isOpeningPortal
+                    ? "Opening billing..."
+                    : "Manage billing"
                   : isStartingCheckout
                   ? "Opening checkout..."
                   : "Upgrade now"}
