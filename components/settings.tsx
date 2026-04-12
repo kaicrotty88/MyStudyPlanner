@@ -3,6 +3,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Plus, Edit2, Trash2, Trash, ChevronDown, Sparkles, Lock } from "lucide-react";
+import { useSession, useUser } from "@clerk/nextjs";
+
+import { getSupabaseClient } from "@/lib/supabaseClient";
+import { fetchUserPlan, type Plan } from "@/lib/profileSupabase";
 
 interface Subject {
   id: string;
@@ -179,6 +183,14 @@ export function Settings({
   openSection,
   onOpenSectionHandled,
 }: SettingsProps) {
+  const { isLoaded: userLoaded, isSignedIn, user } = useUser();
+  const { session } = useSession();
+
+  const supabase = useMemo(() => {
+    if (!session) return null;
+    return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
+  }, [session]);
+
   const storageKey = appMode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -217,9 +229,41 @@ export function Settings({
   const termNameInputRef = useRef<HTMLInputElement>(null);
 
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
-  const currentPlanLabel = appMode === "demo" ? "Preview mode" : "Free";
+  const [currentPlan, setCurrentPlan] = useState<Plan>(appMode === "demo" ? "premium" : "free");
+  const currentPlanLabel =
+    appMode === "demo" ? "Preview mode" : currentPlan === "premium" ? "Premium" : "Free";
 
   const normalizeTermName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+  useEffect(() => {
+    if (appMode === "demo") {
+      setCurrentPlan("premium");
+      return;
+    }
+
+    if (!userLoaded) return;
+
+    if (!isSignedIn || !supabase || !user?.id) {
+      setCurrentPlan("free");
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const plan = await fetchUserPlan(supabase, user.id);
+        if (!cancelled) setCurrentPlan(plan);
+      } catch (error) {
+        console.error("Failed to fetch settings plan:", error);
+        if (!cancelled) setCurrentPlan("free");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appMode, userLoaded, isSignedIn, supabase, user?.id]);
 
   useEffect(() => {
     try {
@@ -631,12 +675,18 @@ export function Settings({
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">
-                  {appMode === "demo" ? "Premium is included in preview mode" : "Premium billing is coming soon"}
+                  {appMode === "demo"
+                    ? "Premium is included in preview mode"
+                    : currentPlan === "premium"
+                    ? "You are on Premium"
+                    : "Premium billing is coming soon"}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {appMode === "demo"
                     ? "Demo mode includes Premium features so people can try them."
-                    : "Marks and Insights are locked for now in the app while billing is being set up."}
+                    : currentPlan === "premium"
+                    ? "Marks, Insights, and future Premium features are unlocked on this account."
+                    : "Marks and Insights are locked for now on the Free plan while billing is being set up."}
                 </div>
               </div>
 
@@ -645,7 +695,7 @@ export function Settings({
                 disabled
                 className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground opacity-60 cursor-not-allowed"
               >
-                {appMode === "demo" ? "Included in demo" : "Upgrade soon"}
+                {appMode === "demo" ? "Included in demo" : currentPlan === "premium" ? "Premium active" : "Upgrade soon"}
               </button>
             </div>
           </div>
