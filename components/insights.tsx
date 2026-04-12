@@ -1,20 +1,30 @@
+// components/insights.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { Subject, Task, StudySession, TaskResult } from "./models";
-import { Calendar, Clock, TrendingUp, Trophy, Sparkles, ChevronDown } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  TrendingUp,
+  Trophy,
+  Sparkles,
+  ChevronDown,
+  Target,
+  Flame,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 
-// Must match Settings + Tasks key
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
-
-// Local UI prefs for Insights (safe to delete anytime)
 const INSIGHTS_PREFS_KEY = "mystudyplanner-insights-prefs";
 
 type PeriodStored = {
   id: string;
   name: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
+  startDate: string;
+  endDate: string;
 };
 
 type PeriodHydrated = {
@@ -27,11 +37,24 @@ type PeriodHydrated = {
 type InsightsPrefs = {
   view?: "study" | "marks";
   range?: 7 | 30;
-  selectedPeriodStudy?: string; // "all" or periodId
-  selectedPeriodMarks?: string; // "all" or periodId
+  selectedPeriodStudy?: string;
+  selectedPeriodMarks?: string;
 };
 
-// --- helpers ---
+type StudySubjectRow = {
+  subjectId: string;
+  subject: Subject | undefined;
+  minutes: number;
+  sessions: number;
+};
+
+type MarkSubjectRow = {
+  subjectId: string;
+  subject: Subject | undefined;
+  percent: number;
+  count: number;
+};
+
 const parseDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
   const s = duration.toLowerCase().trim();
@@ -51,7 +74,7 @@ const parseDurationToMinutes = (duration: string): number => {
   if (hMatch || mMatch) return Math.round(hours * 60 + minutes);
 
   const justNumber = s.match(/^\d+$/);
-  if (justNumber) return Number(justNumber[1]);
+  if (justNumber) return Number(justNumber[0]);
 
   const firstNum = s.match(/(\d+)/);
   return firstNum ? Number(firstNum[1]) : 0;
@@ -75,6 +98,44 @@ const safePercent = (score: number, outOf: number): number => {
 
 const clampDateMin = (a: Date, b: Date) => (a.getTime() >= b.getTime() ? a : b);
 
+const formatDateShort = (d: Date) =>
+  d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+const formatWeekdayShort = (d: Date) =>
+  d.toLocaleDateString("en-US", { weekday: "short" });
+
+const getPerformanceLabel = (value: number) => {
+  if (value >= 90) return "Excellent";
+  if (value >= 80) return "Strong";
+  if (value >= 70) return "Good";
+  if (value >= 60) return "Developing";
+  return "Needs attention";
+};
+
+const groupDaysBetween = (sessions: StudySession[]) => {
+  const map = new Map<string, number>();
+
+  sessions.forEach((session) => {
+    const day = startOfDay(session.date).toISOString();
+    map.set(day, (map.get(day) ?? 0) + parseDurationToMinutes(session.duration));
+  });
+
+  return map;
+};
+
+const getCurrentStreak = (sessions: StudySession[], now: Date) => {
+  const days = new Set(sessions.map((s) => startOfDay(s.date).toISOString()));
+  let streak = 0;
+  let cursor = startOfDay(now);
+
+  while (days.has(cursor.toISOString())) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+};
+
 interface InsightsProps {
   subjects: Subject[];
   tasks: Task[];
@@ -82,22 +143,12 @@ interface InsightsProps {
 }
 
 export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
-  // Defaults
   const [view, setView] = useState<"study" | "marks">("study");
-
-  // Fixed range (no UI toggle)
   const [range, setRange] = useState<7 | 30>(30);
-
-  // Periods
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
-
-  // Study filters
   const [selectedPeriodStudy, setSelectedPeriodStudy] = useState<string>("all");
-
-  // Marks filters
   const [selectedPeriodMarks, setSelectedPeriodMarks] = useState<string>("all");
 
-  // Load periods
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
@@ -121,18 +172,15 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     }
   }, []);
 
-  // Load saved prefs once (after mount)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(INSIGHTS_PREFS_KEY);
       if (!raw) return;
+
       const prefs = JSON.parse(raw) as InsightsPrefs;
 
       if (prefs.view === "study" || prefs.view === "marks") setView(prefs.view);
-
-      // Range UI removed; keep this fixed to 30 even if an old pref existed.
       setRange(30);
-
       if (typeof prefs.selectedPeriodStudy === "string") setSelectedPeriodStudy(prefs.selectedPeriodStudy);
       if (typeof prefs.selectedPeriodMarks === "string") setSelectedPeriodMarks(prefs.selectedPeriodMarks);
     } catch {
@@ -140,7 +188,6 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     }
   }, []);
 
-  // Persist prefs
   useEffect(() => {
     try {
       const prefs: InsightsPrefs = {
@@ -155,28 +202,31 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     }
   }, [view, selectedPeriodStudy, selectedPeriodMarks]);
 
-  // Stable "now" so date-based memos don't drift every render
   const now = useMemo(() => new Date(), []);
 
   const subjectById = useMemo(() => {
     const map: Record<string, Subject> = {};
-    subjects.forEach((s) => (map[s.id] = s));
+    subjects.forEach((s) => {
+      map[s.id] = s;
+    });
     return map;
   }, [subjects]);
 
   const taskById = useMemo(() => {
     const map: Record<string, Task> = {};
-    tasks.forEach((t) => (map[t.id] = t));
+    tasks.forEach((t) => {
+      map[t.id] = t;
+    });
     return map;
   }, [tasks]);
 
   const periodById = useMemo(() => {
     const map: Record<string, PeriodHydrated> = {};
-    periods.forEach((p) => (map[p.id] = p));
+    periods.forEach((p) => {
+      map[p.id] = p;
+    });
     return map;
   }, [periods]);
-
-  /* -------------------- Study insights (fixed 30d + optional period) -------------------- */
 
   const cutoff = useMemo(() => {
     const t = new Date(now);
@@ -189,197 +239,251 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     return periodById[selectedPeriodStudy] ?? null;
   }, [selectedPeriodStudy, periodById]);
 
-  const sessionsInRange = useMemo(() => {
-    const raw = studySessions;
+  const selectedMarksPeriodObj = useMemo(() => {
+    if (selectedPeriodMarks === "all") return null;
+    return periodById[selectedPeriodMarks] ?? null;
+  }, [selectedPeriodMarks, periodById]);
 
+  const sessionsInRange = useMemo(() => {
     if (selectedStudyPeriodObj) {
       const pStart = startOfDay(selectedStudyPeriodObj.startDate);
       const pEnd = startOfDay(selectedStudyPeriodObj.endDate);
-
       const effectiveStart = clampDateMin(cutoff, pStart);
-      const effectiveEnd = pEnd;
 
-      return raw.filter((s) => {
+      return studySessions.filter((s) => {
         const d = startOfDay(s.date);
-        return d.getTime() >= effectiveStart.getTime() && d.getTime() <= effectiveEnd.getTime();
+        return d.getTime() >= effectiveStart.getTime() && d.getTime() <= pEnd.getTime();
       });
     }
 
-    return raw.filter((s) => startOfDay(s.date) >= cutoff);
+    return studySessions.filter((s) => startOfDay(s.date).getTime() >= cutoff.getTime());
   }, [studySessions, cutoff, selectedStudyPeriodObj]);
 
-  const totalMinutes = useMemo(() => {
-    return sessionsInRange.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
+  const totalMinutes = useMemo(
+    () => sessionsInRange.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0),
+    [sessionsInRange]
+  );
+
+  const totalStudyDays = useMemo(() => groupDaysBetween(sessionsInRange).size, [sessionsInRange]);
+
+  const dailyAverageMinutes = useMemo(() => {
+    if (totalStudyDays === 0) return 0;
+    return Math.round(totalMinutes / totalStudyDays);
+  }, [totalMinutes, totalStudyDays]);
+
+  const currentStreak = useMemo(() => getCurrentStreak(sessionsInRange, now), [sessionsInRange, now]);
+
+  const busiestDay = useMemo(() => {
+    const grouped = Array.from(groupDaysBetween(sessionsInRange).entries()).map(([iso, minutes]) => ({
+      date: new Date(iso),
+      minutes,
+    }));
+    grouped.sort((a, b) => b.minutes - a.minutes);
+    return grouped[0] ?? null;
   }, [sessionsInRange]);
 
-  const minutesBySubject = useMemo(() => {
-    const map: Record<string, number> = {};
-    sessionsInRange.forEach((s) => {
-      map[s.subjectId] = (map[s.subjectId] || 0) + parseDurationToMinutes(s.duration);
+  const studySubjectRows = useMemo<StudySubjectRow[]>(() => {
+    const map = new Map<string, { minutes: number; sessions: number }>();
+
+    sessionsInRange.forEach((session) => {
+      const current = map.get(session.subjectId) ?? { minutes: 0, sessions: 0 };
+      map.set(session.subjectId, {
+        minutes: current.minutes + parseDurationToMinutes(session.duration),
+        sessions: current.sessions + 1,
+      });
     });
-    return map;
-  }, [sessionsInRange]);
 
-  const topSubject = useMemo(() => {
-    const entries = Object.entries(minutesBySubject).sort((a, b) => b[1] - a[1]);
-    if (!entries.length) return null;
-    const [subjectId, mins] = entries[0];
-    return { subject: subjectById[subjectId], minutes: mins };
-  }, [minutesBySubject, subjectById]);
+    return Array.from(map.entries())
+      .map(([subjectId, value]) => ({
+        subjectId,
+        subject: subjectById[subjectId],
+        minutes: value.minutes,
+        sessions: value.sessions,
+      }))
+      .filter((row) => row.minutes > 0)
+      .sort((a, b) => b.minutes - a.minutes);
+  }, [sessionsInRange, subjectById]);
 
-  const upcomingAssessments = useMemo(() => {
-    return tasks
-      .filter((t) => t.type === "exam" || t.type === "assignment")
-      .filter((t) => t.dueDate >= now)
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-      .slice(0, 5);
-  }, [tasks, now]);
+  const topStudySubject = studySubjectRows[0] ?? null;
 
   const minutesByAssessment = useMemo(() => {
     const map: Record<string, number> = {};
-    studySessions.forEach((s) => {
-      if (!s.linkedTaskId) return;
-      const t = taskById[s.linkedTaskId];
-      if (!t) return;
-      if (!(t.type === "exam" || t.type === "assignment")) return;
-      map[t.id] = (map[t.id] || 0) + parseDurationToMinutes(s.duration);
+
+    studySessions.forEach((session) => {
+      if (!session.linkedTaskId) return;
+      const task = taskById[session.linkedTaskId];
+      if (!task) return;
+      if (!(task.type === "exam" || task.type === "assignment")) return;
+      map[task.id] = (map[task.id] || 0) + parseDurationToMinutes(session.duration);
     });
+
     return map;
   }, [studySessions, taskById]);
 
   const mostStudiedAssessment = useMemo(() => {
     const entries = Object.entries(minutesByAssessment).sort((a, b) => b[1] - a[1]);
     if (!entries.length) return null;
-    const [taskId, mins] = entries[0];
-    return { task: taskById[taskId], minutes: mins };
+    const [taskId, minutes] = entries[0];
+    return { task: taskById[taskId], minutes };
   }, [minutesByAssessment, taskById]);
 
-  const subjectBreakdown = useMemo(() => {
-    const entries = Object.entries(minutesBySubject)
-      .map(([subjectId, mins]) => ({
-        subjectId,
-        minutes: mins,
-        subject: subjectById[subjectId],
-      }))
-      .filter((x) => x.subject && x.minutes > 0)
-      .sort((a, b) => b.minutes - a.minutes)
-      .slice(0, 6);
+  const upcomingAssessments = useMemo(() => {
+    return tasks
+      .filter((t) => t.type === "exam" || t.type === "assignment")
+      .filter((t) => t.dueDate.getTime() >= now.getTime())
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+      .slice(0, 5);
+  }, [tasks, now]);
 
-    const max = entries.reduce((m, x) => Math.max(m, x.minutes), 0) || 1;
+  const assessableTasks = useMemo(
+    () => tasks.filter((t) => t.type === "exam" || t.type === "assignment"),
+    [tasks]
+  );
 
-    return { entries, max };
-  }, [minutesBySubject, subjectById]);
-
-  /* -------------------- Marks insights (derived from tasks) -------------------- */
-
-  const assessableTasks = useMemo(() => {
-    return tasks.filter((t) => t.type === "exam" || t.type === "assignment");
-  }, [tasks]);
-
-  const recordedAssessmentsBase = useMemo(() => {
-    return assessableTasks.filter((t) => Boolean(t.result));
-  }, [assessableTasks]);
+  const recordedAssessmentsBase = useMemo(
+    () => assessableTasks.filter((t) => Boolean(t.result)),
+    [assessableTasks]
+  );
 
   const recordedAssessments = useMemo(() => {
-    if (selectedPeriodMarks === "all") return recordedAssessmentsBase;
-    return recordedAssessmentsBase.filter((t) => t.periodId === selectedPeriodMarks);
-  }, [recordedAssessmentsBase, selectedPeriodMarks]);
+    let base = recordedAssessmentsBase;
+
+    if (selectedMarksPeriodObj) {
+      base = base.filter((t) => t.periodId === selectedMarksPeriodObj.id);
+    }
+
+    return base;
+  }, [recordedAssessmentsBase, selectedMarksPeriodObj]);
 
   const marksTotals = useMemo(() => {
     let totalScore = 0;
     let totalOutOf = 0;
 
-    for (const t of recordedAssessments) {
-      const r: TaskResult | undefined = t.result;
-      if (!r) continue;
-      if (!Number.isFinite(r.score) || !Number.isFinite(r.outOf)) continue;
-      if (r.outOf <= 0) continue;
-      totalScore += r.score;
-      totalOutOf += r.outOf;
+    for (const task of recordedAssessments) {
+      const result: TaskResult | undefined = task.result;
+      if (!result) continue;
+      if (!Number.isFinite(result.score) || !Number.isFinite(result.outOf)) continue;
+      if (result.outOf <= 0) continue;
+
+      totalScore += result.score;
+      totalOutOf += result.outOf;
     }
 
     const overallPercent = totalOutOf > 0 ? safePercent(totalScore, totalOutOf) : 0;
-
     return { totalScore, totalOutOf, overallPercent };
   }, [recordedAssessments]);
 
-  const marksBySubject = useMemo(() => {
-    const map: Record<string, { score: number; outOf: number; count: number }> = {};
+  const markSubjectRows = useMemo<MarkSubjectRow[]>(() => {
+    const map = new Map<string, { score: number; outOf: number; count: number }>();
 
-    for (const t of recordedAssessments) {
-      const r: TaskResult | undefined = t.result;
-      if (!r) continue;
-      if (r.outOf <= 0) continue;
+    recordedAssessments.forEach((task) => {
+      const result = task.result;
+      if (!result || result.outOf <= 0) return;
 
-      const sid = t.subjectId;
-      if (!map[sid]) map[sid] = { score: 0, outOf: 0, count: 0 };
-      map[sid].score += r.score;
-      map[sid].outOf += r.outOf;
-      map[sid].count += 1;
-    }
+      const current = map.get(task.subjectId) ?? { score: 0, outOf: 0, count: 0 };
+      map.set(task.subjectId, {
+        score: current.score + result.score,
+        outOf: current.outOf + result.outOf,
+        count: current.count + 1,
+      });
+    });
 
-    return map;
-  }, [recordedAssessments]);
-
-  const topMarkSubject = useMemo(() => {
-    const entries = Object.entries(marksBySubject)
-      .map(([subjectId, agg]) => ({
+    return Array.from(map.entries())
+      .map(([subjectId, value]) => ({
         subjectId,
         subject: subjectById[subjectId],
-        percent: agg.outOf > 0 ? safePercent(agg.score, agg.outOf) : 0,
-        count: agg.count,
+        percent: value.outOf > 0 ? safePercent(value.score, value.outOf) : 0,
+        count: value.count,
       }))
-      .filter((x) => x.subject && x.count > 0)
       .sort((a, b) => b.percent - a.percent);
+  }, [recordedAssessments, subjectById]);
 
-    return entries.length ? entries[0] : null;
-  }, [marksBySubject, subjectById]);
+  const topMarkSubject = markSubjectRows[0] ?? null;
+  const weakestMarkSubject = markSubjectRows.length > 1 ? markSubjectRows[markSubjectRows.length - 1] : null;
 
   const bestAssessment = useMemo(() => {
     const entries = recordedAssessments
-      .map((t) => {
-        const r: TaskResult | undefined = t.result;
-        if (!r || r.outOf <= 0) return null;
-        return { task: t, percent: safePercent(r.score, r.outOf) };
+      .map((task) => {
+        const result = task.result;
+        if (!result || result.outOf <= 0) return null;
+        return { task, percent: safePercent(result.score, result.outOf) };
       })
       .filter(Boolean) as { task: Task; percent: number }[];
 
     entries.sort((a, b) => b.percent - a.percent);
-    return entries.length ? entries[0] : null;
+    return entries[0] ?? null;
   }, [recordedAssessments]);
 
   const recentResults = useMemo(() => {
-    const items: {
-      task: Task;
-      result: TaskResult;
-      date: Date;
-    }[] = recordedAssessments
-      .map((t) => {
-        const r: TaskResult | undefined = t.result;
-        if (!r) return null;
+    const items = recordedAssessments
+      .map((task) => {
+        const result = task.result;
+        if (!result) return null;
 
         const date =
-          r.dateRecorded instanceof Date
-            ? r.dateRecorded
-            : r.dateRecorded
-            ? new Date(r.dateRecorded as unknown as string)
-            : t.dueDate;
+          result.dateRecorded instanceof Date
+            ? result.dateRecorded
+            : result.dateRecorded
+            ? new Date(result.dateRecorded as unknown as string)
+            : task.dueDate;
 
-        return { task: t, result: r, date };
+        return { task, result, date };
       })
-      .filter(Boolean) as {
-      task: Task;
-      result: TaskResult;
-      date: Date;
-    }[];
+      .filter(Boolean) as { task: Task; result: TaskResult; date: Date }[];
 
     items.sort((a, b) => b.date.getTime() - a.date.getTime());
-    return items.slice(0, 5);
+    return items;
   }, [recordedAssessments]);
 
-  /* -------------------- UI helpers -------------------- */
+  const marksMomentum = useMemo(() => {
+    if (recentResults.length < 4) return null;
 
-  const Card = ({
+    const latest = recentResults.slice(0, 3);
+    const previous = recentResults.slice(3, 6);
+
+    if (!previous.length) return null;
+
+    const latestAvg = Math.round(
+      latest.reduce((sum, row) => sum + safePercent(row.result.score, row.result.outOf), 0) / latest.length
+    );
+
+    const previousAvg = Math.round(
+      previous.reduce((sum, row) => sum + safePercent(row.result.score, row.result.outOf), 0) / previous.length
+    );
+
+    return latestAvg - previousAvg;
+  }, [recentResults]);
+
+  const description =
+    view === "study"
+      ? "See how consistently you are studying, where your time is going, and what is coming up next."
+      : "Track your recent results, strongest subjects, and where you need the most improvement.";
+
+  const periodValue = view === "study" ? selectedPeriodStudy : selectedPeriodMarks;
+  const setPeriodValue = view === "study" ? setSelectedPeriodStudy : setSelectedPeriodMarks;
+
+  const StatCard = ({
+    title,
+    value,
+    hint,
+    icon,
+  }: {
+    title: string;
+    value: React.ReactNode;
+    hint: string;
+    icon: React.ReactNode;
+  }) => (
+    <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+      <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        {icon}
+        {title}
+      </div>
+      <div className="mt-3 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+    </div>
+  );
+
+  const SectionCard = ({
     title,
     subtitle,
     icon,
@@ -391,11 +495,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
     children: React.ReactNode;
   }) => (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/10 px-5 py-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             {icon ? (
-              <span className="h-9 w-9 rounded-xl border border-border bg-background/60 grid place-items-center">
+              <span className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-background/70">
                 {icon}
               </span>
             ) : null}
@@ -406,7 +510,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           </div>
         </div>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-5">{children}</div>
     </div>
   );
 
@@ -424,26 +528,15 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
       aria-pressed={active}
       onClick={onClick}
       className={[
-        "px-3 py-1.5 rounded-full text-[13px] leading-none transition",
+        "rounded-full px-3 py-1.5 text-[13px] leading-none transition",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
         active
           ? "bg-primary text-primary-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
       ].join(" ")}
     >
       {children}
     </button>
-  );
-
-  const ViewToggle = () => (
-    <div className="rounded-full border border-border bg-card p-1 flex items-center gap-1 shadow-sm">
-      <ControlPill active={view === "study"} onClick={() => setView("study")}>
-        Study
-      </ControlPill>
-      <ControlPill active={view === "marks"} onClick={() => setView("marks")}>
-        Marks
-      </ControlPill>
-    </div>
   );
 
   const PeriodSelect = ({
@@ -461,199 +554,197 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={[
-            "appearance-none rounded-full",
-            "border border-border bg-card shadow-sm",
-            "px-4 py-2 pr-9 text-sm text-foreground",
-            "hover:bg-background/60 transition",
+            "appearance-none rounded-full border border-border bg-card shadow-sm",
+            "px-4 py-2 pr-9 text-sm text-foreground transition hover:bg-background/60",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           ].join(" ")}
         >
           <option value="all">All terms</option>
-          {periods.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+          {periods.map((period) => (
+            <option key={period.id} value={period.id}>
+              {period.name}
             </option>
           ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       </div>
     );
   };
 
-  const description =
-    view === "study"
-      ? "A quick view of your study habits and upcoming assessments. Switch between Study and Marks anytime."
-      : "A quick view of your marks and recent results. Switch between Study and Marks anytime.";
-
-  const periodValue = view === "study" ? selectedPeriodStudy : selectedPeriodMarks;
-  const setPeriodValue = view === "study" ? setSelectedPeriodStudy : setSelectedPeriodMarks;
+  const EmptyState = ({
+    title,
+    hint,
+  }: {
+    title: string;
+    hint: string;
+  }) => (
+    <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
+      <div className="text-sm font-medium text-foreground">{title}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+    </div>
+  );
 
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
-      {/* Page header */}
+    <div className="mx-auto max-w-7xl space-y-5 px-6 py-7 md:px-10">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ViewToggle />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1 shadow-sm">
+            <ControlPill active={view === "study"} onClick={() => setView("study")}>
+              Study
+            </ControlPill>
+            <ControlPill active={view === "marks"} onClick={() => setView("marks")}>
+              Marks
+            </ControlPill>
+          </div>
           <PeriodSelect value={periodValue} onChange={setPeriodValue} />
         </div>
       </div>
 
       {view === "study" ? (
         <>
-          {/* KPI cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card title="Total study" icon={<Clock className="h-4 w-4 text-muted-foreground" />}>
-              <div className="text-4xl font-semibold tracking-tight text-foreground">
-                {formatMinutes(totalMinutes)}
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                {sessionsInRange.length} session{sessionsInRange.length === 1 ? "" : "s"} logged
-              </div>
-            </Card>
-
-            <Card title="Top subject" icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}>
-              {topSubject?.subject ? (
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: topSubject.subject.color }}
-                      />
-                      <div className="text-sm font-semibold text-foreground truncate">
-                        {topSubject.subject.name}
-                      </div>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {formatMinutes(topSubject.minutes)}
-                    </div>
-                  </div>
-
-                  <span
-                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
-                    style={{ boxShadow: `0 0 0 2px ${topSubject.subject.color}18` }}
-                  >
-                    Top
-                  </span>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
-                  <div className="text-sm font-medium text-foreground">No sessions yet</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Log a study session to unlock insights.
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card title="Most studied assessment" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
-              {mostStudiedAssessment?.task ? (
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground truncate">
-                    {mostStudiedAssessment.task.title}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {mostStudiedAssessment.task.type.toUpperCase()} •{" "}
-                    {formatMinutes(mostStudiedAssessment.minutes)}
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
-                  <div className="text-sm font-medium text-foreground">No linked study yet</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Link sessions to an exam/assignment to track progress.
-                  </div>
-                </div>
-              )}
-            </Card>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              title="Total study"
+              value={formatMinutes(totalMinutes)}
+              hint={`${sessionsInRange.length} session${sessionsInRange.length === 1 ? "" : "s"} logged`}
+              icon={<Clock className="h-4 w-4" />}
+            />
+            <StatCard
+              title="Daily average"
+              value={formatMinutes(dailyAverageMinutes)}
+              hint={totalStudyDays > 0 ? `Across ${totalStudyDays} study day${totalStudyDays === 1 ? "" : "s"}` : "No sessions in this view yet"}
+              icon={<BarChart3 className="h-4 w-4" />}
+            />
+            <StatCard
+              title="Current streak"
+              value={currentStreak > 0 ? `${currentStreak} day${currentStreak === 1 ? "" : "s"}` : "—"}
+              hint={currentStreak > 0 ? "Consecutive days studied" : "Study today to start a streak"}
+              icon={<Flame className="h-4 w-4" />}
+            />
+            <StatCard
+              title="Top subject"
+              value={topStudySubject?.subject?.name ?? "—"}
+              hint={topStudySubject ? `${formatMinutes(topStudySubject.minutes)} total` : "No study data yet"}
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
           </div>
 
-          {/* Breakdown + upcoming */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-5">
-              <Card title="Study breakdown" icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}>
-                {subjectBreakdown.entries.length ? (
-                  <div className="space-y-3">
-                    {subjectBreakdown.entries.map((x) => {
-                      const pct = Math.max(0.06, x.minutes / subjectBreakdown.max);
-                      return (
-                        <div key={x.subjectId} className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-3 text-xs">
-                            <div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: x.subject.color }}
-                              />
-                              <span className="truncate">{x.subject.name}</span>
-                            </div>
-                            <div className="shrink-0 text-foreground font-medium">
-                              {formatMinutes(x.minutes)}
-                            </div>
-                          </div>
-                          <div className="h-2 rounded-full bg-muted/40 overflow-hidden border border-border">
-                            <div
-                              className="h-full rounded-full"
-                              style={{ width: `${pct * 100}%`, backgroundColor: x.subject.color }}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <SectionCard
+              title="Study breakdown"
+              subtitle="Where your time is going"
+              icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
+            >
+              {studySubjectRows.length ? (
+                <div className="space-y-3">
+                  {studySubjectRows.slice(0, 6).map((row) => {
+                    const max = studySubjectRows[0]?.minutes || 1;
+                    const width = Math.max(8, Math.round((row.minutes / max) * 100));
+                    return (
+                      <div key={row.subjectId} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <div className="min-w-0 inline-flex items-center gap-2 text-muted-foreground">
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: row.subject?.color ?? "#94A3B8" }}
                             />
+                            <span className="truncate">{row.subject?.name ?? "Unassigned"}</span>
+                          </div>
+                          <div className="shrink-0 font-medium text-foreground">
+                            {formatMinutes(row.minutes)}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
-                    <div className="text-sm font-medium text-foreground">Nothing to show</div>
+                        <div className="h-2 overflow-hidden rounded-full border border-border bg-muted/40">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${width}%`,
+                              backgroundColor: row.subject?.color ?? "#94A3B8",
+                            }}
+                          />
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {row.sessions} session{row.sessions === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState title="Nothing to show yet" hint="Log study sessions to unlock your breakdown." />
+              )}
+            </SectionCard>
+
+            <div className="space-y-4">
+              <SectionCard
+                title="Study snapshot"
+                subtitle="Quick read"
+                icon={<Target className="h-4 w-4 text-muted-foreground" />}
+              >
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-border bg-background/50 p-4">
+                    <div className="text-xs font-medium text-muted-foreground">Busiest day</div>
+                    <div className="mt-2 text-lg font-semibold text-foreground">
+                      {busiestDay ? formatDateShort(busiestDay.date) : "—"}
+                    </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Log sessions in the Study Planner.
+                      {busiestDay
+                        ? `${formatMinutes(busiestDay.minutes)} studied on ${formatWeekdayShort(busiestDay.date)}`
+                        : "No study days recorded in this view."}
                     </div>
                   </div>
-                )}
-              </Card>
-            </div>
 
-            <div className="lg:col-span-7">
-              <Card
+                  <div className="rounded-2xl border border-border bg-background/50 p-4">
+                    <div className="text-xs font-medium text-muted-foreground">Most studied assessment</div>
+                    <div className="mt-2 text-sm font-semibold text-foreground">
+                      {mostStudiedAssessment?.task?.title ?? "No linked study yet"}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {mostStudiedAssessment
+                        ? `${formatMinutes(mostStudiedAssessment.minutes)} logged toward this assessment`
+                        : "Link study sessions to exams or assignments to track focus."}
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard
                 title="Upcoming assessments"
                 subtitle="Next 5"
                 icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
               >
                 {upcomingAssessments.length ? (
                   <div className="space-y-2">
-                    {upcomingAssessments.map((t) => {
-                      const subj = subjectById[t.subjectId];
-                      const dot = subj?.color ?? "#94a3b8";
+                    {upcomingAssessments.map((task) => {
+                      const subject = subjectById[task.subjectId];
+                      const color = subject?.color ?? "#94A3B8";
 
                       return (
                         <div
-                          key={t.id}
-                          className="rounded-xl border border-border bg-background/60 px-4 py-3 hover:bg-background/80 transition"
-                          style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+                          key={task.id}
+                          className="rounded-xl border border-border bg-background/60 px-4 py-3 transition hover:bg-background/80"
+                          style={{ borderLeftWidth: 3, borderLeftColor: color }}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
+                              <div className="truncate text-sm font-semibold text-foreground">{task.title}</div>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 <span className="inline-flex items-center gap-2 min-w-0">
-                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
-                                  <span className="truncate">{subj?.name ?? "Unassigned"}</span>
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                                  <span className="truncate">{subject?.name ?? "Unassigned"}</span>
                                 </span>
                                 <span className="text-muted-foreground/60">•</span>
-                                <span className="shrink-0">{t.type.toUpperCase()}</span>
+                                <span>{task.type.toUpperCase()}</span>
                               </div>
                             </div>
-
                             <div className="shrink-0 text-right">
-                              <div className="text-xs font-semibold text-foreground">
-                                {t.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </div>
-                              <div className="mt-1 text-[11px] text-muted-foreground">
-                                {t.dueDate.toLocaleDateString("en-US", { weekday: "short" })}
-                              </div>
+                              <div className="text-xs font-semibold text-foreground">{formatDateShort(task.dueDate)}</div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">{formatWeekdayShort(task.dueDate)}</div>
                             </div>
                           </div>
                         </div>
@@ -661,139 +752,152 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
-                    <div className="text-sm font-medium text-foreground">No upcoming exams/assignments</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Add one in Tasks or Calendar.
-                    </div>
-                  </div>
+                  <EmptyState title="No upcoming assessments" hint="Add an exam or assignment in Tasks." />
                 )}
-              </Card>
+              </SectionCard>
             </div>
           </div>
         </>
       ) : (
         <>
-          {/* KPI cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
               title="Overall average"
-              subtitle={recordedAssessments.length ? undefined : "No results yet"}
-              icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-            >
-              {recordedAssessments.length ? (
-                <>
-                  <div className="text-4xl font-semibold tracking-tight text-foreground">
-                    {marksTotals.overallPercent}%
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {recordedAssessments.length} recorded result{recordedAssessments.length === 1 ? "" : "s"}
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
-                  <div className="text-sm font-medium text-foreground">No results recorded</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Enter a result in Marks to see insights.
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card
-              title="Top subject"
-              subtitle={
-                topMarkSubject
-                  ? `${topMarkSubject.count} result${topMarkSubject.count === 1 ? "" : "s"}`
-                  : undefined
+              value={recordedAssessments.length ? `${marksTotals.overallPercent}%` : "—"}
+              hint={
+                recordedAssessments.length
+                  ? `${recordedAssessments.length} recorded result${recordedAssessments.length === 1 ? "" : "s"}`
+                  : "No results recorded yet"
               }
-              icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
-            >
-              {topMarkSubject?.subject ? (
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: topMarkSubject.subject.color }}
-                      />
-                      <div className="text-sm font-semibold text-foreground truncate">
-                        {topMarkSubject.subject.name}
-                      </div>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{topMarkSubject.percent}% average</div>
-                  </div>
-
-                  <span
-                    className="shrink-0 inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
-                    style={{ boxShadow: `0 0 0 2px ${topMarkSubject.subject.color}18` }}
-                  >
-                    Top
-                  </span>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
-                  <div className="text-sm font-medium text-foreground">Not enough data</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Record results to see subject trends.
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card title="Best assessment" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
-              {bestAssessment?.task ? (
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground truncate">{bestAssessment.task.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {bestAssessment.percent}% • {bestAssessment.task.type.toUpperCase()}
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border bg-background/60 px-4 py-8 text-center">
-                  <div className="text-sm font-medium text-foreground">No results yet</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Your best result will appear here.</div>
-                </div>
-              )}
-            </Card>
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
+            <StatCard
+              title="Top subject"
+              value={topMarkSubject?.subject?.name ?? "—"}
+              hint={
+                topMarkSubject
+                  ? `${topMarkSubject.percent}% average`
+                  : "Record marks to see subject strength"
+              }
+              icon={<Trophy className="h-4 w-4" />}
+            />
+            <StatCard
+              title="Current focus"
+              value={weakestMarkSubject?.subject?.name ?? "—"}
+              hint={
+                weakestMarkSubject
+                  ? `${weakestMarkSubject.percent}% average`
+                  : "Needs more subjects to compare"
+              }
+              icon={<Target className="h-4 w-4" />}
+            />
+            <StatCard
+              title="Recent momentum"
+              value={
+                marksMomentum === null
+                  ? "—"
+                  : `${marksMomentum > 0 ? "+" : ""}${marksMomentum}%`
+              }
+              hint={
+                marksMomentum === null
+                  ? "Needs more recent results"
+                  : marksMomentum >= 0
+                  ? "Results are trending up"
+                  : "Results dipped recently"
+              }
+              icon={marksMomentum !== null && marksMomentum >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            />
           </div>
 
-          {/* Recent results */}
-          <div className="grid grid-cols-1">
-            <Card title="Recent results" subtitle="Last 5" icon={<Calendar className="h-4 w-4 text-muted-foreground" />}>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <SectionCard
+              title="Subject ranking"
+              subtitle="How each subject is performing"
+              icon={<Sparkles className="h-4 w-4 text-muted-foreground" />}
+            >
+              {markSubjectRows.length ? (
+                <div className="space-y-3">
+                  {markSubjectRows.map((row, index) => {
+                    const max = markSubjectRows[0]?.percent || 1;
+                    const width = Math.max(8, Math.round((row.percent / max) * 100));
+                    return (
+                      <div key={row.subjectId} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <div className="min-w-0 inline-flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: row.subject?.color ?? "#94A3B8" }}
+                            />
+                            <span className="truncate text-foreground">{row.subject?.name ?? "Unassigned"}</span>
+                            {index === 0 ? (
+                              <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
+                                Strongest
+                              </span>
+                            ) : null}
+                            {weakestMarkSubject && row.subjectId === weakestMarkSubject.subjectId ? (
+                              <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
+                                Focus
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="shrink-0 font-medium text-foreground">{row.percent}%</div>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full border border-border bg-muted/40">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${width}%`,
+                              backgroundColor: row.subject?.color ?? "#94A3B8",
+                            }}
+                          />
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {row.count} result{row.count === 1 ? "" : "s"} • {getPerformanceLabel(row.percent)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState title="No subject trends yet" hint="Enter marks in the Marks page to build rankings." />
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Recent results"
+              subtitle="Latest 5"
+              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+            >
               {recentResults.length ? (
                 <div className="space-y-2">
-                  {recentResults.map(({ task, result, date }) => {
-                    const subj = subjectById[task.subjectId];
-                    const dot = subj?.color ?? "#94a3b8";
-                    const pct = safePercent(result.score, result.outOf);
+                  {recentResults.slice(0, 5).map(({ task, result, date }) => {
+                    const subject = subjectById[task.subjectId];
+                    const color = subject?.color ?? "#94A3B8";
+                    const percent = safePercent(result.score, result.outOf);
 
                     return (
                       <div
                         key={task.id}
-                        className="rounded-xl border border-border bg-background/60 px-4 py-3 hover:bg-background/80 transition"
-                        style={{ borderLeftWidth: 3, borderLeftColor: dot }}
+                        className="rounded-xl border border-border bg-background/60 px-4 py-3 transition hover:bg-background/80"
+                        style={{ borderLeftWidth: 3, borderLeftColor: color }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold text-foreground truncate">{task.title}</div>
+                            <div className="truncate text-sm font-semibold text-foreground">{task.title}</div>
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               <span className="inline-flex items-center gap-2 min-w-0">
-                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />
-                                <span className="truncate">{subj?.name ?? "Unassigned"}</span>
+                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                                <span className="truncate">{subject?.name ?? "Unassigned"}</span>
                               </span>
                               <span className="text-muted-foreground/60">•</span>
-                              <span className="shrink-0">{task.type.toUpperCase()}</span>
+                              <span>{task.type.toUpperCase()}</span>
                             </div>
                           </div>
-
                           <div className="shrink-0 text-right">
                             <div className="text-xs font-semibold text-foreground">
-                              {result.score} / {result.outOf} ({pct}%)
+                              {result.score} / {result.outOf} ({percent}%)
                             </div>
-                            <div className="mt-1 text-[11px] text-muted-foreground">
-                              {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                            </div>
+                            <div className="mt-1 text-[11px] text-muted-foreground">{formatDateShort(date)}</div>
                           </div>
                         </div>
                       </div>
@@ -801,14 +905,49 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                   })}
                 </div>
               ) : (
-                <div className="rounded-xl border border-border bg-background/60 px-4 py-10 text-center">
-                  <div className="text-sm font-medium text-foreground">No recent results</div>
+                <EmptyState title="No recent results" hint="Enter results in Marks to populate this feed." />
+              )}
+            </SectionCard>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <SectionCard
+              title="Best assessment"
+              subtitle="Top individual result"
+              icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
+            >
+              {bestAssessment ? (
+                <div className="rounded-2xl border border-border bg-background/50 p-4">
+                  <div className="text-sm font-semibold text-foreground">{bestAssessment.task.title}</div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{bestAssessment.percent}%</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    Record results in Marks to populate insights.
+                    {bestAssessment.task.type.toUpperCase()} • {subjectById[bestAssessment.task.subjectId]?.name ?? "Unassigned"}
                   </div>
                 </div>
+              ) : (
+                <EmptyState title="No best result yet" hint="Your top-performing assessment will appear here." />
               )}
-            </Card>
+            </SectionCard>
+
+            <SectionCard
+              title="Focus area"
+              subtitle="Best next improvement target"
+              icon={<Target className="h-4 w-4 text-muted-foreground" />}
+            >
+              {weakestMarkSubject ? (
+                <div className="rounded-2xl border border-border bg-background/50 p-4">
+                  <div className="text-sm font-semibold text-foreground">
+                    {weakestMarkSubject.subject?.name ?? "Unassigned"}
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{weakestMarkSubject.percent}%</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {weakestMarkSubject.count} result{weakestMarkSubject.count === 1 ? "" : "s"} • {getPerformanceLabel(weakestMarkSubject.percent)}
+                  </div>
+                </div>
+              ) : (
+                <EmptyState title="Nothing to compare yet" hint="Add results across more than one subject." />
+              )}
+            </SectionCard>
           </div>
         </>
       )}
