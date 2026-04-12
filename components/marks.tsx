@@ -499,92 +499,101 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
       </div>
 
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="p-4 md:p-5 bg-muted/10 border-b border-border">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
-                <span className="text-foreground font-medium">{recordedCount}</span>
-                <span className="text-muted-foreground">recorded</span>
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-border bg-card/40 px-3 py-1.5">
-                <span className="text-foreground font-medium">{pendingCount}</span>
-                <span className="text-muted-foreground">pending</span>
-              </span>
+        <div className="px-5 py-4 border-b border-border bg-muted/10">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Assessment results</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Filter by subject or term, then enter, edit, or clear results.
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <div className="inline-flex items-center rounded-xl border border-border bg-card/60 p-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedSubject("all")}
-                  className={[
-                    "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                    selectedSubject === "all"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground/90 hover:bg-muted",
-                  ].join(" ")}
-                >
-                  All subjects
-                </button>
-
-                {subjects.map((s) => {
-                  const active = selectedSubject === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setSelectedSubject(s.id)}
-                      className={[
-                        "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
-                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                        active ? "bg-muted text-foreground" : "text-foreground/90 hover:bg-muted",
-                      ].join(" ")}
-                      style={{ boxShadow: active ? `0 0 0 2px ${s.color}22` : undefined }}
-                      title={s.name}
-                    >
-                      <span className="inline-flex items-center gap-2 max-w-[140px]">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                        <span className="truncate">{s.name}</span>
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="flex flex-col gap-3 xl:items-end">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5">
+                  <span className="text-foreground font-medium">{recordedCount}</span>
+                  <span className="text-muted-foreground">recorded</span>
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-border bg-card/60 px-3 py-1.5">
+                  <span className="text-foreground font-medium">{pendingCount}</span>
+                  <span className="text-muted-foreground">pending</span>
+                </span>
               </div>
 
-              {periods.length > 0 ? (
-                <div className="inline-flex items-center rounded-xl border border-border bg-card/60 p-1">
+              <div className="flex flex-wrap gap-2">
+                <div className="inline-flex items-center rounded-xl border border-border bg-card/80 p-1">
                   <button
                     type="button"
-                    onClick={() => setSelectedPeriod("all")}
+                    onClick={() => setSelectedSubject("all")}
                     className={[
                       "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                      selectedPeriod === "all" ? "bg-muted text-foreground" : "text-foreground/90 hover:bg-muted",
+                      selectedSubject === "all"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground/90 hover:bg-muted",
                     ].join(" ")}
                   >
-                    All terms
+                    All subjects
                   </button>
 
-                  {periods.map((p) => {
-                    const active = selectedPeriod === p.id;
+                  {subjects.map((s) => {
+                    const active = selectedSubject === s.id;
                     return (
                       <button
-                        key={p.id}
+                        key={s.id}
                         type="button"
-                        onClick={() => setSelectedPeriod(p.id)}
+                        onClick={() => setSelectedSubject(s.id)}
                         className={[
                           "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
                           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                           active ? "bg-muted text-foreground" : "text-foreground/90 hover:bg-muted",
                         ].join(" ")}
+                        style={{ boxShadow: active ? `0 0 0 2px ${s.color}22` : undefined }}
+                        title={s.name}
                       >
-                        {p.name}
+                        <span className="inline-flex items-center gap-2 max-w-[140px]">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          <span className="truncate">{s.name}</span>
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-              ) : null}
+
+                {periods.length > 0 ? (
+                  <div className="inline-flex items-center rounded-xl border border-border bg-card/80 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPeriod("all")}
+                      className={[
+                        "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                        selectedPeriod === "all" ? "bg-muted text-foreground" : "text-foreground/90 hover:bg-muted",
+                      ].join(" ")}
+                    >
+                      All terms
+                    </button>
+
+                    {periods.map((p) => {
+                      const active = selectedPeriod === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setSelectedPeriod(p.id)}
+                          className={[
+                            "h-9 px-3 rounded-lg text-sm font-medium transition-colors",
+                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                            active ? "bg-muted text-foreground" : "text-foreground/90 hover:bg-muted",
+                          ].join(" ")}
+                        >
+                          {p.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -596,7 +605,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            <div className="hidden md:grid grid-cols-[1.5fr_0.9fr_0.7fr_0.6fr] gap-4 px-5 py-3 text-xs font-medium text-muted-foreground bg-card">
+            <div className="hidden md:grid grid-cols-[1.5fr_0.9fr_0.7fr_0.6fr] gap-4 px-5 py-3 text-xs font-medium text-muted-foreground bg-background/30">
               <div>Assessment</div>
               <div>Subject</div>
               <div className="text-right">Result</div>
