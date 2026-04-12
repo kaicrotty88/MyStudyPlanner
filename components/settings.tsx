@@ -230,6 +230,8 @@ export function Settings({
 
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
   const [currentPlan, setCurrentPlan] = useState<Plan>(appMode === "demo" ? "premium" : "free");
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string>("");
   const currentPlanLabel =
     appMode === "demo" ? "Preview mode" : currentPlan === "premium" ? "Premium" : "Free";
 
@@ -614,6 +616,31 @@ export function Settings({
     };
   }, [pendingBackup]);
 
+  const handleStartCheckout = async () => {
+    if (appMode !== "app" || currentPlan === "premium") return;
+
+    setCheckoutError("");
+    setIsStartingCheckout(true);
+
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+      });
+
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Failed to start checkout.");
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Failed to start checkout:", error);
+      setCheckoutError("Couldn’t open checkout right now. Please try again.");
+      setIsStartingCheckout(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-6 md:px-10 py-8 space-y-6">
       <div className="space-y-1">
@@ -679,25 +706,38 @@ export function Settings({
                     ? "Premium is included in preview mode"
                     : currentPlan === "premium"
                     ? "You are on Premium"
-                    : "Premium billing is coming soon"}
+                    : "Upgrade to Premium"}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {appMode === "demo"
                     ? "Demo mode includes Premium features so people can try them."
                     : currentPlan === "premium"
                     ? "Marks, Insights, and future Premium features are unlocked on this account."
-                    : "Marks and Insights are locked for now on the Free plan while billing is being set up."}
+                    : "Unlock Marks, Insights, and future Premium features with a subscription."}
                 </div>
               </div>
 
               <button
                 type="button"
-                disabled
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground opacity-60 cursor-not-allowed"
+                onClick={handleStartCheckout}
+                disabled={appMode === "demo" || currentPlan === "premium" || isStartingCheckout}
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {appMode === "demo" ? "Included in demo" : currentPlan === "premium" ? "Premium active" : "Upgrade soon"}
+                {appMode === "demo"
+                  ? "Included in demo"
+                  : currentPlan === "premium"
+                  ? "Premium active"
+                  : isStartingCheckout
+                  ? "Opening checkout..."
+                  : "Upgrade now"}
               </button>
             </div>
+
+            {checkoutError ? (
+              <div className="mt-3 rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                {checkoutError}
+              </div>
+            ) : null}
           </div>
         </div>
 
