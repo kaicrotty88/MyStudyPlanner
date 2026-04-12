@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Edit2, Trash2, X } from "lucide-react";
+import { Edit2, Trash2, X, TrendingUp, Target, Clock3, Award } from "lucide-react";
 
 import type { Task, Subject } from "./models";
 
@@ -12,8 +12,8 @@ const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 type PeriodStored = {
   id: string;
   name: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
+  startDate: string;
+  endDate: string;
 };
 
 type PeriodHydrated = {
@@ -29,6 +29,15 @@ interface MarksProps {
   onUpdateTask: (id: string, task: Omit<Task, "id">) => void;
 }
 
+type SubjectPerformance = {
+  subjectId: string;
+  subjectName: string;
+  subjectColor: string;
+  average: number;
+  count: number;
+  latestDate: Date | null;
+};
+
 export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
@@ -42,7 +51,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
     notes: "",
   });
 
-  // ✅ Load Terms (Periods) from localStorage (same as Tasks/Settings)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
   const readPeriodsFromStorage = (): PeriodHydrated[] => {
@@ -92,16 +100,13 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedPeriod]);
 
   const periodNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of periods) map.set(p.id, p.name);
     return map;
   }, [periods]);
-
-  /* -------------------- Derived data -------------------- */
 
   const assessableTasks = useMemo(() => {
     return tasks.filter((t) => t.type === "assignment" || t.type === "exam");
@@ -127,12 +132,119 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
   const subjectById = (id: string) => subjects.find((s) => s.id === id);
 
-  const percentage = (score: number, outOf: number) => (outOf > 0 ? Math.round((score / outOf) * 100) : 0);
+  const percentage = (score: number, outOf: number) => (outOf > 0 ? (score / outOf) * 100 : 0);
 
-  const pendingCount = filteredTasks.filter((t) => !t.result).length;
-  const recordedCount = filteredTasks.filter((t) => Boolean(t.result)).length;
+  const formatPercent = (value: number) => `${Math.round(value)}%`;
 
-  /* -------------------- Helpers -------------------- */
+  const getBandLabel = (value: number) => {
+    if (value >= 90) return "Excellent";
+    if (value >= 80) return "Strong";
+    if (value >= 70) return "Good";
+    if (value >= 60) return "Developing";
+    return "Needs attention";
+  };
+
+  const recordedTasks = useMemo(() => filteredTasks.filter((t) => Boolean(t.result)), [filteredTasks]);
+  const pendingTasks = useMemo(() => filteredTasks.filter((t) => !t.result), [filteredTasks]);
+
+  const pendingCount = pendingTasks.length;
+  const recordedCount = recordedTasks.length;
+
+  const overallAverage = useMemo(() => {
+    if (recordedTasks.length === 0) return null;
+    const total = recordedTasks.reduce((sum, task) => {
+      const result = task.result;
+      if (!result) return sum;
+      return sum + percentage(result.score, result.outOf);
+    }, 0);
+    return total / recordedTasks.length;
+  }, [recordedTasks]);
+
+  const recentRecordedTasks = useMemo(() => {
+    return [...recordedTasks].sort((a, b) => {
+      const aDate = a.result?.dateRecorded ? new Date(a.result.dateRecorded).getTime() : 0;
+      const bDate = b.result?.dateRecorded ? new Date(b.result.dateRecorded).getTime() : 0;
+      return bDate - aDate;
+    });
+  }, [recordedTasks]);
+
+  const recentAverage = useMemo(() => {
+    if (recentRecordedTasks.length === 0) return null;
+    const latestThree = recentRecordedTasks.slice(0, 3);
+    const total = latestThree.reduce((sum, task) => {
+      const result = task.result;
+      if (!result) return sum;
+      return sum + percentage(result.score, result.outOf);
+    }, 0);
+    return total / latestThree.length;
+  }, [recentRecordedTasks]);
+
+  const momentum = useMemo(() => {
+    if (recentRecordedTasks.length < 4) return null;
+
+    const latest = recentRecordedTasks.slice(0, 3);
+    const previous = recentRecordedTasks.slice(3, 6);
+
+    if (previous.length === 0) return null;
+
+    const latestAvg =
+      latest.reduce((sum, task) => {
+        const result = task.result;
+        if (!result) return sum;
+        return sum + percentage(result.score, result.outOf);
+      }, 0) / latest.length;
+
+    const previousAvg =
+      previous.reduce((sum, task) => {
+        const result = task.result;
+        if (!result) return sum;
+        return sum + percentage(result.score, result.outOf);
+      }, 0) / previous.length;
+
+    return latestAvg - previousAvg;
+  }, [recentRecordedTasks]);
+
+  const subjectPerformance = useMemo<SubjectPerformance[]>(() => {
+    const map = new Map<string, { total: number; count: number; latestDate: Date | null }>();
+
+    recordedTasks.forEach((task) => {
+      if (!task.result) return;
+      const current = map.get(task.subjectId) ?? { total: 0, count: 0, latestDate: null };
+      const nextDate = task.result.dateRecorded ? new Date(task.result.dateRecorded) : current.latestDate;
+
+      map.set(task.subjectId, {
+        total: current.total + percentage(task.result.score, task.result.outOf),
+        count: current.count + 1,
+        latestDate:
+          !current.latestDate || (nextDate && nextDate.getTime() > current.latestDate.getTime())
+            ? nextDate
+            : current.latestDate,
+      });
+    });
+
+    return Array.from(map.entries())
+      .map(([subjectId, data]) => {
+        const subject = subjectById(subjectId);
+        return {
+          subjectId,
+          subjectName: subject?.name ?? "Unassigned",
+          subjectColor: subject?.color ?? "#D1D5DB",
+          average: data.total / data.count,
+          count: data.count,
+          latestDate: data.latestDate,
+        };
+      })
+      .sort((a, b) => b.average - a.average);
+  }, [recordedTasks, subjects]);
+
+  const strongestSubject = subjectPerformance[0] ?? null;
+  const weakestSubject = subjectPerformance.length > 1 ? subjectPerformance[subjectPerformance.length - 1] : null;
+
+  const upcomingPending = useMemo(() => {
+    return [...pendingTasks]
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+      .slice(0, 4);
+  }, [pendingTasks]);
 
   const buildUpdatePayload = (task: Task, nextResult: Task["result"] | undefined): Omit<Task, "id"> => ({
     title: task.title,
@@ -144,8 +256,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
     completedAt: task.completedAt,
     result: nextResult,
   });
-
-  /* -------------------- Handlers -------------------- */
 
   const openEdit = (task: Task) => {
     setEditingTask(task);
@@ -170,13 +280,13 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
     const score = Number(scoreRaw);
     const outOf = Number(outOfRaw);
-    if (!Number.isFinite(score) || !Number.isFinite(outOf) || outOf <= 0) return;
+    if (!Number.isFinite(score) || !Number.isFinite(outOf) || outOf <= 0 || score < 0 || score > outOf) return;
 
     const nextResult: Task["result"] = {
       score,
       outOf,
       notes: formData.notes.trim() || undefined,
-      dateRecorded: new Date(),
+      dateRecorded: editingTask.result?.dateRecorded ?? new Date(),
     };
 
     onUpdateTask(editingTask.id, buildUpdatePayload(editingTask, nextResult));
@@ -197,23 +307,200 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
     setDeletingMarkTask(null);
   };
 
-  /* -------------------- UI -------------------- */
-
   return (
     <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
-      {/* Header */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Marks</h1>
         <p className="text-sm text-muted-foreground">
-          Assignments and exams appear automatically. Add results when released.
+          Track your assessment results, spot trends, and see where you are improving.
         </p>
       </div>
 
-      {/* Controls + status */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Target className="h-4 w-4" />
+            Overall average
+          </div>
+          <div className="mt-3 text-2xl font-semibold text-foreground">
+            {overallAverage === null ? "—" : formatPercent(overallAverage)}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {overallAverage === null ? "Add results to see your average." : getBandLabel(overallAverage)}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Award className="h-4 w-4" />
+            Best subject
+          </div>
+          <div className="mt-3 text-lg font-semibold text-foreground truncate">
+            {strongestSubject ? strongestSubject.subjectName : "—"}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {strongestSubject ? `${formatPercent(strongestSubject.average)} average` : "No subject data yet."}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Recent trend
+          </div>
+          <div className="mt-3 text-2xl font-semibold text-foreground">
+            {momentum === null ? "—" : `${momentum >= 0 ? "+" : ""}${Math.round(momentum)}%`}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {momentum === null
+              ? "Needs more recorded results."
+              : momentum >= 0
+              ? "Improving compared with earlier results."
+              : "Slight drop from your earlier results."}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Clock3 className="h-4 w-4" />
+            Pending results
+          </div>
+          <div className="mt-3 text-2xl font-semibold text-foreground">{pendingCount}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {recordedCount} recorded {recordedCount === 1 ? "assessment" : "assessments"} so far.
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-border bg-muted/10">
+            <div className="text-sm font-semibold text-foreground">Subject performance</div>
+            <div className="text-xs text-muted-foreground">See where you are strongest and where you need more attention.</div>
+          </div>
+
+          {subjectPerformance.length === 0 ? (
+            <div className="p-8 text-center bg-background/40">
+              <div className="text-sm font-medium text-foreground">No recorded marks yet</div>
+              <div className="mt-1 text-xs text-muted-foreground">Once you enter results, subject averages will appear here.</div>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {subjectPerformance.map((item, index) => (
+                <div key={item.subjectId} className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition">
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center gap-2 min-w-0">
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.subjectColor }} />
+                      <span className="text-sm font-medium text-foreground truncate">{item.subjectName}</span>
+                      {index === 0 ? (
+                        <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                          Strongest
+                        </span>
+                      ) : null}
+                      {weakestSubject && item.subjectId === weakestSubject.subjectId ? (
+                        <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                          Focus
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {item.count} recorded {item.count === 1 ? "result" : "results"}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold text-foreground">{formatPercent(item.average)}</div>
+                    <div className="text-xs text-muted-foreground">{getBandLabel(item.average)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/10">
+              <div className="text-sm font-semibold text-foreground">Performance snapshot</div>
+              <div className="text-xs text-muted-foreground">A quick read on how your results are tracking.</div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="rounded-2xl border border-border bg-background/50 p-4">
+                <div className="text-xs font-medium text-muted-foreground">Recent average</div>
+                <div className="mt-2 text-xl font-semibold text-foreground">
+                  {recentAverage === null ? "—" : formatPercent(recentAverage)}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Based on your latest {Math.min(recentRecordedTasks.length, 3)} recorded results.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/50 p-4">
+                <div className="text-xs font-medium text-muted-foreground">Current focus</div>
+                <div className="mt-2 text-sm font-semibold text-foreground">
+                  {weakestSubject ? weakestSubject.subjectName : "Add more marks first"}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {weakestSubject
+                    ? `${formatPercent(weakestSubject.average)} average so far. This is your best area to improve next.`
+                    : "Once you have results across subjects, this will show where to focus."}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/10">
+              <div className="text-sm font-semibold text-foreground">Upcoming marks to enter</div>
+              <div className="text-xs text-muted-foreground">Stay on top of results that are still missing.</div>
+            </div>
+
+            {upcomingPending.length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">No pending assessments in this view.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {upcomingPending.map((task) => {
+                  const subject = subjectById(task.subjectId);
+                  return (
+                    <div key={task.id} className="px-5 py-4 flex items-center justify-between gap-3 hover:bg-muted/10 transition">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{task.title}</div>
+                        <div className="mt-1 text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject?.color ?? "transparent" }} />
+                            <span>{subject?.name ?? "Unassigned"}</span>
+                          </span>
+                          <span className="opacity-40">•</span>
+                          <span>
+                            Due{" "}
+                            {task.dueDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => openEdit(task)}
+                        className="inline-flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      >
+                        Enter
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="p-4 md:p-5 bg-muted/10 border-b border-border">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            {/* Status */}
             <div className="flex items-center gap-2 text-sm">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
                 <span className="text-foreground font-medium">{recordedCount}</span>
@@ -225,9 +512,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
               </span>
             </div>
 
-            {/* Filters */}
             <div className="flex flex-wrap gap-2">
-              {/* Subject */}
               <div className="inline-flex items-center rounded-xl border border-border bg-card/60 p-1">
                 <button
                   type="button"
@@ -267,7 +552,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                 })}
               </div>
 
-              {/* Term */}
               {periods.length > 0 ? (
                 <div className="inline-flex items-center rounded-xl border border-border bg-card/60 p-1">
                   <button
@@ -305,7 +589,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        {/* Record sheet */}
         {filteredTasks.length === 0 ? (
           <div className="p-10 text-center bg-background/40">
             <div className="text-sm font-medium text-foreground">No assessments</div>
@@ -313,7 +596,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            <div className="hidden md:grid grid-cols-[1.4fr_0.9fr_0.6fr_0.6fr] gap-4 px-5 py-3 text-xs font-medium text-muted-foreground bg-card">
+            <div className="hidden md:grid grid-cols-[1.5fr_0.9fr_0.7fr_0.6fr] gap-4 px-5 py-3 text-xs font-medium text-muted-foreground bg-card">
               <div>Assessment</div>
               <div>Subject</div>
               <div className="text-right">Result</div>
@@ -325,7 +608,8 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
               const hasResult = Boolean(task.result);
 
               const resultDisplay = hasResult ? `${task.result!.score} / ${task.result!.outOf}` : "Pending";
-              const percentDisplay = hasResult ? `${percentage(task.result!.score, task.result!.outOf)}%` : "";
+              const percentValue = hasResult ? percentage(task.result!.score, task.result!.outOf) : null;
+              const percentDisplay = percentValue !== null ? formatPercent(percentValue) : "";
 
               const termLabel =
                 task.periodId && periodNameById.get(task.periodId)
@@ -340,7 +624,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                   className="px-4 md:px-5 py-3 hover:bg-muted/10 transition"
                   style={{ borderLeft: `3px solid ${subject?.color ?? "transparent"}` }}
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-[1.4fr_0.9fr_0.6fr_0.6fr] gap-4 items-center">
+                  <div className="grid grid-cols-1 md:grid-cols-[1.5fr_0.9fr_0.7fr_0.6fr] gap-4 items-center">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground truncate">{task.title}</div>
                       <div className="mt-0.5 text-xs text-muted-foreground flex flex-wrap items-center gap-2">
@@ -373,7 +657,9 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                       {hasResult ? (
                         <>
                           <div className="text-sm font-medium text-foreground">{resultDisplay}</div>
-                          <div className="text-xs text-muted-foreground">{percentDisplay}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {percentDisplay} • {getBandLabel(percentValue ?? 0)}
+                          </div>
                         </>
                       ) : (
                         <span className="inline-flex items-center rounded-full border border-dashed border-border bg-card/40 px-2.5 py-1 text-xs text-muted-foreground">
@@ -420,7 +706,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
         )}
       </div>
 
-      {/* Edit modal */}
       {editingTask ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closeEdit} />
@@ -459,6 +744,15 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                 />
               </div>
 
+              {formData.score.trim() && formData.outOf.trim() && Number(formData.outOf) > 0 ? (
+                <div className="rounded-xl border border-border bg-background/50 px-4 py-3 text-sm text-muted-foreground">
+                  Preview:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatPercent(percentage(Number(formData.score || 0), Number(formData.outOf || 1)))}
+                  </span>
+                </div>
+              ) : null}
+
               <textarea
                 placeholder="Notes (optional)"
                 value={formData.notes}
@@ -488,7 +782,6 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
         </>
       ) : null}
 
-      {/* Delete mark confirm */}
       {deletingMarkTask ? (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={cancelDeleteMark} />
