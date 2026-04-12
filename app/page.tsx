@@ -6,34 +6,34 @@ import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
-  title: "MyStudyPlanner | Student Study Planner",
+  title: "Stay organised as a student",
   description:
-    "MyStudyPlanner helps students organise subjects, track assessments, plan study sessions, and stay on top of school in one place.",
+    "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
   keywords: [
-    "student study planner",
-    "online study planner",
-    "study planner for students",
-    "high school study planner",
-    "university study planner",
     "student planner",
-    "assessment planner",
-    "study session tracker",
+    "study planner",
+    "assessment tracker",
     "assignment planner",
+    "homework planner",
+    "study session tracker",
+    "marks tracker",
+    "school planner",
+    "student organisation app",
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "MyStudyPlanner | Student Study Planner",
+    title: "Stay organised as a student",
     description:
-      "Organise subjects, track assessments, plan study sessions, and stay on top of school in one place.",
+      "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
     url: "/",
     siteName: "MyStudyPlanner",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MyStudyPlanner | Student Study Planner",
+    title: "Stay organised as a student",
     description:
-      "A study planner that helps students organise school, assessments, and study sessions in one place.",
+      "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
   },
 };
 
@@ -60,18 +60,18 @@ export default async function Page() {
       </header>
 
       <main className="flex min-h-[calc(100vh-3.5rem)] flex-col">
-        <section className="relative overflow-hidden flex-1">
+        <section className="relative flex-1 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 -z-10">
             <div className="absolute left-1/2 top-12 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:top-16 md:h-72 md:w-72" />
           </div>
 
           <div className="mx-auto flex max-w-3xl flex-col items-center justify-center px-6 py-16 text-center md:px-10 md:py-24">
-            <h1 className="mx-auto max-w-[11ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
-              Study planning that actually makes sense.
+            <h1 className="mx-auto max-w-[13ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
+              Everything you need to stay organised as a student.
             </h1>
 
-            <p className="mx-auto mt-4 max-w-[38rem] text-[15px] leading-7 text-muted-foreground md:mt-5 md:text-lg md:leading-8">
-              Organise subjects, keep up with assessments, and log study sessions in one place built for students.
+            <p className="mx-auto mt-4 max-w-[42rem] text-[15px] leading-7 text-muted-foreground md:mt-5 md:text-lg md:leading-8">
+              Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.
             </p>
 
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -97,7 +97,7 @@ export default async function Page() {
         </section>
 
         <footer className="border-t border-border py-8">
-          <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 md:px-10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 sm:flex-row sm:items-center sm:justify-between md:px-10">
             <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} MyStudyPlanner</div>
 
             <div className="flex items-center gap-4 text-xs">

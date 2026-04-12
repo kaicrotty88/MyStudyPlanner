@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -20,7 +21,8 @@ export const metadata: Metadata = {
     default: "MyStudyPlanner",
     template: "%s • MyStudyPlanner",
   },
-  description: "Made by students, for students",
+  description:
+    "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
   alternates: {
     canonical: "/",
   },
@@ -40,12 +42,14 @@ export const metadata: Metadata = {
     url: "https://mystudyplanner.co/",
     siteName: "MyStudyPlanner",
     title: "MyStudyPlanner",
-    description: "Made by students, for students",
+    description:
+      "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
   },
   twitter: {
     card: "summary_large_image",
     title: "MyStudyPlanner",
-    description: "Made by students, for students",
+    description:
+      "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
   },
 };
 
@@ -64,31 +68,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               fontFamily: "var(--font-geist-sans)",
             },
             elements: {
-              /* ---- Make Clerk card match your cards ---- */
               card: "rounded-2xl border border-border bg-card shadow-sm",
               cardBox: "w-full",
               rootBox: "w-full",
               main: "w-full",
-
-              /* ---- Titles ---- */
               headerTitle: "text-foreground text-lg font-semibold tracking-tight",
               headerSubtitle: "text-muted-foreground text-sm",
-
-              /* ---- Inputs ---- */
               formFieldLabel: "text-foreground text-sm font-medium",
               formFieldInput:
                 "bg-input-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30",
-
-              /* ---- Buttons ---- */
               formButtonPrimary:
                 "bg-primary text-primary-foreground hover:opacity-95 rounded-xl h-10",
-
-              /* ---- Links / dividers ---- */
               footerActionLink: "text-primary hover:opacity-90",
               dividerLine: "bg-border",
               dividerText: "text-muted-foreground text-xs",
-
-              /* ---- UserButton styling so it matches your nav ---- */
               userButtonTrigger:
                 "rounded-full focus:outline-none focus:ring-2 focus:ring-primary/30",
               userButtonPopoverCard: "rounded-2xl border border-border bg-card shadow-sm",
@@ -98,8 +91,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           {children}
-
-          {/* Vercel Web Analytics */}
           <Analytics />
         </ClerkProvider>
       </body>
