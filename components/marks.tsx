@@ -533,7 +533,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                         : "text-foreground/90 hover:bg-muted",
                     ].join(" ")}
                   >
-                    All subjects
+                    All
                   </button>
 
                   {subjects.map((s) => {
