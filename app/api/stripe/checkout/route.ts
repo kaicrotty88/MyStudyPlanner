@@ -2,9 +2,17 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
-import { stripe, getAppUrl, getStripePriceId } from "@/lib/stripe";
+import { stripe, getAppUrl, getStripePriceId, type BillingInterval } from "@/lib/stripe";
 
-export async function POST() {
+type CheckoutRequestBody = {
+  interval?: BillingInterval;
+};
+
+function getBillingInterval(body: CheckoutRequestBody | null | undefined): BillingInterval {
+  return body?.interval === "yearly" ? "yearly" : "monthly";
+}
+
+export async function POST(request: Request) {
   try {
     const { userId } = await auth();
 
@@ -12,11 +20,14 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
+    const body = (await request.json().catch(() => null)) as CheckoutRequestBody | null;
+    const interval = getBillingInterval(body);
+
     const user = await currentUser();
     const email = user?.emailAddresses?.[0]?.emailAddress ?? undefined;
 
     const appUrl = getAppUrl();
-    const priceId = getStripePriceId();
+    const priceId = getStripePriceId(interval);
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -32,10 +43,12 @@ export async function POST() {
       customer_email: email,
       metadata: {
         clerkUserId: userId,
+        billingInterval: interval,
       },
       subscription_data: {
         metadata: {
           clerkUserId: userId,
+          billingInterval: interval,
         },
       },
       allow_promotion_codes: true,

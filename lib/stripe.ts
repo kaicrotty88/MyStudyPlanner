@@ -11,11 +11,20 @@ export const stripe = new Stripe(secretKey, {
   apiVersion: "2025-08-27.basil",
 });
 
-export function getStripePriceId() {
-  const priceId = process.env.STRIPE_PRICE_ID;
+export type BillingInterval = "monthly" | "yearly";
+
+export function getStripePriceId(interval: BillingInterval) {
+  const priceId =
+    interval === "yearly"
+      ? process.env.STRIPE_PRICE_PREMIUM_ANNUALLY_ID
+      : process.env.STRIPE_PRICE_PREMIUM_MONTHLY_ID;
 
   if (!priceId) {
-    throw new Error("Missing STRIPE_PRICE_ID.");
+    throw new Error(
+      interval === "yearly"
+        ? "Missing STRIPE_PRICE_PREMIUM_ANNUALLY_ID."
+        : "Missing STRIPE_PRICE_PREMIUM_MONTHLY_ID."
+    );
   }
 
   return priceId;
