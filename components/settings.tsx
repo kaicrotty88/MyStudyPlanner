@@ -157,14 +157,14 @@ const PLAN_OPTIONS: Array<{
   {
     interval: "monthly",
     name: "Premium Monthly",
-    price: "A$3.99",
+    price: "US$2.99",
     periodLabel: "/month",
     description: "Flexible access for students who want to try Premium.",
   },
   {
     interval: "yearly",
     name: "Premium Yearly",
-    price: "A$28.99",
+    price: "US$19.99",
     periodLabel: "/year",
     description: "Better value for the full school year.",
     badge: "Best value",
@@ -815,15 +815,13 @@ export function Settings({
           ) : (
             <div className="mt-4 space-y-4">
               <div className="rounded-2xl border border-border bg-muted/20 px-4 py-4">
-                <div className="text-sm font-semibold text-foreground">
-                  Upgrade to Premium
-                </div>
+                <div className="text-sm font-semibold text-foreground">Upgrade to Premium</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   Unlock Marks, Insights, and future Premium features with a subscription.
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
                 {PLAN_OPTIONS.map((plan) => {
                   const isSelected = selectedInterval === plan.interval;
                   const isLoading = isStartingCheckout && selectedInterval === plan.interval;
@@ -832,7 +830,7 @@ export function Settings({
                     <div
                       key={plan.interval}
                       className={[
-                        "rounded-2xl border p-5 shadow-sm transition",
+                        "flex h-full flex-col rounded-2xl border p-5 shadow-sm transition",
                         plan.interval === "yearly"
                           ? "border-[#7A9B7F] bg-[#F8FBF8]"
                           : "border-border bg-card",
@@ -852,13 +850,13 @@ export function Settings({
                           <div className="mt-1 text-sm text-muted-foreground">{plan.description}</div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="shrink-0 text-right">
                           <div className="text-2xl font-semibold text-foreground">{plan.price}</div>
                           <div className="text-xs text-muted-foreground">{plan.periodLabel}</div>
                         </div>
                       </div>
 
-                      <div className="mt-5 space-y-3">
+                      <div className="mt-5 flex-1 space-y-3">
                         {PREMIUM_FEATURES.map((feature) => (
                           <div key={`${plan.interval}-${feature}`} className="flex items-start gap-3">
                             <span className="mt-0.5 rounded-full bg-[#E8F0E9] p-1 text-[#7A9B7F]">
@@ -869,9 +867,9 @@ export function Settings({
                         ))}
                       </div>
 
-                      {plan.helperText ? (
-                        <div className="mt-4 text-xs font-medium text-[#5E7A63]">{plan.helperText}</div>
-                      ) : null}
+                      <div className="mt-4 min-h-[20px] text-xs font-medium text-[#5E7A63]">
+                        {plan.helperText ?? ""}
+                      </div>
 
                       <button
                         type="button"
