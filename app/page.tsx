@@ -1,4 +1,3 @@
-// app/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
@@ -151,7 +150,11 @@ export default async function Page() {
           </div>
 
           <div className="mx-auto flex max-w-4xl flex-col items-center justify-center px-6 py-14 text-center md:px-10 md:py-20">
-            <h1 className="mx-auto max-w-[13ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
+            <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
+              Trusted by over 1,000 students
+            </div>
+
+            <h1 className="mx-auto mt-5 max-w-[13ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
               Everything you need to stay organised as a student.
             </h1>
 
