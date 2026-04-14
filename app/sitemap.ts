@@ -4,14 +4,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://mystudyplanner.co";
   const now = new Date();
 
-  // Keep it conservative: only include public routes.
-  // If you have marketing pages (e.g. /about), add them here.
-  const routes = ["", "/sign-in", "/sign-up"];
+  const routes = [
+    { path: "", priority: 1, changeFrequency: "weekly" as const },
+    { path: "/about", priority: 0.8, changeFrequency: "monthly" as const },
+    { path: "/how-it-works", priority: 0.8, changeFrequency: "monthly" as const },
+    { path: "/privacy", priority: 0.4, changeFrequency: "yearly" as const },
+    { path: "/terms", priority: 0.4, changeFrequency: "yearly" as const },
+    { path: "/study-planner-for-university-students", priority: 0.9, changeFrequency: "monthly" as const },
+    { path: "/assignment-tracker-for-students", priority: 0.9, changeFrequency: "monthly" as const },
+    { path: "/exam-planner", priority: 0.9, changeFrequency: "monthly" as const },
+    { path: "/sign-in", priority: 0.3, changeFrequency: "monthly" as const },
+    { path: "/sign-up", priority: 0.5, changeFrequency: "monthly" as const },
+  ];
 
   return routes.map((route) => ({
-    url: `${baseUrl}${route}`,
+    url: `${baseUrl}${route.path}`,
     lastModified: now,
-    changeFrequency: "weekly",
-    priority: route === "" ? 1 : 0.5,
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
   }));
 }
