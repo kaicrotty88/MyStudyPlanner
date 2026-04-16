@@ -63,7 +63,7 @@ const features: Feature[] = [
     icon: "📅",
     title: "Calendar view",
     description:
-      "See all your assignments, exams, and study sessions colour-coded by subject at a glance.",
+      "See assignments, exams, and study sessions colour-coded by subject at a glance.",
   },
   {
     icon: "✓",
@@ -75,27 +75,27 @@ const features: Feature[] = [
     icon: "⏱",
     title: "Study log",
     description:
-      "Log sessions fast and link them to the assignment you're working on. See your consistency over time.",
+      "Log sessions fast and link them to the assignment you're working on.",
   },
   {
     icon: "📊",
     title: "Marks tracking",
     description:
-      "Record results across all subjects and see which areas need the most attention.",
+      "Record results across all subjects and see where you need the most attention.",
     premium: true,
   },
   {
     icon: "↗",
     title: "Insights",
     description:
-      "Track study streaks, daily averages, and your strongest subjects without leaving the app.",
+      "Track streaks, daily averages, and your strongest subjects without leaving the app.",
     premium: true,
   },
   {
     icon: "🔔",
     title: "Reminders",
     description:
-      "Quick notes for life stuff — not assignments. Pack bag tonight. Email teacher. Buy new pens.",
+      "Quick notes for life stuff — not assignments. Pack your bag, email a teacher, buy new pens.",
   },
 ];
 
@@ -206,10 +206,7 @@ export default async function Page() {
 
             <p className="mt-5 text-sm text-muted-foreground">
               Free account available. Premium from{" "}
-              <span className="font-medium text-foreground">
-                US$2.99/month
-              </span>
-              .
+              <span className="font-medium text-foreground">US$2.99/month</span>.
             </p>
           </div>
         </section>
@@ -221,24 +218,23 @@ export default async function Page() {
                 Try the real product
               </div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Explore the full planner before creating an account
+                Try the full planner before signing up
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Open the interactive demo with sample data and click through the
-                actual dashboard, calendar, tasks, study log, insights, marks,
-                reminders, and settings.
+                Open the interactive demo and click through the actual dashboard,
+                calendar, tasks, study log, insights, marks, reminders, and settings.
               </p>
             </div>
 
             <div className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.15fr_0.85fr] md:items-center">
                 <div>
                   <h3 className="text-xl font-semibold text-foreground">
                     See the real experience, not just screenshots
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
-                    The demo is the fastest way to understand how
-                    MyStudyPlanner feels in use. No signup required.
+                    The demo is the fastest way to understand how MyStudyPlanner
+                    feels in use. No account needed.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -262,8 +258,7 @@ export default async function Page() {
                     Try the demo first
                   </Link>
                   <p className="text-center text-xs text-muted-foreground md:w-[220px] md:text-right">
-                    Jump straight into the live preview and see how everything
-                    works.
+                    Jump straight into the live preview.
                   </p>
                 </div>
               </div>
@@ -278,8 +273,7 @@ export default async function Page() {
                 Everything students actually need.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                No productivity jargon. No complicated systems. Just the
-                essentials, done well.
+                No productivity jargon. No complicated systems. Just the essentials, done well.
               </p>
             </div>
 
@@ -316,34 +310,28 @@ export default async function Page() {
                 Free to start. Premium when you need more.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Start with the core planner features for free, then upgrade
-                later for marks, insights, and future advanced features.
+                Start with the core planner for free. Upgrade later for marks,
+                insights, and future advanced features.
               </p>
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-sm font-semibold text-foreground">
-                  Free
-                </div>
+                <div className="text-sm font-semibold text-foreground">Free</div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Organise assignments, homework, exams, reminders, and study
-                  sessions in one place.
+                  Organise assignments, homework, exams, reminders, and study sessions in one place.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold text-foreground">
-                    Premium
-                  </div>
+                  <div className="text-sm font-semibold text-foreground">Premium</div>
                   <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
                     From US$2.99/month
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Unlock marks tracking, insights, and more advanced features as
-                  MyStudyPlanner grows.
+                  Unlock marks tracking, insights, and more advanced features as MyStudyPlanner grows.
                 </p>
               </div>
             </div>
@@ -384,11 +372,10 @@ export default async function Page() {
         <section className="border-t border-border">
           <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-14 text-center md:px-10 md:py-16">
             <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-              Free to start. Useful from day one.
+              Ready to get organised?
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-              Add your subjects, enter your next few deadlines, and you&apos;re
-              set. No setup required.
+              Try the demo first or create your account and start planning properly.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
