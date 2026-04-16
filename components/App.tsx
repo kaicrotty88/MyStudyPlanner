@@ -198,6 +198,8 @@ const makeDefaultData = () => {
       dueDate: fourDaysAgo,
       type: "assignment",
       periodId: "p1",
+      completed: true,
+      completedAt: fourDaysAgo,
       result: {
         score: 18,
         outOf: 20,
@@ -212,6 +214,8 @@ const makeDefaultData = () => {
       dueDate: nineDaysAgo,
       type: "assignment",
       periodId: "p1",
+      completed: true,
+      completedAt: nineDaysAgo,
       result: {
         score: 16,
         outOf: 20,
@@ -226,6 +230,8 @@ const makeDefaultData = () => {
       dueDate: fourteenDaysAgo,
       type: "exam",
       periodId: "p1",
+      completed: true,
+      completedAt: fourteenDaysAgo,
       result: {
         score: 23,
         outOf: 25,
@@ -239,6 +245,8 @@ const makeDefaultData = () => {
       dueDate: twentyOneDaysAgo,
       type: "exam",
       periodId: "p1",
+      completed: true,
+      completedAt: twentyOneDaysAgo,
       result: {
         score: 41,
         outOf: 50,
@@ -252,6 +260,8 @@ const makeDefaultData = () => {
       dueDate: sixDaysAgo,
       type: "assignment",
       periodId: "p1",
+      completed: true,
+      completedAt: sixDaysAgo,
       result: {
         score: 27,
         outOf: 30,
