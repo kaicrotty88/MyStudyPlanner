@@ -212,8 +212,11 @@ export default async function Page() {
             <div className="mx-auto max-w-3xl text-center">
               <div className="text-sm text-muted-foreground">Preview the planner</div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Click through the core experience
+                See exactly how MyStudyPlanner works before you sign up
               </h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                Click through the main parts of the app and get a feel for how it actually looks in use.
+              </p>
             </div>
 
             <HomepagePreviewCarousel />
@@ -247,14 +250,45 @@ export default async function Page() {
                 </div>
               ))}
             </div>
-
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Marks tracking and Insights are Premium features.
-            </p>
           </div>
         </section>
 
         <section className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-5xl px-6 py-14 md:px-10 md:py-16">
+            <div className="mx-auto max-w-3xl text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Free to start. Premium when you need more.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                Start with the core planner features for free, then upgrade later for marks, insights, and future
+                advanced features.
+              </p>
+            </div>
+
+            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <div className="text-sm font-semibold text-foreground">Free</div>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  Organise assignments, homework, exams, reminders, and study sessions in one place.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-semibold text-foreground">Premium</div>
+                  <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
+                    From US$2.99/month
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  Unlock marks tracking, insights, and more advanced features as MyStudyPlanner grows.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border">
           <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
