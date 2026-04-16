@@ -20,7 +20,11 @@ import { User, X, Lock, Sparkles } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
-import { fetchPlannerState, upsertPlannerState, clearPlannerState } from "@/lib/plannerStateSupabase";
+import {
+  fetchPlannerState,
+  upsertPlannerState,
+  clearPlannerState,
+} from "@/lib/plannerStateSupabase";
 import { fetchUserPlan } from "@/lib/profileSupabase";
 
 import WhatsNewModal from "@/components/WhatsNewModal";
@@ -30,7 +34,6 @@ const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-// Bump this to show the popup again (per user).
 const WHATS_NEW_VERSION_KEY = "2026-02-21";
 const WHATS_NEW_VERSION_LABEL = "Update";
 const WHATS_NEW_UPDATES = [
@@ -66,37 +69,195 @@ const defaultSubjects: Subject[] = [
 ];
 
 const DEMO_PERIODS: Period[] = [
-  { id: "p1", name: "Term 1", startDate: new Date(2026, 0, 29), endDate: new Date(2026, 3, 11) },
-  { id: "p2", name: "Term 2", startDate: new Date(2026, 3, 29), endDate: new Date(2026, 6, 5) },
+  {
+    id: "p1",
+    name: "Term 1",
+    startDate: new Date(2026, 0, 29),
+    endDate: new Date(2026, 3, 11),
+  },
+  {
+    id: "p2",
+    name: "Term 2",
+    startDate: new Date(2026, 3, 28),
+    endDate: new Date(2026, 6, 3),
+  },
 ];
 
 const makeDefaultData = () => {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const now = new Date();
 
-  const in3 = new Date(today);
-  in3.setDate(today.getDate() + 3);
+  const atStartOfDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  const in5 = new Date(today);
-  in5.setDate(today.getDate() + 5);
+  const addDays = (days: number) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() + days);
+    return atStartOfDay(date);
+  };
 
-  const in7 = new Date(today);
-  in7.setDate(today.getDate() + 7);
+  const withTime = (base: Date, hours: number, minutes: number) => {
+    const date = new Date(base);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
+  const formatTime12 = (hours: number, minutes: number) => {
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const h12 = hours % 12 === 0 ? 12 : hours % 12;
+    return `${h12}:${String(minutes).padStart(2, "0")} ${ampm}`;
+  };
+
+  const today = addDays(0);
+  const yesterday = addDays(-1);
+  const twoDaysAgo = addDays(-2);
+  const fourDaysAgo = addDays(-4);
+  const sixDaysAgo = addDays(-6);
+  const nineDaysAgo = addDays(-9);
+  const fourteenDaysAgo = addDays(-14);
+  const twentyOneDaysAgo = addDays(-21);
+
+  const tomorrow = addDays(1);
+  const in3 = addDays(3);
+  const in5 = addDays(5);
+  const in7 = addDays(7);
+  const in10 = addDays(10);
+  const in14 = addDays(14);
+  const in18 = addDays(18);
+  const in22 = addDays(22);
+  const in26 = addDays(26);
 
   const demoTasks: Task[] = [
-    { id: "t1", title: "Read pages 120–145", subjectId: "5", dueDate: tomorrow, type: "task", periodId: "p1" },
-    { id: "t2", title: "Lab Report", subjectId: "3", dueDate: in3, type: "assignment", periodId: "p1" },
     {
-      id: "t3",
-      title: "Complete Chapter 5 Review",
-      subjectId: "1",
-      dueDate: in5,
+      id: "t1",
+      title: "Read pages 120–145",
+      subjectId: "5",
+      dueDate: tomorrow,
+      type: "task",
+      periodId: "p1",
+    },
+    {
+      id: "t2",
+      title: "Lab Report",
+      subjectId: "3",
+      dueDate: in3,
       type: "assignment",
       periodId: "p1",
-      result: { score: 18, outOf: 20, dateRecorded: today },
     },
-    { id: "t4", title: "Midterm Exam", subjectId: "2", dueDate: in7, type: "exam", periodId: "p1" },
+    {
+      id: "t3",
+      title: "Midterm Exam",
+      subjectId: "2",
+      dueDate: in7,
+      type: "exam",
+      periodId: "p1",
+    },
+    {
+      id: "t4",
+      title: "Essay plan",
+      subjectId: "4",
+      dueDate: in10,
+      type: "assignment",
+      periodId: "p1",
+    },
+    {
+      id: "t5",
+      title: "Source analysis",
+      subjectId: "5",
+      dueDate: in14,
+      type: "assignment",
+      periodId: "p1",
+    },
+    {
+      id: "t6",
+      title: "Chemistry quiz",
+      subjectId: "3",
+      dueDate: in18,
+      type: "exam",
+      periodId: "p1",
+    },
+    {
+      id: "t7",
+      title: "Complete Chapter 7 worksheet",
+      subjectId: "1",
+      dueDate: in22,
+      type: "homework",
+      periodId: "p1",
+    },
+    {
+      id: "t8",
+      title: "Practice response paragraph",
+      subjectId: "4",
+      dueDate: in26,
+      type: "homework",
+      periodId: "p1",
+    },
+    {
+      id: "t9",
+      title: "Complete Chapter 5 Review",
+      subjectId: "1",
+      dueDate: fourDaysAgo,
+      type: "assignment",
+      periodId: "p1",
+      result: {
+        score: 18,
+        outOf: 20,
+        dateRecorded: fourDaysAgo,
+        notes: "Stronger on algebra than worded questions.",
+      },
+    },
+    {
+      id: "t10",
+      title: "Practical write-up",
+      subjectId: "3",
+      dueDate: nineDaysAgo,
+      type: "assignment",
+      periodId: "p1",
+      result: {
+        score: 16,
+        outOf: 20,
+        dateRecorded: nineDaysAgo,
+        notes: "Lost marks on evaluation depth.",
+      },
+    },
+    {
+      id: "t11",
+      title: "Reading quiz",
+      subjectId: "4",
+      dueDate: fourteenDaysAgo,
+      type: "exam",
+      periodId: "p1",
+      result: {
+        score: 23,
+        outOf: 25,
+        dateRecorded: fourteenDaysAgo,
+      },
+    },
+    {
+      id: "t12",
+      title: "Forces test",
+      subjectId: "2",
+      dueDate: twentyOneDaysAgo,
+      type: "exam",
+      periodId: "p1",
+      result: {
+        score: 41,
+        outOf: 50,
+        dateRecorded: twentyOneDaysAgo,
+      },
+    },
+    {
+      id: "t13",
+      title: "Functions checkpoint",
+      subjectId: "1",
+      dueDate: sixDaysAgo,
+      type: "assignment",
+      periodId: "p1",
+      result: {
+        score: 27,
+        outOf: 30,
+        dateRecorded: sixDaysAgo,
+      },
+    },
   ];
 
   const demoStudySessions: StudySession[] = [
@@ -104,11 +265,87 @@ const makeDefaultData = () => {
       id: "ss1",
       subjectId: "1",
       title: "Chapter 5 review",
-      date: today,
-      startTime: "4:00 PM",
+      date: withTime(today, 16, 0),
+      startTime: formatTime12(16, 0),
       duration: "60 min",
-      linkedTaskId: "t3",
+      linkedTaskId: "t9",
       completed: false,
+    },
+    {
+      id: "ss2",
+      subjectId: "3",
+      title: "Plan lab structure",
+      date: withTime(today, 19, 0),
+      startTime: formatTime12(19, 0),
+      duration: "45 min",
+      linkedTaskId: "t2",
+      completed: false,
+    },
+    {
+      id: "ss3",
+      subjectId: "5",
+      title: "History reading",
+      date: withTime(yesterday, 17, 30),
+      startTime: formatTime12(17, 30),
+      duration: "50 min",
+      linkedTaskId: "t1",
+      completed: true,
+      completedAt: withTime(yesterday, 18, 20),
+    },
+    {
+      id: "ss4",
+      subjectId: "2",
+      title: "Physics formulas",
+      date: withTime(twoDaysAgo, 18, 15),
+      startTime: formatTime12(18, 15),
+      duration: "1h 15m",
+      linkedTaskId: "t3",
+      completed: true,
+      completedAt: withTime(twoDaysAgo, 19, 30),
+    },
+    {
+      id: "ss5",
+      subjectId: "4",
+      title: "Essay structure practice",
+      date: withTime(fourDaysAgo, 16, 45),
+      startTime: formatTime12(16, 45),
+      duration: "60 min",
+      linkedTaskId: "t4",
+      completed: true,
+      completedAt: withTime(fourDaysAgo, 17, 45),
+    },
+    {
+      id: "ss6",
+      subjectId: "1",
+      title: "Functions revision",
+      date: withTime(sixDaysAgo, 15, 30),
+      startTime: formatTime12(15, 30),
+      duration: "1h 30m",
+      linkedTaskId: "t13",
+      completed: true,
+      completedAt: withTime(sixDaysAgo, 17, 0),
+    },
+    {
+      id: "ss7",
+      subjectId: "3",
+      title: "Chemistry recap",
+      date: withTime(nineDaysAgo, 18, 0),
+      startTime: formatTime12(18, 0),
+      duration: "40 min",
+      linkedTaskId: "t10",
+      completed: true,
+      completedAt: withTime(nineDaysAgo, 18, 40),
+    },
+    {
+      id: "ss8",
+      subjectId: "4",
+      title: "Reading analysis",
+      date: withTime(fourteenDaysAgo, 17, 0),
+      startTime: formatTime12(17, 0),
+      duration: "55 min",
+      linkedTaskId: "t11",
+      completed: true,
+      completedAt: withTime(fourteenDaysAgo, 17, 55),
     },
   ];
 
@@ -127,11 +364,28 @@ const makeDefaultData = () => {
       id: "r2",
       title: "Email teacher about extension question",
       dueDate: tomorrow,
+      time: "16:15",
       repeat: "none",
       completed: false,
-      createdAt: today,
+      createdAt: yesterday,
     },
-    { id: "r3", title: "Buy new pens", notes: "Black + blue", repeat: "none", completed: false, createdAt: today },
+    {
+      id: "r3",
+      title: "Buy new pens",
+      notes: "Black + blue",
+      repeat: "none",
+      completed: false,
+      createdAt: sixDaysAgo,
+    },
+    {
+      id: "r4",
+      title: "Library books due back",
+      dueDate: in5,
+      time: "15:45",
+      repeat: "none",
+      completed: false,
+      createdAt: twoDaysAgo,
+    },
   ];
 
   return {
@@ -163,14 +417,18 @@ const navTabButtonClass = (active: boolean) =>
   [
     "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-    active ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
+    active
+      ? "bg-primary text-primary-foreground shadow-sm"
+      : "text-foreground/90 hover:bg-muted",
   ].join(" ");
 
 const navTabButtonClassMobile = (active: boolean) =>
   [
     "shrink-0 h-9 px-3 rounded-xl text-sm font-medium transition-colors",
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-    active ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/90 hover:bg-muted",
+    active
+      ? "bg-primary text-primary-foreground shadow-sm"
+      : "text-foreground/90 hover:bg-muted",
   ].join(" ");
 
 function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
@@ -195,36 +453,47 @@ function LockedPremiumView({
       : "Unlock advanced analytics and deeper insights into your study and results.";
 
   return (
-    <div className="mx-auto max-w-5xl px-6 md:px-10 py-8">
-      <div className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+    <div className="mx-auto max-w-5xl px-6 py-8 md:px-10">
+      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
         <div className="border-b border-border bg-muted/10 px-6 py-5 md:px-8">
           <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-background/70">
             <Lock className="h-5 w-5 text-muted-foreground" />
           </div>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{title} is a Premium feature</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
+            {title} is a Premium feature
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
         </div>
 
-        <div className="px-6 py-6 md:px-8 md:py-8 space-y-6">
+        <div className="space-y-6 px-6 py-6 md:px-8 md:py-8">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-border bg-background/60 p-4">
               <div className="text-sm font-semibold text-foreground">Marks</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Log results, keep track of assessments, and build a record across the year.
+                Log results, keep track of assessments, and build a record across
+                the year.
               </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="text-sm font-semibold text-foreground">Insights</div>
+              <div className="text-sm font-semibold text-foreground">
+                Insights
+              </div>
               <div className="mt-1 text-sm text-muted-foreground">
-                See stronger analytics, patterns, and performance trends over time.
+                See stronger analytics, patterns, and performance trends over
+                time.
               </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="text-sm font-semibold text-foreground">Custom widgets</div>
+              <div className="text-sm font-semibold text-foreground">
+                Custom widgets
+              </div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Personalise your dashboard and insights layout with interchangeable widgets.
+                Personalise your dashboard and insights layout with
+                interchangeable widgets.
               </div>
             </div>
           </div>
@@ -237,7 +506,8 @@ function LockedPremiumView({
                   Premium setup is coming next
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Billing is not connected yet, so this feature is locked for now in the app and open in demo mode.
+                  Billing is not connected yet, so this feature is locked for
+                  now in the app and open in demo mode.
                 </div>
               </div>
 
@@ -270,14 +540,19 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
-  const [subjects, setSubjects] = useState<Subject[]>(mode === "demo" ? defaultSubjects : []);
-  const [periods, setPeriods] = useState<Period[]>(mode === "demo" ? DEMO_PERIODS : []);
+  const [subjects, setSubjects] = useState<Subject[]>(
+    mode === "demo" ? defaultSubjects : []
+  );
+  const [periods, setPeriods] = useState<Period[]>(
+    mode === "demo" ? DEMO_PERIODS : []
+  );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
-  const [settingsOpenSection, setSettingsOpenSection] = useState<SettingsOpenSection>(null);
+  const [settingsOpenSection, setSettingsOpenSection] =
+    useState<SettingsOpenSection>(null);
 
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -316,7 +591,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const periodIdForDate = (d: Date) => {
     const t = d.getTime();
-    const match = periods.find((p) => t >= p.startDate.getTime() && t <= p.endDate.getTime());
+    const match = periods.find(
+      (p) => t >= p.startDate.getTime() && t <= p.endDate.getTime()
+    );
     return match?.id;
   };
 
@@ -332,8 +609,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             endDate: p?.endDate ? new Date(p.endDate) : new Date(),
           }))
         : mode === "demo"
-        ? DEMO_PERIODS
-        : []
+          ? DEMO_PERIODS
+          : []
     );
 
     setTasks(
@@ -345,9 +622,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           result: t?.result
             ? {
                 ...t.result,
-                score: typeof t?.result?.score === "number" ? t.result.score : Number(t?.result?.score ?? 0),
-                outOf: typeof t?.result?.outOf === "number" ? t.result.outOf : Number(t?.result?.outOf ?? 100),
-                dateRecorded: t?.result?.dateRecorded ? new Date(t.result.dateRecorded) : new Date(),
+                score:
+                  typeof t?.result?.score === "number"
+                    ? t.result.score
+                    : Number(t?.result?.score ?? 0),
+                outOf:
+                  typeof t?.result?.outOf === "number"
+                    ? t.result.outOf
+                    : Number(t?.result?.outOf ?? 100),
+                dateRecorded: t?.result?.dateRecorded
+                  ? new Date(t.result.dateRecorded)
+                  : new Date(),
               }
             : undefined,
         }))
@@ -375,7 +660,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     );
   };
 
-  const makeStateSnapshot = () => ({ subjects, periods, tasks, studySessions, reminders });
+  const makeStateSnapshot = () => ({
+    subjects,
+    periods,
+    tasks,
+    studySessions,
+    reminders,
+  });
 
   useEffect(() => {
     if (mode === "demo") {
@@ -506,7 +797,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setStudySessions([]);
       setReminders([]);
 
-      await upsertPlannerState(supabase, { subjects: [], periods: [], tasks: [], studySessions: [], reminders: [] });
+      await upsertPlannerState(supabase, {
+        subjects: [],
+        periods: [],
+        tasks: [],
+        studySessions: [],
+        reminders: [],
+      });
 
       hydrated.current = true;
       markReadyNextPaint();
@@ -539,7 +836,18 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     if (mode === "app" && Boolean(isSignedIn) && supabase) {
       saveRemoteDebounced(snapshot);
     }
-  }, [subjects, periods, tasks, studySessions, reminders, storageKey, mode, isSignedIn, supabase, saveRemoteDebounced]);
+  }, [
+    subjects,
+    periods,
+    tasks,
+    studySessions,
+    reminders,
+    storageKey,
+    mode,
+    isSignedIn,
+    supabase,
+    saveRemoteDebounced,
+  ]);
 
   const handleClearAllData = async () => {
     try {
@@ -580,7 +888,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
-    setSubjects((p) => p.map((s) => (s.id === id ? { ...s, name, color } : s)));
+    setSubjects((p) =>
+      p.map((s) => (s.id === id ? { ...s, name, color } : s))
+    );
 
   const handleDeleteSubject = (id: string) => {
     setSubjects((p) => p.filter((s) => s.id !== id));
@@ -590,52 +900,87 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleAddTask = (t: Omit<Task, "id">) => {
     const inferredPeriodId = periodIdForDate(t.dueDate);
-    setTasks((p) => [...p, { ...t, periodId: inferredPeriodId ?? t.periodId, id: Date.now().toString() }]);
+    setTasks((p) => [
+      ...p,
+      {
+        ...t,
+        periodId: inferredPeriodId ?? t.periodId,
+        id: Date.now().toString(),
+      },
+    ]);
   };
 
   const handleUpdateTask = (id: string, t: Omit<Task, "id">) => {
     const inferredPeriodId = periodIdForDate(t.dueDate);
-    setTasks((p) => p.map((x) => (x.id === id ? { ...t, periodId: inferredPeriodId ?? t.periodId, id } : x)));
+    setTasks((p) =>
+      p.map((x) =>
+        x.id === id
+          ? { ...t, periodId: inferredPeriodId ?? t.periodId, id }
+          : x
+      )
+    );
   };
 
   const handleDeleteTask = (id: string) => {
     setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) => p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s)));
+    setStudySessions((p) =>
+      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
+    );
   };
 
   const toggleTaskCompleted = (id: string) =>
-    setTasks((p) => p.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t)));
+    setTasks((p) =>
+      p.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
+      )
+    );
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => [...p, { ...s, id: Date.now().toString(), completed: false }]);
+    setStudySessions((p) => [
+      ...p,
+      { ...s, id: Date.now().toString(), completed: false },
+    ]);
 
   const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
     setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
 
-  const handleDeleteStudySession = (id: string) => setStudySessions((p) => p.filter((s) => s.id !== id));
+  const handleDeleteStudySession = (id: string) =>
+    setStudySessions((p) => p.filter((s) => s.id !== id));
 
   const handleToggleSessionCompleted = (id: string) =>
     setStudySessions((p) =>
-      p.map((s) => (s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s))
+      p.map((s) =>
+        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
+      )
     );
 
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
     setReminders((p) => [
       ...p,
-      { ...r, id: Date.now().toString(), createdAt: r.createdAt ?? new Date(), completed: r.completed ?? false },
+      {
+        ...r,
+        id: Date.now().toString(),
+        createdAt: r.createdAt ?? new Date(),
+        completed: r.completed ?? false,
+      },
     ]);
 
   const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
     setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
 
-  const handleDeleteReminder = (id: string) => setReminders((p) => p.filter((r) => r.id !== id));
+  const handleDeleteReminder = (id: string) =>
+    setReminders((p) => p.filter((r) => r.id !== id));
 
   const handleToggleReminderCompleted = (id: string) =>
     setReminders((p) =>
       p.map((r) => {
         if (r.id !== id) return r;
         const nextCompleted = !r.completed;
-        return { ...r, completed: nextCompleted, completedAt: nextCompleted ? new Date() : undefined };
+        return {
+          ...r,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? new Date() : undefined,
+        };
       })
     );
 
@@ -657,11 +1002,16 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   if (mode === "app" && userLoaded && !Boolean(isSignedIn)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-          <div className="font-semibold text-lg">Sign in to sync your planner</div>
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+          <div className="text-lg font-semibold">
+            Sign in to sync your planner
+          </div>
           <SignInButton mode="modal">
-            <button className="rounded-xl border border-border px-4 py-2 hover:bg-muted transition" type="button">
+            <button
+              className="rounded-xl border border-border px-4 py-2 transition hover:bg-muted"
+              type="button"
+            >
               Sign in
             </button>
           </SignInButton>
@@ -680,19 +1030,30 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       />
 
       <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto max-w-7xl px-6 md:px-10 h-16 flex items-center justify-between gap-4">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6 md:px-10">
           <div className="flex min-w-0 items-center gap-5">
             <div className="flex min-w-0 flex-col leading-tight">
-              <span className="font-semibold text-foreground truncate">MyStudyPlanner</span>
-              <span className="text-[11px] text-muted-foreground truncate">Made by students, for students</span>
+              <span className="truncate font-semibold text-foreground">
+                MyStudyPlanner
+              </span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                Made by students, for students
+              </span>
             </div>
 
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden items-center gap-1 md:flex">
               {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => openTab(k)} className={navTabButtonClass(activeTab === k)} type="button">
+                <button
+                  key={k}
+                  onClick={() => openTab(k)}
+                  className={navTabButtonClass(activeTab === k)}
+                  type="button"
+                >
                   <span className="inline-flex items-center gap-1.5">
                     <span>{l}</span>
-                    {isPremiumTab(k) && !hasPremium ? <Lock className="h-3.5 w-3.5 opacity-70" /> : null}
+                    {isPremiumTab(k) && !hasPremium ? (
+                      <Lock className="h-3.5 w-3.5 opacity-70" />
+                    ) : null}
                   </span>
                 </button>
               ))}
@@ -711,12 +1072,14 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             </button>
 
             {mode === "demo" ? (
-              <span className="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground">
+              <span className="hidden items-center rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground sm:inline-flex">
                 Sample data preview
               </span>
             ) : (
               <div className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-1.5 transition-colors hover:bg-muted/40">
-                <span className="hidden sm:inline text-sm text-muted-foreground">Account</span>
+                <span className="hidden text-sm text-muted-foreground sm:inline">
+                  Account
+                </span>
 
                 <UserButton
                   afterSignOutUrl="/sign-in"
@@ -732,7 +1095,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                     },
                     elements: {
                       userButtonAvatarBox: "ring-1 ring-border",
-                      userButtonPopoverCard: "border border-border shadow-lg bg-card",
+                      userButtonPopoverCard:
+                        "border border-border shadow-lg bg-card",
                       userButtonPopoverFooter: "hidden",
                     },
                   }}
@@ -750,14 +1114,21 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
         </div>
 
-        <div className="md:hidden border-t border-border">
+        <div className="border-t border-border md:hidden">
           <div className="mx-auto max-w-7xl px-3 py-2">
-            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+            <div className="no-scrollbar flex gap-1 overflow-x-auto">
               {tabs.map(([k, l]) => (
-                <button key={k} onClick={() => openTab(k)} className={navTabButtonClassMobile(activeTab === k)} type="button">
+                <button
+                  key={k}
+                  onClick={() => openTab(k)}
+                  className={navTabButtonClassMobile(activeTab === k)}
+                  type="button"
+                >
                   <span className="inline-flex items-center gap-1.5">
                     <span>{l}</span>
-                    {isPremiumTab(k) && !hasPremium ? <Lock className="h-3.5 w-3.5 opacity-70" /> : null}
+                    {isPremiumTab(k) && !hasPremium ? (
+                      <Lock className="h-3.5 w-3.5 opacity-70" />
+                    ) : null}
                   </span>
                 </button>
               ))}
@@ -767,16 +1138,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
         {mode === "demo" ? (
           <div className="border-t border-border bg-primary/10">
-            <div className="mx-auto max-w-7xl px-6 md:px-10 py-2.5 flex items-center justify-between gap-3">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-2.5 md:px-10">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
                     Preview mode
                   </span>
-                  <span className="hidden sm:block text-xs text-muted-foreground">
-                    You’re using sample data. Changes won’t sync or be saved to an account.
+                  <span className="hidden text-xs text-muted-foreground sm:block">
+                    You’re using sample data. Changes won’t sync or be saved to
+                    an account.
                   </span>
-                  <span className="sm:hidden text-[11px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground sm:hidden">
                     Sample data • not saved
                   </span>
                 </div>
@@ -785,13 +1157,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               <div className="flex shrink-0 items-center gap-2">
                 <Link
                   href="/sign-in"
-                  className="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition"
+                  className="rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/60"
                 >
                   Sign in
                 </Link>
                 <Link
                   href="/sign-up"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-95 transition"
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95"
                 >
                   Create account
                 </Link>
@@ -802,15 +1174,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       </nav>
 
       {showMobileDesktopHint && (
-        <div className="md:hidden border-b border-border bg-card/80 backdrop-blur">
-          <div className="mx-auto max-w-7xl px-4 py-2 flex items-start justify-between gap-3">
+        <div className="border-b border-border bg-card/80 backdrop-blur md:hidden">
+          <div className="mx-auto flex max-w-7xl items-start justify-between gap-3 px-4 py-2">
             <div className="text-[12px] leading-5 text-muted-foreground">
               Best on desktop. Mobile is great for quick check-ins.
             </div>
 
             <button
               onClick={dismissMobileDesktopHint}
-              className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition"
+              className="shrink-0 rounded-lg p-2 text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
               aria-label="Dismiss"
               type="button"
             >
@@ -882,7 +1254,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
         {activeTab === "insights" &&
           (hasPremium ? (
-            <Insights tasks={tasks} studySessions={studySessions} subjects={subjects} />
+            <Insights
+              tasks={tasks}
+              studySessions={studySessions}
+              subjects={subjects}
+            />
           ) : (
             <LockedPremiumView
               feature="insights"
@@ -892,7 +1268,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
         {activeTab === "marks" &&
           (hasPremium ? (
-            <Marks tasks={tasks} subjects={subjects} onUpdateTask={handleUpdateTask} />
+            <Marks
+              tasks={tasks}
+              subjects={subjects}
+              onUpdateTask={handleUpdateTask}
+            />
           ) : (
             <LockedPremiumView
               feature="marks"
