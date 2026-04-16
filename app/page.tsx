@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import HomepagePreviewCarousel from "@/components/HomepagePreviewCarousel";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
@@ -37,13 +37,6 @@ export const metadata: Metadata = {
   },
 };
 
-type Screenshot = {
-  id: string;
-  src: string;
-  alt: string;
-  title: string;
-};
-
 type Feature = {
   icon: string;
   title: string;
@@ -65,51 +58,6 @@ const featurePills = [
   "Marks",
   "Insights",
 ] as const;
-
-const screenshots: Screenshot[] = [
-  {
-    id: "shot-dashboard",
-    src: "/homepage/dashboard.png",
-    alt: "MyStudyPlanner dashboard preview showing focus today and upcoming work.",
-    title: "Dashboard",
-  },
-  {
-    id: "shot-calendar",
-    src: "/homepage/calendar.png",
-    alt: "MyStudyPlanner calendar preview showing colour-coded assignments, reminders, exams, and study sessions.",
-    title: "Calendar",
-  },
-  {
-    id: "shot-tasks",
-    src: "/homepage/tasks.png",
-    alt: "MyStudyPlanner tasks preview showing grouped deadlines and assignments.",
-    title: "Tasks",
-  },
-  {
-    id: "shot-study-log",
-    src: "/homepage/study-log.png",
-    alt: "MyStudyPlanner study log preview showing logged sessions linked to assignments.",
-    title: "Study Log",
-  },
-  {
-    id: "shot-insights",
-    src: "/homepage/insights.png",
-    alt: "MyStudyPlanner insights preview showing study and marks analytics.",
-    title: "Insights",
-  },
-  {
-    id: "shot-marks",
-    src: "/homepage/marks.png",
-    alt: "MyStudyPlanner marks preview showing subject performance and progress.",
-    title: "Marks",
-  },
-  {
-    id: "shot-reminders",
-    src: "/homepage/reminders.png",
-    alt: "MyStudyPlanner reminders preview showing quick personal reminders.",
-    title: "Reminders",
-  },
-];
 
 const features: Feature[] = [
   {
@@ -264,61 +212,11 @@ export default async function Page() {
             <div className="mx-auto max-w-3xl text-center">
               <div className="text-sm text-muted-foreground">Preview the planner</div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Scroll through the core experience
+                Click through the core experience
               </h2>
             </div>
 
-            <div className="mt-10 space-y-6">
-              {screenshots.map((shot, index) => {
-                const prevId = screenshots[(index - 1 + screenshots.length) % screenshots.length].id;
-                const nextId = screenshots[(index + 1) % screenshots.length].id;
-
-                return (
-                  <div
-                    key={shot.id}
-                    id={shot.id}
-                    className="scroll-mt-24 rounded-[28px] border border-border bg-card shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                      <div className="text-sm font-semibold text-foreground">{shot.title}</div>
-
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={`#${prevId}`}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg text-foreground transition hover:bg-muted"
-                          aria-label={`Previous screenshot before ${shot.title}`}
-                        >
-                          ←
-                        </a>
-                        <a
-                          href={`#${nextId}`}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg text-foreground transition hover:bg-muted"
-                          aria-label={`Next screenshot after ${shot.title}`}
-                        >
-                          →
-                        </a>
-                      </div>
-                    </div>
-
-                    <div className="relative aspect-[16/9] overflow-hidden bg-muted/30">
-                      <Image src={shot.src} alt={shot.alt} fill priority={index === 0} className="object-cover object-top" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {screenshots.map((shot) => (
-                <a
-                  key={shot.id}
-                  href={`#${shot.id}`}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                >
-                  {shot.title}
-                </a>
-              ))}
-            </div>
+            <HomepagePreviewCarousel />
           </div>
         </section>
 
