@@ -66,36 +66,13 @@ export default function HomepagePreviewCarousel() {
 
   return (
     <div className="mt-10">
-      <div className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <div className="overflow-hidden rounded-[30px] border border-border bg-card shadow-sm">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="text-sm font-semibold text-foreground">MyStudyPlanner</div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={goToPrevious}
-              aria-label="Show previous screenshot"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg text-foreground transition hover:bg-muted"
-            >
-              ←
-            </button>
-
-            <div className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
-              {activeShot.title}
-            </div>
-
-            <button
-              type="button"
-              onClick={goToNext}
-              aria-label="Show next screenshot"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg text-foreground transition hover:bg-muted"
-            >
-              →
-            </button>
-          </div>
+          <div className="text-xs text-muted-foreground">{activeShot.title}</div>
         </div>
 
-        <div className="relative aspect-video bg-muted/30">
+        <div className="relative aspect-[16/10] bg-muted/30">
           <Image
             key={activeShot.src}
             src={activeShot.src}
@@ -104,10 +81,28 @@ export default function HomepagePreviewCarousel() {
             priority
             className="object-cover object-top"
           />
+
+          <button
+            type="button"
+            onClick={goToPrevious}
+            aria-label="Show previous screenshot"
+            className="absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-lg text-foreground shadow-sm transition hover:bg-background"
+          >
+            ←
+          </button>
+
+          <button
+            type="button"
+            onClick={goToNext}
+            aria-label="Show next screenshot"
+            className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-lg text-foreground shadow-sm transition hover:bg-background"
+          >
+            →
+          </button>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         {screenshots.map((shot, index) => {
           const isActive = index === activeIndex;
 

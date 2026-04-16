@@ -204,11 +204,19 @@ export default async function Page() {
             <p className="mt-5 text-sm text-muted-foreground">
               Free account available. Premium from <span className="font-medium text-foreground">US$2.99/month</span>.
             </p>
+
+            <a
+              href="#preview"
+              className="mt-5 inline-flex items-center gap-1 text-xs font-medium text-[#5E7A63] transition hover:opacity-80"
+            >
+              See how it works below
+              <span aria-hidden="true">↓</span>
+            </a>
           </div>
         </section>
 
-        <section className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
+        <section id="preview" className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
               <div className="text-sm text-muted-foreground">Preview the planner</div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
@@ -224,7 +232,7 @@ export default async function Page() {
         </section>
 
         <section className="border-t border-border">
-          <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
+          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                 Everything students actually need.
@@ -254,7 +262,7 @@ export default async function Page() {
         </section>
 
         <section className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-5xl px-6 py-14 md:px-10 md:py-16">
+          <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                 Free to start. Premium when you need more.
@@ -289,7 +297,7 @@ export default async function Page() {
         </section>
 
         <section className="border-t border-border">
-          <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
+          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                 What students are saying
