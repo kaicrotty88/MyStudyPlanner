@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import HomepagePreviewCarousel from "@/components/HomepagePreviewCarousel";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
@@ -133,8 +132,12 @@ export default async function Page() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
-            <span className="text-base font-semibold text-foreground">MyStudyPlanner</span>
-            <span className="text-[11px] text-muted-foreground">Built by students, for students</span>
+            <span className="text-base font-semibold text-foreground">
+              MyStudyPlanner
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Built by students, for students
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -170,8 +173,8 @@ export default async function Page() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-[48rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-              Track deadlines, log study sessions, and see your marks improve — all in one place designed around how
-              students actually work.
+              Track deadlines, log study sessions, and see your marks improve —
+              all in one place designed around how students actually work.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -202,32 +205,69 @@ export default async function Page() {
             </div>
 
             <p className="mt-5 text-sm text-muted-foreground">
-              Free account available. Premium from <span className="font-medium text-foreground">US$2.99/month</span>.
+              Free account available. Premium from{" "}
+              <span className="font-medium text-foreground">
+                US$2.99/month
+              </span>
+              .
             </p>
-
-            <a
-              href="#preview"
-              className="mt-5 inline-flex items-center gap-1 text-xs font-medium text-[#5E7A63] transition hover:opacity-80"
-            >
-              See how it works below
-              <span aria-hidden="true">↓</span>
-            </a>
           </div>
         </section>
 
-        <section id="preview" className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
+        <section className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="text-sm text-muted-foreground">Preview the planner</div>
+              <div className="text-sm text-muted-foreground">
+                Try the real product
+              </div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                See exactly how MyStudyPlanner works before you sign up
+                Explore the full planner before creating an account
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Click through the main parts of the app and get a feel for how it actually looks in use.
+                Open the interactive demo with sample data and click through the
+                actual dashboard, calendar, tasks, study log, insights, marks,
+                reminders, and settings.
               </p>
             </div>
 
-            <HomepagePreviewCarousel />
+            <div className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground">
+                    See the real experience, not just screenshots
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
+                    The demo is the fastest way to understand how
+                    MyStudyPlanner feels in use. No signup required.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                      Full product preview
+                    </span>
+                    <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                      Sample data included
+                    </span>
+                    <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                      No account needed
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 md:items-end">
+                  <Link
+                    href="/demo"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95 md:w-[220px]"
+                  >
+                    Try the demo first
+                  </Link>
+                  <p className="text-center text-xs text-muted-foreground md:w-[220px] md:text-right">
+                    Jump straight into the live preview and see how everything
+                    works.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -238,23 +278,31 @@ export default async function Page() {
                 Everything students actually need.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                No productivity jargon. No complicated systems. Just the essentials, done well.
+                No productivity jargon. No complicated systems. Just the
+                essentials, done well.
               </p>
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {features.map((feature) => (
-                <div key={feature.title} className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <div
+                  key={feature.title}
+                  className="rounded-3xl border border-border bg-card p-6 shadow-sm"
+                >
                   <div className="text-2xl">{feature.icon}</div>
                   <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {feature.title}
+                    </h3>
                     {feature.premium ? (
                       <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
                         Premium
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm leading-7 text-muted-foreground">{feature.description}</p>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                    {feature.description}
+                  </p>
                 </div>
               ))}
             </div>
@@ -268,28 +316,34 @@ export default async function Page() {
                 Free to start. Premium when you need more.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Start with the core planner features for free, then upgrade later for marks, insights, and future
-                advanced features.
+                Start with the core planner features for free, then upgrade
+                later for marks, insights, and future advanced features.
               </p>
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-sm font-semibold text-foreground">Free</div>
+                <div className="text-sm font-semibold text-foreground">
+                  Free
+                </div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Organise assignments, homework, exams, reminders, and study sessions in one place.
+                  Organise assignments, homework, exams, reminders, and study
+                  sessions in one place.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold text-foreground">Premium</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    Premium
+                  </div>
                   <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
                     From US$2.99/month
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Unlock marks tracking, insights, and more advanced features as MyStudyPlanner grows.
+                  Unlock marks tracking, insights, and more advanced features as
+                  MyStudyPlanner grows.
                 </p>
               </div>
             </div>
@@ -306,11 +360,20 @@ export default async function Page() {
 
             <div className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
               {testimonials.map((testimonial) => (
-                <div key={testimonial.name} className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                  <p className="text-sm leading-7 text-foreground">“{testimonial.quote}”</p>
+                <div
+                  key={testimonial.name}
+                  className="rounded-3xl border border-border bg-card p-6 shadow-sm"
+                >
+                  <p className="text-sm leading-7 text-foreground">
+                    “{testimonial.quote}”
+                  </p>
                   <div className="mt-5">
-                    <div className="text-sm font-semibold text-foreground">{testimonial.name}</div>
-                    <div className="text-sm text-muted-foreground">{testimonial.detail}</div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {testimonial.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {testimonial.detail}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -324,7 +387,8 @@ export default async function Page() {
               Free to start. Useful from day one.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-              Add your subjects, enter your next few deadlines, and you&apos;re set. No setup required.
+              Add your subjects, enter your next few deadlines, and you&apos;re
+              set. No setup required.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -347,19 +411,33 @@ export default async function Page() {
 
         <footer className="border-t border-border py-8">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 sm:flex-row sm:items-center sm:justify-between md:px-10">
-            <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} MyStudyPlanner</div>
+            <div className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} MyStudyPlanner
+            </div>
 
             <div className="flex items-center gap-4 text-xs">
-              <Link href="/about" className="text-muted-foreground transition hover:text-foreground">
+              <Link
+                href="/about"
+                className="text-muted-foreground transition hover:text-foreground"
+              >
                 About
               </Link>
-              <Link href="/how-it-works" className="text-muted-foreground transition hover:text-foreground">
+              <Link
+                href="/how-it-works"
+                className="text-muted-foreground transition hover:text-foreground"
+              >
                 How it works
               </Link>
-              <Link href="/privacy" className="text-muted-foreground transition hover:text-foreground">
+              <Link
+                href="/privacy"
+                className="text-muted-foreground transition hover:text-foreground"
+              >
                 Privacy
               </Link>
-              <Link href="/terms" className="text-muted-foreground transition hover:text-foreground">
+              <Link
+                href="/terms"
+                className="text-muted-foreground transition hover:text-foreground"
+              >
                 Terms
               </Link>
             </div>
