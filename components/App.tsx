@@ -217,7 +217,7 @@ const makeDefaultData = () => {
       completed: true,
       completedAt: nineDaysAgo,
       result: {
-        score: 16,
+        score: 12,
         outOf: 20,
         dateRecorded: nineDaysAgo,
         notes: "Lost marks on evaluation depth.",
@@ -248,7 +248,7 @@ const makeDefaultData = () => {
       completed: true,
       completedAt: twentyOneDaysAgo,
       result: {
-        score: 41,
+        score: 32,
         outOf: 50,
         dateRecorded: twentyOneDaysAgo,
       },
