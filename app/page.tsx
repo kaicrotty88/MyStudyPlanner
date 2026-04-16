@@ -37,30 +37,81 @@ export const metadata: Metadata = {
   },
 };
 
-const screenshots = [
-  {
-    src: "/homepage/dashboard.png",
-    alt: "MyStudyPlanner dashboard preview showing focus today and upcoming tasks.",
-    label: "Dashboard",
-  },
-  {
-    src: "/homepage/calendar.png",
-    alt: "MyStudyPlanner calendar preview showing colour-coded assignments, reminders, exams, and study sessions.",
-    label: "Calendar",
-  },
-  {
-    src: "/homepage/tasks.png",
-    alt: "MyStudyPlanner tasks preview showing grouped tasks and assignment deadlines.",
-    label: "Tasks",
-  },
-  {
-    src: "/homepage/insights.png",
-    alt: "MyStudyPlanner insights preview showing study and marks analytics.",
-    label: "Insights",
-  },
+type Screenshot = {
+  id: string;
+  src: string;
+  alt: string;
+  title: string;
+};
+
+type Feature = {
+  icon: string;
+  title: string;
+  description: string;
+  premium?: boolean;
+};
+
+type Testimonial = {
+  quote: string;
+  name: string;
+  detail: string;
+};
+
+const featurePills = [
+  "Assessments",
+  "Assignments",
+  "Homework",
+  "Study sessions",
+  "Marks",
+  "Insights",
 ] as const;
 
-const features = [
+const screenshots: Screenshot[] = [
+  {
+    id: "shot-dashboard",
+    src: "/homepage/dashboard.png",
+    alt: "MyStudyPlanner dashboard preview showing focus today and upcoming work.",
+    title: "Dashboard",
+  },
+  {
+    id: "shot-calendar",
+    src: "/homepage/calendar.png",
+    alt: "MyStudyPlanner calendar preview showing colour-coded assignments, reminders, exams, and study sessions.",
+    title: "Calendar",
+  },
+  {
+    id: "shot-tasks",
+    src: "/homepage/tasks.png",
+    alt: "MyStudyPlanner tasks preview showing grouped deadlines and assignments.",
+    title: "Tasks",
+  },
+  {
+    id: "shot-study-log",
+    src: "/homepage/study-log.png",
+    alt: "MyStudyPlanner study log preview showing logged sessions linked to assignments.",
+    title: "Study Log",
+  },
+  {
+    id: "shot-insights",
+    src: "/homepage/insights.png",
+    alt: "MyStudyPlanner insights preview showing study and marks analytics.",
+    title: "Insights",
+  },
+  {
+    id: "shot-marks",
+    src: "/homepage/marks.png",
+    alt: "MyStudyPlanner marks preview showing subject performance and progress.",
+    title: "Marks",
+  },
+  {
+    id: "shot-reminders",
+    src: "/homepage/reminders.png",
+    alt: "MyStudyPlanner reminders preview showing quick personal reminders.",
+    title: "Reminders",
+  },
+];
+
+const features: Feature[] = [
   {
     icon: "📅",
     title: "Calendar view",
@@ -83,13 +134,15 @@ const features = [
     icon: "📊",
     title: "Marks tracking",
     description:
-      "Record results across all subjects and see which areas need the most attention. Premium feature.",
+      "Record results across all subjects and see which areas need the most attention.",
+    premium: true,
   },
   {
     icon: "↗",
     title: "Insights",
     description:
       "Track study streaks, daily averages, and your strongest subjects without leaving the app.",
+    premium: true,
   },
   {
     icon: "🔔",
@@ -97,9 +150,9 @@ const features = [
     description:
       "Quick notes for life stuff — not assignments. Pack bag tonight. Email teacher. Buy new pens.",
   },
-] as const;
+];
 
-const testimonials = [
+const testimonials: Testimonial[] = [
   {
     quote:
       "Finally a planner that doesn't make me feel like I need a productivity degree to use it. I actually open it every day.",
@@ -118,7 +171,7 @@ const testimonials = [
     name: "Priya K.",
     detail: "Year 11, Brisbane",
   },
-] as const;
+];
 
 export default async function Page() {
   const { userId } = await auth();
@@ -173,6 +226,17 @@ export default async function Page() {
               students actually work.
             </p>
 
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {featurePills.map((feature) => (
+                <span
+                  key={feature}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+                >
+                  {feature}
+                </span>
+              ))}
+            </div>
+
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link
                 href="/demo"
@@ -198,29 +262,62 @@ export default async function Page() {
         <section className="border-t border-border bg-muted/20">
           <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="text-sm text-muted-foreground">mystudyplanner.co/dashboard</div>
+              <div className="text-sm text-muted-foreground">Preview the planner</div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Scroll through the core experience
+              </h2>
             </div>
 
-            <div className="mt-8 overflow-x-auto pb-3">
-              <div className="flex snap-x snap-mandatory gap-5">
-                {screenshots.map((shot) => (
+            <div className="mt-10 space-y-6">
+              {screenshots.map((shot, index) => {
+                const prevId = screenshots[(index - 1 + screenshots.length) % screenshots.length].id;
+                const nextId = screenshots[(index + 1) % screenshots.length].id;
+
+                return (
                   <div
-                    key={shot.src}
-                    className="min-w-[92%] snap-center overflow-hidden rounded-[28px] border border-border bg-card shadow-sm md:min-w-[82%]"
+                    key={shot.id}
+                    id={shot.id}
+                    className="scroll-mt-24 rounded-[28px] border border-border bg-card shadow-sm"
                   >
-                    <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                      <div className="text-sm font-semibold text-foreground">MyStudyPlanner</div>
-                      <div className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
-                        {shot.label}
+                    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                      <div className="text-sm font-semibold text-foreground">{shot.title}</div>
+
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`#${prevId}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg text-foreground transition hover:bg-muted"
+                          aria-label={`Previous screenshot before ${shot.title}`}
+                        >
+                          ←
+                        </a>
+                        <a
+                          href={`#${nextId}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg text-foreground transition hover:bg-muted"
+                          aria-label={`Next screenshot after ${shot.title}`}
+                        >
+                          →
+                        </a>
                       </div>
                     </div>
 
-                    <div className="relative aspect-[16/9] bg-muted/30">
-                      <Image src={shot.src} alt={shot.alt} fill className="object-cover object-top" priority />
+                    <div className="relative aspect-[16/9] overflow-hidden bg-muted/30">
+                      <Image src={shot.src} alt={shot.alt} fill priority={index === 0} className="object-cover object-top" />
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {screenshots.map((shot) => (
+                <a
+                  key={shot.id}
+                  href={`#${shot.id}`}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+                >
+                  {shot.title}
+                </a>
+              ))}
             </div>
           </div>
         </section>
@@ -240,11 +337,22 @@ export default async function Page() {
               {features.map((feature) => (
                 <div key={feature.title} className="rounded-3xl border border-border bg-card p-6 shadow-sm">
                   <div className="text-2xl">{feature.icon}</div>
-                  <h3 className="mt-4 text-lg font-semibold text-foreground">{feature.title}</h3>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
+                    {feature.premium ? (
+                      <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
+                        Premium
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-2 text-sm leading-7 text-muted-foreground">{feature.description}</p>
                 </div>
               ))}
             </div>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Marks tracking and Insights are Premium features.
+            </p>
           </div>
         </section>
 
