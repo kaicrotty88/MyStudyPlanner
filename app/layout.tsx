@@ -11,21 +11,19 @@ const geistSans = Geist({
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-m-mono",
+  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
   title: {
-    default: "MyStudyPlanner",
-    template: "%s • MyStudyPlanner",
+    default: "Study Planner for Students | Assignments, Exams & Study Sessions | MyStudyPlanner",
+    template: "%s | MyStudyPlanner",
   },
   description:
-    "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
-  alternates: {
-    canonical: "/",
-  },
+    "MyStudyPlanner is a calm study planner for high school and university students. Track assignments, exams, homework, study sessions and marks in one simple app.",
+  applicationName: "MyStudyPlanner",
   robots: {
     index: true,
     follow: true,
@@ -41,21 +39,24 @@ export const metadata: Metadata = {
     type: "website",
     url: "https://mystudyplanner.co/",
     siteName: "MyStudyPlanner",
-    title: "MyStudyPlanner",
+    title: "Study Planner for Students | Assignments, Exams & Study Sessions | MyStudyPlanner",
     description:
-      "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
+      "MyStudyPlanner is a calm study planner for high school and university students. Track assignments, exams, homework, study sessions and marks in one simple app.",
+    locale: "en_AU",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MyStudyPlanner",
+    title: "Study Planner for Students | Assignments, Exams & Study Sessions | MyStudyPlanner",
     description:
-      "Organise assessments, assignments, homework, study sessions, and marks in one planner built for real student life.",
+      "MyStudyPlanner is a calm study planner for high school and university students. Track assignments, exams, homework, study sessions and marks in one simple app.",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en-AU">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClerkProvider
           appearance={{

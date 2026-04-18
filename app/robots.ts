@@ -5,16 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: [
-          "/",
-          "/about",
-          "/how-it-works",
-          "/privacy",
-          "/terms",
-          "/study-planner-for-university-students",
-          "/assignment-tracker-for-students",
-          "/exam-planner",
-        ],
+        allow: "/",
         disallow: ["/app", "/demo", "/sign-in", "/sign-up", "/sign-out"],
       },
     ],
