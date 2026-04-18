@@ -116,17 +116,29 @@ export default function ExamPlannerPage() {
         </div>
       </section>
 
-      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <Link href="/assignment-tracker-for-students" className="text-muted-foreground transition hover:text-foreground">
-          Assignment tracker for students
-        </Link>
-        <Link href="/study-planner-for-university-students" className="text-muted-foreground transition hover:text-foreground">
-          Study planner for university students
-        </Link>
-        <Link href="/how-it-works" className="text-muted-foreground transition hover:text-foreground">
-          How it works
-        </Link>
-      </div>
+      <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+        <h2 className="text-lg font-semibold text-foreground">Related student planning pages</h2>
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm">
+          <Link
+            href="/assignment-tracker-for-students"
+            className="text-muted-foreground transition hover:text-foreground"
+          >
+            Assignment tracker for students
+          </Link>
+          <Link
+            href="/homework-planner-for-students"
+            className="text-muted-foreground transition hover:text-foreground"
+          >
+            Homework planner for students
+          </Link>
+          <Link
+            href="/marks-tracker-for-students"
+            className="text-muted-foreground transition hover:text-foreground"
+          >
+            Marks tracker for students
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }
