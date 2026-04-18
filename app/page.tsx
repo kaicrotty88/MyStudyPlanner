@@ -1,38 +1,41 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
-  title: "The study planner built for real student life",
+  title: "MyStudyPlanner | Study Planner for Students, Assignments, Exams & Study Log",
   description:
-    "Track deadlines, log study sessions, and see your marks improve — all in one place designed around how students actually work.",
+    "MyStudyPlanner is a calm, simple study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place. Free to start.",
   keywords: [
-    "student planner",
+    "study planner for students",
+    "student planner app",
     "study planner",
     "online study planner",
-    "assignment tracker",
+    "assignment tracker for students",
     "exam planner",
     "homework planner",
-    "marks tracker",
+    "marks tracker for students",
     "study log",
-    "student planner app",
+    "planner for university students",
+    "planner for high school students",
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "The study planner built for real student life",
+    title: "MyStudyPlanner | Study Planner for Students, Assignments, Exams & Study Log",
     description:
-      "Track deadlines, log study sessions, and see your marks improve — all in one place designed around how students actually work.",
+      "A calm, simple study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.",
     url: "/",
     siteName: "MyStudyPlanner",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "The study planner built for real student life",
+    title: "MyStudyPlanner | Study Planner for Students, Assignments, Exams & Study Log",
     description:
-      "Track deadlines, log study sessions, and see your marks improve — all in one place designed around how students actually work.",
+      "A calm, simple study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.",
   },
 };
 
@@ -95,7 +98,7 @@ const features: Feature[] = [
     icon: "🔔",
     title: "Reminders",
     description:
-      "Quick notes for life stuff — not assignments. Pack your bag, email a teacher, buy new pens.",
+      "Quick notes for life stuff, not assignments. Pack your bag, email a teacher, buy new pens.",
   },
 ];
 
@@ -139,6 +142,48 @@ const seoLinks = [
   },
 ] as const;
 
+const softwareApplicationSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "MyStudyPlanner",
+  applicationCategory: "EducationalApplication",
+  applicationSubCategory: "Study Planner",
+  operatingSystem: "Web",
+  url: "https://mystudyplanner.co",
+  description:
+    "MyStudyPlanner is a web-based study planner for high school and university students. Track assignments, exams, homework, study sessions, marks, and reminders in one calm, simple planner.",
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Free",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    {
+      "@type": "Offer",
+      name: "Premium",
+      price: "2.99",
+      priceCurrency: "USD",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: "2.99",
+        priceCurrency: "USD",
+        billingDuration: 1,
+        billingIncrement: 1,
+        unitCode: "MON",
+      },
+    },
+  ],
+  creator: {
+    "@type": "Organization",
+    name: "MyStudyPlanner",
+  },
+  audience: {
+    "@type": "EducationalAudience",
+    educationalRole: "student",
+  },
+};
+
 export default async function Page() {
   const { userId } = await auth();
 
@@ -148,6 +193,14 @@ export default async function Page() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Script
+        id="software-application-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(softwareApplicationSchema),
+        }}
+      />
+
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
           <div className="flex flex-col leading-tight">
@@ -191,9 +244,10 @@ export default async function Page() {
               The study planner built for real student life.
             </h1>
 
-            <p className="mx-auto mt-4 max-w-[48rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-              Track deadlines, log study sessions, and see your marks improve —
-              all in one place designed around how students actually work.
+            <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
+              MyStudyPlanner is a calm study planner for students who want one
+              place to track assignments, exams, homework, study sessions,
+              marks, and reminders without using five different tools.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -250,8 +304,9 @@ export default async function Page() {
                 Everything students actually need.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                No productivity jargon. No complicated systems. Just the
-                essentials, done well.
+                A simple student planner app and online study planner for high
+                school and university students who want the essentials done
+                well.
               </p>
             </div>
 
@@ -291,9 +346,9 @@ export default async function Page() {
                 Try the full planner before signing up
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Open the interactive demo and click through the actual dashboard,
-                calendar, tasks, study log, insights, marks, reminders, and
-                settings.
+                Open the interactive demo and click through the actual
+                dashboard, calendar, tasks, study log, insights, marks,
+                reminders, and settings.
               </p>
             </div>
 
