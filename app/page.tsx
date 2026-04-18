@@ -208,10 +208,23 @@ export default async function Page() {
               Free account available. Premium from{" "}
               <span className="font-medium text-foreground">US$2.99/month</span>.
             </p>
+
+            <a
+              href="#demo-section"
+              className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+            >
+              <span>See how it works</span>
+              <span
+                aria-hidden="true"
+                className="inline-block animate-bounce text-sm"
+              >
+                ↓
+              </span>
+            </a>
           </div>
         </section>
 
-        <section className="border-t border-border bg-muted/20">
+        <section id="demo-section" className="border-t border-border bg-muted/20">
           <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
               <div className="text-sm text-muted-foreground">
