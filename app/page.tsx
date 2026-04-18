@@ -120,6 +120,25 @@ const testimonials: Testimonial[] = [
   },
 ];
 
+const seoLinks = [
+  {
+    href: "/study-planner-for-university-students",
+    label: "Study planner for university students",
+  },
+  {
+    href: "/assignment-tracker-for-students",
+    label: "Assignment tracker for students",
+  },
+  {
+    href: "/exam-planner",
+    label: "Exam planner",
+  },
+  {
+    href: "/student-planner-app",
+    label: "Student planner app",
+  },
+] as const;
+
 export default async function Page() {
   const { userId } = await auth();
 
@@ -210,7 +229,7 @@ export default async function Page() {
             </p>
 
             <a
-              href="#demo-section"
+              href="#features-section"
               className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
             >
               <span>See how it works</span>
@@ -221,6 +240,44 @@ export default async function Page() {
                 ↓
               </span>
             </a>
+          </div>
+        </section>
+
+        <section id="features-section" className="border-t border-border">
+          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
+            <div className="mx-auto max-w-3xl text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Everything students actually need.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                No productivity jargon. No complicated systems. Just the
+                essentials, done well.
+              </p>
+            </div>
+
+            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {features.map((feature) => (
+                <div
+                  key={feature.title}
+                  className="rounded-3xl border border-border bg-card p-6 shadow-sm"
+                >
+                  <div className="text-2xl">{feature.icon}</div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {feature.title}
+                    </h3>
+                    {feature.premium ? (
+                      <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
+                        Premium
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                    {feature.description}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -235,7 +292,8 @@ export default async function Page() {
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
                 Open the interactive demo and click through the actual dashboard,
-                calendar, tasks, study log, insights, marks, reminders, and settings.
+                calendar, tasks, study log, insights, marks, reminders, and
+                settings.
               </p>
             </div>
 
@@ -246,8 +304,8 @@ export default async function Page() {
                     See the real experience, not just screenshots
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
-                    The demo is the fastest way to understand how MyStudyPlanner
-                    feels in use. No account needed.
+                    The demo is the fastest way to understand how
+                    MyStudyPlanner feels in use. No account needed.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -279,43 +337,6 @@ export default async function Page() {
           </div>
         </section>
 
-        <section className="border-t border-border">
-          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Everything students actually need.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                No productivity jargon. No complicated systems. Just the essentials, done well.
-              </p>
-            </div>
-
-            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {features.map((feature) => (
-                <div
-                  key={feature.title}
-                  className="rounded-3xl border border-border bg-card p-6 shadow-sm"
-                >
-                  <div className="text-2xl">{feature.icon}</div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {feature.title}
-                    </h3>
-                    {feature.premium ? (
-                      <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
-                        Premium
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section className="border-t border-border bg-muted/20">
           <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
@@ -330,21 +351,27 @@ export default async function Page() {
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-sm font-semibold text-foreground">Free</div>
+                <div className="text-sm font-semibold text-foreground">
+                  Free
+                </div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Organise assignments, homework, exams, reminders, and study sessions in one place.
+                  Organise assignments, homework, exams, reminders, and study
+                  sessions in one place.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold text-foreground">Premium</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    Premium
+                  </div>
                   <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
                     From US$2.99/month
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Unlock marks tracking, insights, and more advanced features as MyStudyPlanner grows.
+                  Unlock marks tracking, insights, and more advanced features as
+                  MyStudyPlanner grows.
                 </p>
               </div>
             </div>
@@ -388,7 +415,8 @@ export default async function Page() {
               Ready to get organised?
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-              Try the demo first or create your account and start planning properly.
+              Try the demo first or create your account and start planning
+              properly.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -405,6 +433,31 @@ export default async function Page() {
               >
                 Create free account
               </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-6xl px-6 py-10 md:px-10">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground">
+                Explore more student planning guides
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Helpful pages for different study needs and student workflows.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm">
+              {seoLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-muted-foreground transition hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         </section>
