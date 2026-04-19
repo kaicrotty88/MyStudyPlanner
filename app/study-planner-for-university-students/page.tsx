@@ -1,54 +1,105 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://mystudyplanner.co"),
-  title: "Study Planner for University Students | MyStudyPlanner",
-  description:
-    "A calm study planner for university students. Organise assignments, exams, study sessions, reminders, and marks in one place with MyStudyPlanner.",
-  alternates: { canonical: "/study-planner-for-university-students" },
-  openGraph: {
-    title: "Study Planner for University Students | MyStudyPlanner",
-    description:
-      "Organise assignments, exams, study sessions, reminders, and marks with a study planner built for university students.",
-    url: "/study-planner-for-university-students",
-    siteName: "MyStudyPlanner",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Study Planner for University Students | MyStudyPlanner",
-    description:
-      "A calm study planner for university students to manage assignments, exams, study sessions, reminders, and marks.",
-  },
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "What is the best study planner for university students?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "The best study planner for university students is one that helps you manage assignments, exams, study sessions, and due dates in one place without adding extra complexity. MyStudyPlanner is designed for that kind of simple, calm planning.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How can university students organise assignments and exam dates?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "University students can stay organised by keeping assignments, exam dates, weekly study sessions, and reminders together in one planner. This makes it easier to see workload across subjects and plan ahead before busy weeks.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Is MyStudyPlanner good for Australian university students?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. MyStudyPlanner is built for students who want a straightforward way to manage semester work, including assignments, revision, marks, and weekly planning. It works well for Australian university students who want a calmer planner.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I use MyStudyPlanner as a free online study planner for uni?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. You can start with a free account and use MyStudyPlanner online to organise your university subjects, due dates, and study sessions before deciding whether you want premium features.",
+      },
+    },
+  ],
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "Study Planner for University Students | MyStudyPlanner";
+  const description =
+    "A calm study planner for university students. Organise assignments, exams, study sessions, and marks in one simple place.";
+
+  return {
+    metadataBase: new URL("https://mystudyplanner.co"),
+    title,
+    description,
+    alternates: {
+      canonical: "/study-planner-for-university-students",
+    },
+    openGraph: {
+      title,
+      description,
+      url: "/study-planner-for-university-students",
+      siteName: "MyStudyPlanner",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 const benefits = [
   {
-    title: "Keep subjects together",
+    title: "Keep each unit visible",
     description:
-      "Track multiple units without splitting your workload across separate apps, notes, and reminders.",
+      "See your subjects, upcoming work, and study time in one place instead of splitting everything across different apps.",
   },
   {
-    title: "Stay on top of deadlines",
+    title: "Track assignment deadlines clearly",
     description:
-      "See assignments, exams, homework, and due dates in one university planning workflow.",
+      "Stay on top of essays, reports, quizzes, and projects before they all pile into the same week.",
   },
   {
-    title: "Plan study sessions properly",
+    title: "Plan revision around real deadlines",
     description:
-      "Log study time in a way that stays practical during busy weeks, mid-semester, and exams.",
+      "Use study sessions to prepare before exams and bigger assessments instead of leaving revision too late.",
   },
   {
-    title: "Track marks over the semester",
+    title: "Follow your marks over the semester",
     description:
-      "Keep a clearer picture of how your subjects are going as results come back.",
+      "Record results as they come back so you can spot which units need more attention.",
   },
 ];
 
 export default function UniversityStudyPlannerPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-16">
+      <Script
+        id="faq-schema-study-planner-university-students"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+
       <header className="max-w-3xl space-y-4">
         <Link
           href="/"
@@ -64,9 +115,10 @@ export default function UniversityStudyPlannerPage() {
         </h1>
 
         <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-          MyStudyPlanner is a calm study planner for university students who want
-          one place to organise assignments, homework, exams, study sessions,
-          reminders, and marks without building a complicated system from
+          MyStudyPlanner is a calm study planner for university students who
+          want one place to organise assignments, exams, study sessions,
+          reminders, and marks. It is made for students who want to feel more
+          clear about their semester without building a complicated system from
           scratch.
         </p>
 
@@ -87,55 +139,82 @@ export default function UniversityStudyPlannerPage() {
       </header>
 
       <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h2 className="text-lg font-semibold text-foreground">
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
           Why university students need a proper study planner
         </h2>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+        <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground md:text-base">
           <p>
-            University work gets messy quickly. You might have lectures,
-            tutorials, readings, assignments, quizzes, exams, and random
-            reminders all happening at once. Most students begin with a mix of
-            calendar events, notes apps, and memory. That usually works for a
-            little while, then semester gets busy and everything starts living in
-            different places.
+            University study can look manageable at the start of semester, then
+            suddenly become hard to hold together. You might have lectures,
+            tutorials, readings, quizzes, essays, lab reports, exams, and admin
+            reminders all happening at once. A lot of students try to manage
+            this with a mix of phone reminders, calendar events, notes apps, and
+            memory. That usually works for a little while, but once classes get
+            busy, everything ends up in different places.
           </p>
           <p>
-            A proper study planner for university students helps because it gives
-            you one place to actually see the workload. Instead of trying to
-            remember what is due, what needs study time, and what subject is
-            falling behind, you can keep those things together and make better
-            decisions earlier.
+            A study planner for university students helps because it brings the
+            workload together. Instead of trying to remember what is due next,
+            which subject needs more time, or whether you have already started
+            revising for an exam, you can see the term more clearly. That makes
+            it easier to plan your week calmly and make better decisions earlier.
           </p>
           <p>
-            That is the job of MyStudyPlanner. It is not trying to be a giant
-            productivity system. It is a simple planner that helps university
-            students stay organised without turning planning into extra work.
+            MyStudyPlanner is built around that idea. It is not trying to be a
+            giant productivity system. It is a simple planner that helps uni
+            students stay organised without turning planning into another task to
+            keep up with. If you are also looking for a broader{" "}
+            <Link
+              href="/student-planner-app"
+              className="text-foreground underline underline-offset-4 transition hover:text-primary"
+            >
+              student planner app
+            </Link>
+            , this page shows how MyStudyPlanner fits university life
+            specifically.
           </p>
         </div>
       </section>
 
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h2 className="text-lg font-semibold text-foreground">
-          What to keep track of during semester
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
+          What university students usually need to keep track of
         </h2>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+        <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground md:text-base">
           <p>
-            A useful university planner needs to do more than hold a few due
-            dates. Real semester planning usually means keeping track of
-            assignments, homework, exam dates, study sessions, reminders, and
-            results across multiple units at once.
+            A useful study planner for university students needs to do more than
+            hold a few due dates. Real semester planning usually means keeping
+            track of multiple units, assignment deadlines, revision sessions,
+            exam dates, smaller weekly tasks, and the results that come back
+            over time. When those things are spread across separate tools, it
+            becomes harder to see the full picture.
           </p>
           <p>
-            When those things are spread across separate tools, it becomes harder
-            to see the full picture. You might have an essay deadline in one
-            place, a study schedule somewhere else, and reminders sitting in your
-            phone. None of those tools really show how the workload fits
-            together.
+            You might have an essay deadline in one calendar, a reading list in
+            a notes app, an exam date in your subject outline, and reminders
+            sitting in your phone. None of those tools really show how the
+            workload fits together. That is where a proper university planner
+            helps. It puts the semester in one place so you can tell what needs
+            attention now and what can wait a little longer.
           </p>
           <p>
-            MyStudyPlanner helps by keeping subjects, tasks, study sessions, and
-            marks closer together. That makes it easier to tell what is due next,
-            what needs more time, and what can wait.
+            If assignments are the main thing you are trying to stay on top of,
+            the{" "}
+            <Link
+              href="/assignment-planner-for-university-students"
+              className="text-foreground underline underline-offset-4 transition hover:text-primary"
+            >
+              assignment planner for university students
+            </Link>{" "}
+            page goes deeper into managing essays, reports, and longer
+            assessment timelines. If you want a more general deadline view, the{" "}
+            <Link
+              href="/assignment-tracker-for-students"
+              className="text-foreground underline underline-offset-4 transition hover:text-primary"
+            >
+              assignment tracker for students
+            </Link>{" "}
+            page is also useful.
           </p>
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -147,7 +226,7 @@ export default function UniversityStudyPlannerPage() {
                 <div className="text-sm font-semibold text-foreground">
                   {item.title}
                 </div>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-sm leading-7 text-muted-foreground">
                   {item.description}
                 </p>
               </div>
@@ -157,71 +236,134 @@ export default function UniversityStudyPlannerPage() {
       </section>
 
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h2 className="text-lg font-semibold text-foreground">
-          How MyStudyPlanner helps you stay organised
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
+          How MyStudyPlanner helps you stay organised during semester
         </h2>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+        <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground md:text-base">
           <p>
-            MyStudyPlanner is designed to stay practical. You can add your units,
-            enter assignments and exams, log study sessions, and keep reminders
-            nearby without feeling like you are setting up a whole system just to
-            get started.
+            MyStudyPlanner is designed to stay practical. You can add your
+            subjects, enter assignments and exam dates, log study sessions, and
+            keep reminders nearby without feeling like you are setting up a full
+            operating system for your life. That matters at university because
+            the pressure usually comes from combinations of deadlines rather than
+            one giant task on its own.
           </p>
           <p>
-            That matters at university because the pressure usually comes from
-            combinations of deadlines rather than one giant task. A lab report, a
-            reading quiz, an essay plan, and exam revision can all land in the
-            same week. When that happens, clarity matters more than complexity.
+            A lab report, class quiz, group project meeting, and revision for a
+            mid-sem exam can all land in the same week. When that happens,
+            clarity matters more than complexity. A calm planner helps you see
+            what is due next, what needs early preparation, and where your time
+            is actually going.
           </p>
           <p>
-            With a calm planner, you can see what is due next, plan study time
-            around real tasks, and keep each subject visible across the semester.
-            That makes it easier to stay ahead without feeling like your planner
-            is another thing to maintain.
+            MyStudyPlanner also works well if you prefer simple routines. You do
+            not need to colour-code everything or build a detailed productivity
+            system before it becomes useful. Add your units, put in the important
+            dates, and start using it for real work. That is usually enough to
+            make the week feel more manageable.
+          </p>
+          <p>
+            Because it runs in the browser, it also works well as an{" "}
+            <Link
+              href="/online-study-planner"
+              className="text-foreground underline underline-offset-4 transition hover:text-primary"
+            >
+              online study planner
+            </Link>{" "}
+            for students who want something accessible and easy to update.
           </p>
         </div>
       </section>
 
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h2 className="text-lg font-semibold text-foreground">
-          A calmer way to manage assignments and exams
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
+          A calmer way to manage assignments, revision, and marks
         </h2>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+        <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground md:text-base">
           <p>
-            Many students try generic productivity apps first. The problem is
-            that those tools are often built for work projects, not university
+            Many uni students start with generic productivity apps. The problem
+            is that those tools are often built for work projects, not student
             life. They can feel too broad, too cluttered, or too demanding to
-            keep updated once semester gets busy.
+            keep updated once semester becomes busy. When that happens, even a
+            good-looking system becomes something you stop using.
           </p>
           <p>
-            MyStudyPlanner is different because it stays focused on what students
-            actually need. Assignments, exam dates, study sessions, reminders,
-            and marks are already part of the workflow. You do not have to force
-            a work-style system into something that fits study.
+            MyStudyPlanner stays focused on what students actually need.
+            Assignments, exams, study sessions, reminders, and marks are already
+            part of the workflow. You do not have to force a work-style project
+            manager into something that fits university study. That makes it
+            easier to return to the planner each day and trust what you see.
           </p>
           <p>
-            The point is not to optimise every second of your week. It is to make
-            your workload feel clearer and easier to manage.
+            If exam periods are where things tend to slip, the{" "}
+            <Link
+              href="/exam-planner"
+              className="text-foreground underline underline-offset-4 transition hover:text-primary"
+            >
+              exam planner
+            </Link>{" "}
+            page explains how to plan revision in a calmer way. If you want to
+            keep an eye on grades across the term, the{" "}
+            <Link
+              href="/marks-tracker-for-students"
+              className="text-foreground underline underline-offset-4 transition hover:text-primary"
+            >
+              marks tracker for students
+            </Link>{" "}
+            page covers that side of the planner too.
+          </p>
+          <p>
+            The point is not to fill every hour of your week. The point is to
+            make your workload feel clearer and easier to manage.
           </p>
         </div>
       </section>
 
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h2 className="text-lg font-semibold text-foreground">
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
+          Good for Australian university students who want less clutter
+        </h2>
+        <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground md:text-base">
+          <p>
+            MyStudyPlanner is especially suited to students who want a simple
+            planner they can stick with during semester. For many Australian
+            university students, that means juggling classes, commute time, part
+            time work, and personal commitments alongside study. A planner needs
+            to feel clear enough to open quickly and useful enough to keep coming
+            back to.
+          </p>
+          <p>
+            That is why the layout stays calm and focused. Instead of pushing
+            badges, streaks, or lots of visual noise, the planner is designed to
+            help you see what matters. When student life already feels busy, that
+            kind of quieter structure can make planning feel more sustainable.
+          </p>
+          <p>
+            You can start with a free account, use the planner for your real
+            semester work, and then decide whether premium features are worth it
+            for you later. That makes it easier to test the routine before fully
+            committing.
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
           Try the planner before you sign up
         </h2>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+        <div className="mt-4 space-y-4 text-sm leading-7 text-muted-foreground md:text-base">
           <p>
             The easiest way to see if MyStudyPlanner fits how you work is to try
             the demo first. The demo shows the real planner with sample data, so
             you can click through the dashboard, calendar, tasks, study log,
-            insights, marks, reminders, and settings.
+            marks, reminders, and settings. It gives you a clearer feel for the
+            structure than a few screenshots ever could.
           </p>
           <p>
             Then if it feels right, you can create a free account and start with
             your own subjects and deadlines. You do not need a perfect setup to
-            get value from it. Even a few real tasks in the planner can make the
-            week feel much clearer.
+            get value from it. Even entering a few real assignments and exam
+            dates can make the week feel much clearer.
           </p>
         </div>
 
@@ -242,28 +384,59 @@ export default function UniversityStudyPlannerPage() {
       </section>
 
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h2 className="text-lg font-semibold text-foreground">
-          Related student planning pages
+        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
+          Frequently asked questions
         </h2>
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm">
-          <Link
-            href="/assignment-planner-for-university-students"
-            className="text-muted-foreground transition hover:text-foreground"
-          >
-            Assignment planner for university students
-          </Link>
-          <Link
-            href="/student-planner-app"
-            className="text-muted-foreground transition hover:text-foreground"
-          >
-            Student planner app
-          </Link>
-          <Link
-            href="/online-study-planner"
-            className="text-muted-foreground transition hover:text-foreground"
-          >
-            Online study planner
-          </Link>
+
+        <div className="mt-6 space-y-6">
+          <div>
+            <h3 className="text-base font-semibold text-foreground md:text-lg">
+              What is the best study planner for university students?
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
+              The best study planner for university students is one that helps
+              you manage assignments, exams, study sessions, and due dates in
+              one place without adding extra complexity. MyStudyPlanner is built
+              for students who want a planner that feels clear, simple, and easy
+              to keep using through the semester.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-foreground md:text-lg">
+              How can university students organise assignments and exam dates?
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
+              The simplest way is to keep assignments, exam dates, weekly study
+              sessions, and reminders together in one planner. That makes it
+              easier to see how busy each week is and plan ahead before multiple
+              deadlines land at the same time.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-foreground md:text-lg">
+              Is MyStudyPlanner good for Australian university students?
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
+              Yes. MyStudyPlanner suits Australian university students who want
+              a straightforward way to plan semester work, track deadlines, log
+              study sessions, and keep an eye on marks. The layout is designed
+              to feel calm rather than busy.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-foreground md:text-lg">
+              Can I use MyStudyPlanner as a free online study planner for uni?
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
+              Yes. You can start with a free account and use MyStudyPlanner
+              online to organise your university subjects, due dates, and study
+              sessions. That gives you a simple way to test the planner with
+              your real semester workload before deciding on premium.
+            </p>
+          </div>
         </div>
       </section>
     </main>
