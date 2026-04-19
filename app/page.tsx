@@ -28,19 +28,19 @@ const featurePills = [
 
 const features: Feature[] = [
   {
-    icon: "📅",
+    icon: "🗓️",
     title: "Calendar view",
     description:
       "See assignments, exams, and study sessions colour-coded by subject at a glance.",
   },
   {
-    icon: "✓",
+    icon: "✅",
     title: "Tasks & deadlines",
     description:
       "Assignments, homework, and exams grouped together so nothing gets buried or forgotten.",
   },
   {
-    icon: "⏱",
+    icon: "🕒",
     title: "Study log",
     description:
       "Log sessions fast and link them to the assignment you're working on.",
@@ -53,7 +53,7 @@ const features: Feature[] = [
     premium: true,
   },
   {
-    icon: "↗",
+    icon: "📈",
     title: "Insights",
     description:
       "Track streaks, daily averages, and your strongest subjects without leaving the app.",
@@ -177,8 +177,7 @@ const softwareApplicationSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title =
-    "Study Planner for Students, Assignments & Exams | MyStudyPlanner";
+  const title = "Study Planner for Students | MyStudyPlanner";
   const description =
     "A calm study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.";
 
@@ -437,13 +436,17 @@ export default async function Page() {
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-sm font-semibold text-foreground">
-                  Free
-                </div>
+                <div className="text-sm font-semibold text-foreground">Free</div>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   Organise assignments, homework, exams, reminders, and study
                   sessions in one place.
                 </p>
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>• Assignments and homework</li>
+                  <li>• Exam dates and study sessions</li>
+                  <li>• Subject planning</li>
+                  <li>• Reminders</li>
+                </ul>
               </div>
 
               <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
@@ -459,6 +462,12 @@ export default async function Page() {
                   Unlock marks tracking, insights, and more advanced features as
                   MyStudyPlanner grows.
                 </p>
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>• Marks tracking</li>
+                  <li>• Insights</li>
+                  <li>• Stronger subject visibility</li>
+                  <li>• Advanced features as released</li>
+                </ul>
               </div>
             </div>
           </div>
