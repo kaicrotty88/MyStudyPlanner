@@ -94,8 +94,20 @@ const seoLinks = [
     label: "Study planner for university students",
   },
   {
+    href: "/study-planner-for-high-school-students",
+    label: "Study planner for high school students",
+  },
+  {
     href: "/assignment-tracker-for-students",
     label: "Assignment tracker for students",
+  },
+  {
+    href: "/assignment-planner-for-university-students",
+    label: "Assignment planner for university students",
+  },
+  {
+    href: "/homework-planner-for-students",
+    label: "Homework planner for students",
   },
   {
     href: "/exam-planner",
@@ -104,6 +116,18 @@ const seoLinks = [
   {
     href: "/student-planner-app",
     label: "Student planner app",
+  },
+  {
+    href: "/free-study-planner",
+    label: "Free study planner",
+  },
+  {
+    href: "/online-study-planner",
+    label: "Online study planner",
+  },
+  {
+    href: "/marks-tracker-for-students",
+    label: "Marks tracker for students",
   },
 ] as const;
 
