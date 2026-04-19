@@ -4,41 +4,6 @@ import Script from "next/script";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://mystudyplanner.co"),
-  title: "MyStudyPlanner | Study Planner for Students, Assignments, Exams & Study Log",
-  description:
-    "MyStudyPlanner is a calm, simple study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place. Free to start.",
-  keywords: [
-    "study planner for students",
-    "student planner app",
-    "study planner",
-    "online study planner",
-    "assignment tracker for students",
-    "exam planner",
-    "homework planner",
-    "marks tracker for students",
-    "study log",
-    "planner for university students",
-    "planner for high school students",
-  ],
-  alternates: { canonical: "/" },
-  openGraph: {
-    title: "MyStudyPlanner | Study Planner for Students, Assignments, Exams & Study Log",
-    description:
-      "A calm, simple study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.",
-    url: "/",
-    siteName: "MyStudyPlanner",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "MyStudyPlanner | Study Planner for Students, Assignments, Exams & Study Log",
-    description:
-      "A calm, simple study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.",
-  },
-};
-
 type Feature = {
   icon: string;
   title: string;
@@ -52,95 +17,67 @@ type Testimonial = {
   detail: string;
 };
 
-const featurePills = [
-  "Assessments",
-  "Assignments",
-  "Homework",
-  "Study sessions",
-  "Marks",
-  "Insights",
-] as const;
-
 const features: Feature[] = [
   {
     icon: "📅",
     title: "Calendar view",
     description:
-      "See assignments, exams, and study sessions colour-coded by subject at a glance.",
+      "See assignments, exams, homework, and study sessions in one clear calendar organised by subject.",
   },
   {
     icon: "✓",
-    title: "Tasks & deadlines",
+    title: "Tasks and deadlines",
     description:
-      "Assignments, homework, and exams grouped together so nothing gets buried or forgotten.",
+      "Keep upcoming work in one place so important due dates do not get lost across different apps.",
   },
   {
     icon: "⏱",
     title: "Study log",
     description:
-      "Log sessions fast and link them to the assignment you're working on.",
+      "Log study sessions quickly and connect them to the subject or assignment you are working on.",
   },
   {
     icon: "📊",
     title: "Marks tracking",
     description:
-      "Record results across all subjects and see where you need the most attention.",
+      "Record results and keep a simple view of how each subject is going over time.",
     premium: true,
   },
   {
     icon: "↗",
     title: "Insights",
     description:
-      "Track streaks, daily averages, and your strongest subjects without leaving the app.",
+      "See study patterns, subject progress, and useful summaries without extra clutter.",
     premium: true,
   },
   {
     icon: "🔔",
     title: "Reminders",
     description:
-      "Quick notes for life stuff, not assignments. Pack your bag, email a teacher, buy new pens.",
+      "Add everyday reminders for things like emails, packing, forms, or errands.",
   },
 ];
 
 const testimonials: Testimonial[] = [
   {
     quote:
-      "Finally a planner that doesn't make me feel like I need a productivity degree to use it. I actually open it every day.",
+      "I wanted something simpler than Notion and more focused than a normal calendar. This feels calm and easy to keep up with.",
     name: "Aisha R.",
-    detail: "Year 12, Sydney",
+    detail: "Year 12 student, Sydney",
   },
   {
     quote:
-      "The study log linking back to assignments is so useful. I can see exactly how much time I've put into each subject.",
+      "I use it for weekly planning and assignment dates. The study log helps me see where my time is actually going.",
     name: "James T.",
-    detail: "First year uni, Melbourne",
+    detail: "University student, Melbourne",
   },
   {
     quote:
-      "I tried Notion, I tried Google Calendar. This is the first thing that actually stuck because it's built around school, not work.",
+      "It is one of the few study apps that does not feel busy. I can open it quickly and know what I need to do next.",
     name: "Priya K.",
-    detail: "Year 11, Brisbane",
+    detail: "Year 11 student, Brisbane",
   },
 ];
-
-const seoLinks = [
-  {
-    href: "/study-planner-for-university-students",
-    label: "Study planner for university students",
-  },
-  {
-    href: "/assignment-tracker-for-students",
-    label: "Assignment tracker for students",
-  },
-  {
-    href: "/exam-planner",
-    label: "Exam planner",
-  },
-  {
-    href: "/student-planner-app",
-    label: "Student planner app",
-  },
-] as const;
 
 const softwareApplicationSchema = {
   "@context": "https://schema.org",
@@ -151,19 +88,21 @@ const softwareApplicationSchema = {
   operatingSystem: "Web",
   url: "https://mystudyplanner.co",
   description:
-    "MyStudyPlanner is a web-based study planner for high school and university students. Track assignments, exams, homework, study sessions, marks, and reminders in one calm, simple planner.",
+    "MyStudyPlanner is a calm online study planner for students. Track assignments, homework, exams, study sessions, marks, and reminders in one place.",
   offers: [
     {
       "@type": "Offer",
       name: "Free",
       price: "0",
       priceCurrency: "USD",
+      url: "https://mystudyplanner.co/sign-up",
     },
     {
       "@type": "Offer",
       name: "Premium",
       price: "2.99",
       priceCurrency: "USD",
+      url: "https://mystudyplanner.co/sign-up",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
         price: "2.99",
@@ -177,12 +116,40 @@ const softwareApplicationSchema = {
   creator: {
     "@type": "Organization",
     name: "MyStudyPlanner",
+    url: "https://mystudyplanner.co",
   },
   audience: {
     "@type": "EducationalAudience",
     educationalRole: "student",
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "Study Planner for Students | MyStudyPlanner";
+  const description =
+    "A calm online study planner for students. Track assignments, homework, exams, study sessions, and marks in one simple place.";
+
+  return {
+    metadataBase: new URL("https://mystudyplanner.co"),
+    title,
+    description,
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      title,
+      description,
+      url: "/",
+      siteName: "MyStudyPlanner",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 export default async function Page() {
   const { userId } = await auth();
@@ -208,7 +175,7 @@ export default async function Page() {
               MyStudyPlanner
             </span>
             <span className="text-[11px] text-muted-foreground">
-              Built by students, for students
+              Built for student life
             </span>
           </div>
 
@@ -237,29 +204,22 @@ export default async function Page() {
 
           <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:px-10 md:py-24">
             <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
-              Trusted by over 1,000 students
+              Calm planning for school and uni
             </div>
 
-            <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
-              The study planner built for real student life.
+            <h1 className="mx-auto mt-5 max-w-4xl text-4xl font-semibold tracking-tight text-foreground md:text-6xl md:leading-[1.05]">
+              A simple study planner for students who want everything in one
+              place
             </h1>
 
-            <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-              MyStudyPlanner is a calm study planner for students who want one
-              place to track assignments, exams, homework, study sessions,
-              marks, and reminders without using five different tools.
+            <p className="mx-auto mt-5 max-w-3xl text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
+              MyStudyPlanner is an online study planner for students who want a
+              clear way to manage assignments, homework, exams, study sessions,
+              marks, and reminders without turning planning into a second job.
+              It is built for high school and university students who prefer a
+              calm layout, simple structure, and a planner that is easy to keep
+              using throughout the semester.
             </p>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {featurePills.map((feature) => (
-                <span
-                  key={feature}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
-                >
-                  {feature}
-                </span>
-              ))}
-            </div>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link
@@ -278,35 +238,39 @@ export default async function Page() {
             </div>
 
             <p className="mt-5 text-sm text-muted-foreground">
-              Free account available. Premium from{" "}
+              Free to start. Premium from{" "}
               <span className="font-medium text-foreground">US$2.99/month</span>.
             </p>
-
-            <a
-              href="#features-section"
-              className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-            >
-              <span>See how it works</span>
-              <span
-                aria-hidden="true"
-                className="inline-block animate-bounce text-sm"
-              >
-                ↓
-              </span>
-            </a>
           </div>
         </section>
 
-        <section id="features-section" className="border-t border-border">
-          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
+        <section className="border-t border-border">
+          <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Everything students actually need.
+                Why students use MyStudyPlanner
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                A simple student planner app and online study planner for high
-                school and university students who want the essentials done
-                well.
+                Many students try to manage study with a mix of notes apps,
+                calendars, reminders, and spreadsheets. That can work for a
+                while, but it often becomes messy once assignments, exams, and
+                weekly study sessions start stacking up. MyStudyPlanner gives
+                you one place to see what is due, what you should work on next,
+                and how your term is looking overall.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                The goal is not to gamify your day or fill your screen with
+                widgets. The goal is to help you feel organised and a little
+                less mentally crowded. You can add tasks, plan study blocks, log
+                what you have done, and keep track of results with a layout that
+                feels steady and easy to return to. If you are looking for a{" "}
+                <Link
+                  href="/student-planner-app"
+                  className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                >
+                  student planner app
+                </Link>{" "}
+                that stays simple, this is where MyStudyPlanner fits.
               </p>
             </div>
 
@@ -336,105 +300,145 @@ export default async function Page() {
           </div>
         </section>
 
-        <section id="demo-section" className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
+        <section className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-5xl px-6 py-14 md:px-10 md:py-16">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="text-sm text-muted-foreground">
-                Try the real product
-              </div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Try the full planner before signing up
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                One planner for assignments, exams, and weekly study
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Open the interactive demo and click through the actual
-                dashboard, calendar, tasks, study log, insights, marks,
-                reminders, and settings.
+                A good study planner for students should help with everyday work
+                as well as the bigger deadlines that shape a term. That means
+                being able to track homework, stay ahead of assignments, plan
+                revision before exams, and review your marks without jumping
+                between different tools. MyStudyPlanner is designed around that
+                real student routine.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                If you mainly need help managing due dates, you can explore the{" "}
+                <Link
+                  href="/assignment-tracker-for-students"
+                  className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                >
+                  assignment tracker for students
+                </Link>{" "}
+                page. If exam periods are where things usually feel heavy, take
+                a look at the{" "}
+                <Link
+                  href="/exam-planner"
+                  className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                >
+                  exam planner
+                </Link>{" "}
+                guide. Students who want a no cost way to get started can also
+                read about the{" "}
+                <Link
+                  href="/free-study-planner"
+                  className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                >
+                  free study planner
+                </Link>{" "}
+                option. These pages explain different use cases, but the core
+                idea stays the same: one calm system that helps you stay on top
+                of study without extra noise.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                Because it runs in the browser, MyStudyPlanner also works well
+                as an{" "}
+                <Link
+                  href="/online-study-planner"
+                  className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                >
+                  online study planner
+                </Link>{" "}
+                that you can open from anywhere. You do not need a complicated
+                setup to get started. Add your subjects, enter upcoming work,
+                and begin planning from there.
               </p>
             </div>
+          </div>
+        </section>
 
-            <div className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.15fr_0.85fr] md:items-center">
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground">
-                    See the real experience, not just screenshots
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
-                    The demo is the fastest way to understand how
-                    MyStudyPlanner feels in use. No account needed.
-                  </p>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
-                      Full product preview
-                    </span>
-                    <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
-                      Sample data included
-                    </span>
-                    <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
-                      No account needed
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 md:items-end">
+        <section className="border-t border-border">
+          <div className="mx-auto max-w-5xl px-6 py-14 md:px-10 md:py-16">
+            <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:items-start">
+              <div>
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                  Built for high school and university students
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                  Student life looks different depending on where you are
+                  studying. High school students often need a clear homework and
+                  exam routine, while university students usually manage more
+                  independent scheduling across lectures, tutorials, readings,
+                  and major assessments. MyStudyPlanner is flexible enough for
+                  both, while keeping the same simple structure.
+                </p>
+                <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                  If you are at school and want something that feels easy to use
+                  every day, visit the{" "}
                   <Link
-                    href="/demo"
-                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95 md:w-[220px]"
+                    href="/study-planner-for-high-school-students"
+                    className="text-foreground underline underline-offset-4 transition hover:text-primary"
                   >
-                    Try the demo first
-                  </Link>
-                  <p className="text-center text-xs text-muted-foreground md:w-[220px] md:text-right">
-                    Jump straight into the live preview.
-                  </p>
+                    study planner for high school students
+                  </Link>{" "}
+                  page. If you are at uni and need a better way to keep track of
+                  longer assignments and shifting deadlines, the{" "}
+                  <Link
+                    href="/study-planner-for-university-students"
+                    className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                  >
+                    study planner for university students
+                  </Link>{" "}
+                  page is a good place to start. You can also use marks tracking
+                  to review results over time on the{" "}
+                  <Link
+                    href="/marks-tracker-for-students"
+                    className="text-foreground underline underline-offset-4 transition hover:text-primary"
+                  >
+                    marks tracker for students
+                  </Link>{" "}
+                  page.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+                <h3 className="text-xl font-semibold text-foreground">
+                  Try the real planner before signing up
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
+                  The demo lets you explore the actual layout and see how the
+                  planner works with sample subjects, tasks, and study data. It
+                  is a simple way to decide whether the structure feels right
+                  for you before creating an account.
+                </p>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                    No account needed
+                  </span>
+                  <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                    Sample planner data
+                  </span>
+                  <span className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                    Real product preview
+                  </span>
                 </div>
+
+                <Link
+                  href="/demo"
+                  className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
+                >
+                  Open the demo
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
         <section className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Free to start. Premium when you need more.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                Start with the core planner for free. Upgrade later for marks,
-                insights, and future advanced features.
-              </p>
-            </div>
-
-            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-sm font-semibold text-foreground">
-                  Free
-                </div>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Organise assignments, homework, exams, reminders, and study
-                  sessions in one place.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold text-foreground">
-                    Premium
-                  </div>
-                  <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
-                    From US$2.99/month
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Unlock marks tracking, insights, and more advanced features as
-                  MyStudyPlanner grows.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border">
-          <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
+          <div className="mx-auto max-w-6xl px-6 py-14 md:px-10 md:py-16">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                 What students are saying
@@ -465,13 +469,77 @@ export default async function Page() {
         </section>
 
         <section className="border-t border-border">
+          <div className="mx-auto max-w-4xl px-6 py-14 md:px-10 md:py-16">
+            <div className="text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Frequently asked questions
+              </h2>
+            </div>
+
+            <div className="mt-10 space-y-6">
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground">
+                  What is the best study planner for students?
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  The best study planner for students is one that is easy to use
+                  consistently. For most students, that means having assignments,
+                  homework, exams, study sessions, and reminders in one place.
+                  MyStudyPlanner is designed around that simple idea, so you can
+                  stay organised without feeling overloaded by features.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Is MyStudyPlanner good for university students?
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  Yes. University students can use MyStudyPlanner to keep track
+                  of large assignments, revision periods, weekly study blocks,
+                  and subject results. The layout works well when you need a
+                  clear overview of the term but still want something simple to
+                  update each day.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Can I use MyStudyPlanner as a free online study planner?
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  Yes. You can start with a free account and use the planner in
+                  your browser as an online study planner. That makes it easy to
+                  manage subjects, due dates, and study sessions from one place
+                  before deciding whether you want premium features later.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Does MyStudyPlanner track assignments and exam dates?
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  Yes. MyStudyPlanner helps students track assignment deadlines,
+                  homework, study sessions, and exam dates together. This is
+                  useful when you want to see both your upcoming work and your
+                  revision plan in the same planner instead of splitting them
+                  across different tools.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border">
           <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-14 text-center md:px-10 md:py-16">
             <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-              Ready to get organised?
+              Start planning with less clutter
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-              Try the demo first or create your account and start planning
-              properly.
+              Try the demo to see how MyStudyPlanner works, or create a free
+              account and begin with your subjects, tasks, and upcoming due
+              dates today.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -488,31 +556,6 @@ export default async function Page() {
               >
                 Create free account
               </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-6xl px-6 py-10 md:px-10">
-            <div className="text-center">
-              <h2 className="text-lg font-semibold text-foreground">
-                Explore more student planning guides
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Helpful pages for different study needs and student workflows.
-              </p>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm">
-              {seoLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-muted-foreground transition hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
             </div>
           </div>
         </section>
