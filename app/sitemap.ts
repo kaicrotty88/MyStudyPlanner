@@ -29,7 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/exam-planner", priority: 0.9, changeFrequency: "monthly" },
     { path: "/homework-planner-for-students", priority: 0.8, changeFrequency: "monthly" },
     { path: "/marks-tracker-for-students", priority: 0.8, changeFrequency: "monthly" },
-    { path: "/study-planner-for-high-school-students", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/study-planner-for-high-school-students", priority: 0.9, changeFrequency: "monthly" },
 
     { path: "/online-study-planner", priority: 0.8, changeFrequency: "monthly" },
     { path: "/free-study-planner", priority: 0.7, changeFrequency: "monthly" },
@@ -39,6 +39,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return routes.map((route) => ({
     url: `${baseUrl}${route.path}`,
+    lastModified: new Date(),
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }));
