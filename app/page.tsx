@@ -3,9 +3,22 @@ import Link from "next/link";
 import Script from "next/script";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  LineChart,
+  BarChart3,
+} from "lucide-react";
 
 type Feature = {
-  icon: string;
+  icon: LucideIcon;
+  iconBgClassName: string;
+  iconClassName: string;
   title: string;
   description: string;
   premium?: boolean;
@@ -15,6 +28,8 @@ type Testimonial = {
   quote: string;
   name: string;
   detail: string;
+  initials: string;
+  avatarClassName: string;
 };
 
 const featurePills = [
@@ -28,39 +43,51 @@ const featurePills = [
 
 const features: Feature[] = [
   {
-    icon: "🗓️",
+    icon: CalendarDays,
+    iconBgClassName: "bg-[#E6F0DD]",
+    iconClassName: "text-[#517535]",
     title: "Calendar view",
     description:
       "See assignments, exams, and study sessions colour-coded by subject at a glance.",
   },
   {
-    icon: "✅",
+    icon: CheckCircle2,
+    iconBgClassName: "bg-[#E4EEF9]",
+    iconClassName: "text-[#336CB3]",
     title: "Tasks & deadlines",
     description:
       "Assignments, homework, and exams grouped together so nothing gets buried or forgotten.",
   },
   {
-    icon: "🕒",
+    icon: Clock3,
+    iconBgClassName: "bg-[#F5EAD6]",
+    iconClassName: "text-[#A66A12]",
     title: "Study log",
     description:
       "Log sessions fast and link them to the assignment you're working on.",
   },
   {
-    icon: "📊",
+    icon: BarChart3,
+    iconBgClassName: "bg-[#ECE8FB]",
+    iconClassName: "text-[#6E5ACF]",
     title: "Marks tracking",
     description:
       "Record results across all subjects and see where you need the most attention.",
     premium: true,
   },
   {
-    icon: "📈",
+    icon: LineChart,
+    iconBgClassName: "bg-[#E1F3EE]",
+    iconClassName: "text-[#178063]",
     title: "Insights",
     description:
       "Track streaks, daily averages, and your strongest subjects without leaving the app.",
     premium: true,
   },
   {
-    icon: "🔔",
+    icon: Bell,
+    iconBgClassName: "bg-[#F8E7EE]",
+    iconClassName: "text-[#B14573]",
     title: "Reminders",
     description:
       "Quick notes for life stuff, not assignments. Pack your bag, email a teacher, buy new pens.",
@@ -73,18 +100,24 @@ const testimonials: Testimonial[] = [
       "Finally a planner that doesn't make me feel like I need a productivity degree to use it. I actually open it every day.",
     name: "Aisha R.",
     detail: "Year 12, Sydney",
+    initials: "AR",
+    avatarClassName: "bg-[#E6F0DD] text-[#517535]",
   },
   {
     quote:
       "The study log linking back to assignments is so useful. I can see exactly how much time I've put into each subject.",
     name: "James T.",
     detail: "First year uni, Melbourne",
+    initials: "JT",
+    avatarClassName: "bg-[#E4EEF9] text-[#336CB3]",
   },
   {
     quote:
       "I tried Notion, I tried Google Calendar. This is the first thing that actually stuck because it's built around school, not work.",
     name: "Priya K.",
     detail: "Year 11, Brisbane",
+    initials: "PK",
+    avatarClassName: "bg-[#F8E7EE] text-[#B14573]",
   },
 ];
 
@@ -214,6 +247,120 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+function HeroMockup() {
+  const upcomingTasks = [
+    {
+      title: "Calculus problem set",
+      tag: "Maths",
+      tagClassName: "bg-[#E4EEF9] text-[#336CB3]",
+      done: true,
+    },
+    {
+      title: "Essay draft — Gatsby",
+      tag: "English",
+      tagClassName: "bg-[#F5EAD6] text-[#A66A12]",
+      done: false,
+    },
+    {
+      title: "Lab report write-up",
+      tag: "Science",
+      tagClassName: "bg-[#E6F0DD] text-[#517535]",
+      done: false,
+    },
+    {
+      title: "Cold War revision notes",
+      tag: "History",
+      tagClassName: "bg-[#F8E7EE] text-[#B14573]",
+      done: false,
+    },
+  ];
+
+  return (
+    <div className="relative mx-auto w-full max-w-[520px]">
+      <div className="absolute inset-0 -z-10 rounded-[2rem] bg-primary/10 blur-3xl" />
+      <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-5 py-4">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#EF6A5B]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#F2C14E]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#58C06D]" />
+          <span className="ml-3 text-xs text-muted-foreground">
+            mystudyplanner.co
+          </span>
+        </div>
+
+        <div className="grid grid-cols-[110px_1fr]">
+          <div className="border-r border-border bg-muted/20 px-4 py-5">
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg bg-[#E6F0DD] px-3 py-2 font-medium text-[#517535]">
+                Dashboard
+              </div>
+              <div className="px-3 py-1.5 text-muted-foreground">Calendar</div>
+              <div className="px-3 py-1.5 text-muted-foreground">Tasks</div>
+              <div className="px-3 py-1.5 text-muted-foreground">Study log</div>
+              <div className="px-3 py-1.5 text-muted-foreground">Marks</div>
+              <div className="px-3 py-1.5 text-muted-foreground">Insights</div>
+            </div>
+          </div>
+
+          <div className="px-5 py-5">
+            <div className="text-sm font-medium text-foreground">This week</div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-border bg-background p-4">
+                <div className="text-2xl font-semibold text-foreground">4</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  due soon
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-background p-4">
+                <div className="text-2xl font-semibold text-foreground">2</div>
+                <div className="mt-1 text-xs text-muted-foreground">exams</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-background p-4">
+                <div className="text-2xl font-semibold text-foreground">
+                  6.2h
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  studied
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 text-sm font-medium text-foreground">
+              Upcoming tasks
+            </div>
+
+            <div className="mt-3 space-y-3">
+              {upcomingTasks.map((task) => (
+                <div
+                  key={task.title}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`h-4 w-4 rounded-full border ${
+                        task.done
+                          ? "border-[#517535] bg-[#517535]"
+                          : "border-muted-foreground/40 bg-transparent"
+                      }`}
+                    />
+                    <span className="text-sm text-foreground">{task.title}</span>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${task.tagClassName}`}
+                  >
+                    {task.tag}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function Page() {
   const { userId } = await auth();
 
@@ -262,75 +409,82 @@ export default async function Page() {
       <main>
         <section className="relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 -z-10">
-            <div className="absolute left-1/2 top-10 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:top-12 md:h-80 md:w-80" />
+            <div className="absolute left-1/2 top-12 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:h-96 md:w-96" />
           </div>
 
-          <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:px-10 md:py-24">
-            <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
-              Trusted by over 1,000 students
-            </div>
+          <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:px-10 md:py-24 lg:grid-cols-[1fr_1.05fr] lg:items-center">
+            <div className="text-center lg:text-left">
+              <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
+                Trusted by over 1,000 students
+              </div>
 
-            <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
-              The study planner built for real student life.
-            </h1>
+              <h1 className="mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95] lg:max-w-[9ch]">
+                The study planner built for real student life.
+              </h1>
 
-            <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-              MyStudyPlanner is a calm study planner for students who want one
-              place to track assignments, exams, homework, study sessions,
-              marks, and reminders without using five different tools.
-            </p>
+              <p className="mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8 lg:max-w-xl">
+                MyStudyPlanner is a calm study planner for students who want one
+                place to track assignments, exams, homework, study sessions,
+                marks, and reminders without using five different tools.
+              </p>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {featurePills.map((feature) => (
-                <span
-                  key={feature}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                {featurePills.map((feature) => (
+                  <span
+                    key={feature}
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
+                <Link
+                  href="/demo"
+                  className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
                 >
-                  {feature}
+                  Try the demo first
+                </Link>
+
+                <Link
+                  href="/sign-up"
+                  className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
+                >
+                  Create free account
+                </Link>
+              </div>
+
+              <p className="mt-5 text-sm text-muted-foreground">
+                Free account available. Premium from{" "}
+                <span className="font-medium text-foreground">US$2.99/month</span>.
+              </p>
+
+              <a
+                href="#features-section"
+                className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground lg:items-start"
+              >
+                <span>See how it works</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-block animate-bounce text-sm"
+                >
+                  ↓
                 </span>
-              ))}
+              </a>
             </div>
 
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-              <Link
-                href="/demo"
-                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
-              >
-                Try the demo first
-              </Link>
-
-              <Link
-                href="/sign-up"
-                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
-              >
-                Create free account
-              </Link>
-            </div>
-
-            <p className="mt-5 text-sm text-muted-foreground">
-              Free account available. Premium from{" "}
-              <span className="font-medium text-foreground">US$2.99/month</span>.
-            </p>
-
-            <a
-              href="#features-section"
-              className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-            >
-              <span>See how it works</span>
-              <span
-                aria-hidden="true"
-                className="inline-block animate-bounce text-sm"
-              >
-                ↓
-              </span>
-            </a>
+            <HeroMockup />
           </div>
         </section>
 
         <section id="features-section" className="border-t border-border">
           <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+              <div className="text-sm font-medium uppercase tracking-[0.16em] text-[#517535]">
+                Features
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                 Everything students actually need.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
@@ -341,27 +495,37 @@ export default async function Page() {
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {features.map((feature) => (
-                <div
-                  key={feature.title}
-                  className="rounded-3xl border border-border bg-card p-6 shadow-sm"
-                >
-                  <div className="text-2xl">{feature.icon}</div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {feature.title}
-                    </h3>
-                    {feature.premium ? (
-                      <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
-                        Premium
-                      </span>
-                    ) : null}
+              {features.map((feature) => {
+                const Icon = feature.icon;
+
+                return (
+                  <div
+                    key={feature.title}
+                    className="rounded-3xl border border-border bg-card p-6 shadow-sm"
+                  >
+                    <div
+                      className={`inline-flex rounded-2xl p-3 ${feature.iconBgClassName}`}
+                    >
+                      <Icon className={`h-5 w-5 ${feature.iconClassName}`} />
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {feature.title}
+                      </h3>
+                      {feature.premium ? (
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                          Premium
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                      {feature.description}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -422,52 +586,91 @@ export default async function Page() {
           </div>
         </section>
 
-        <section className="border-t border-border bg-muted/20">
+        <section className="border-t border-border bg-[#151714] text-white">
           <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+              <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
                 Free to start. Premium when you need more.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+              <p className="mt-4 text-sm leading-7 text-white/70 md:text-base">
                 Start with the core planner for free. Upgrade later for marks,
                 insights, and future advanced features.
               </p>
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-sm font-semibold text-foreground">Free</div>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Organise assignments, homework, exams, reminders, and study
-                  sessions in one place.
-                </p>
-                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                  <li>• Assignments and homework</li>
-                  <li>• Exam dates and study sessions</li>
-                  <li>• Subject planning</li>
-                  <li>• Reminders</li>
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-sm backdrop-blur">
+                <div className="text-sm font-semibold uppercase tracking-[0.12em] text-white/70">
+                  Free
+                </div>
+                <div className="mt-3 text-5xl font-semibold">$0</div>
+                <p className="mt-2 text-sm text-white/70">Forever free</p>
+
+                <ul className="mt-6 space-y-3 text-sm text-white/90">
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
+                    Assignments & homework
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
+                    Exam dates & study sessions
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
+                    Subject planning
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
+                    Reminders
+                  </li>
                 </ul>
+
+                <Link
+                  href="/sign-up"
+                  className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 text-sm font-medium text-white transition hover:bg-white/10"
+                >
+                  Get started free
+                </Link>
               </div>
 
-              <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
+              <div className="rounded-3xl border border-[#4E8A14] bg-[#38750A] p-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold text-foreground">
+                  <div className="text-sm font-semibold uppercase tracking-[0.12em] text-[#D4F0BC]">
                     Premium
                   </div>
-                  <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
-                    From US$2.99/month
+                  <span className="rounded-full bg-[#4F8919] px-2.5 py-1 text-[11px] font-semibold text-[#E6F5D8]">
+                    Recommended
                   </span>
                 </div>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Unlock marks tracking, insights, and more advanced features as
-                  MyStudyPlanner grows.
-                </p>
-                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                  <li>• Marks tracking</li>
-                  <li>• Insights</li>
-                  <li>• Stronger subject visibility</li>
-                  <li>• Advanced features as released</li>
+
+                <div className="mt-3 text-5xl font-semibold">US$2.99</div>
+                <p className="mt-2 text-sm text-[#E6F5D8]">per month</p>
+
+                <ul className="mt-6 space-y-3 text-sm text-white">
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    Everything in Free
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    Marks tracking
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    Insights & stronger visibility
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    Advanced features as released
+                  </li>
                 </ul>
+
+                <Link
+                  href="/sign-up"
+                  className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-xl border border-[#316707] bg-[#3D770F] px-6 text-sm font-medium text-white transition hover:bg-[#35670F]"
+                >
+                  Start with Premium
+                </Link>
               </div>
             </div>
           </div>
@@ -476,8 +679,11 @@ export default async function Page() {
         <section className="border-t border-border">
           <div className="mx-auto max-w-6xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                What students are saying
+              <div className="text-sm font-medium uppercase tracking-[0.16em] text-[#517535]">
+                Students say
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Built around school, not work.
               </h2>
             </div>
 
@@ -487,15 +693,23 @@ export default async function Page() {
                   key={testimonial.name}
                   className="rounded-3xl border border-border bg-card p-6 shadow-sm"
                 >
-                  <p className="text-sm leading-7 text-foreground">
+                  <p className="text-sm leading-8 text-foreground">
                     “{testimonial.quote}”
                   </p>
-                  <div className="mt-5">
-                    <div className="text-sm font-semibold text-foreground">
-                      {testimonial.name}
+
+                  <div className="mt-6 flex items-center gap-3">
+                    <div
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${testimonial.avatarClassName}`}
+                    >
+                      {testimonial.initials}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {testimonial.detail}
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">
+                        {testimonial.name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {testimonial.detail}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -564,7 +778,7 @@ export default async function Page() {
           </div>
         </section>
 
-        <section className="border-t border-border">
+        <section className="border-t border-border bg-[#E8F0DD]">
           <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-14 text-center md:px-10 md:py-16">
             <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
               Ready to get organised?
@@ -577,14 +791,14 @@ export default async function Page() {
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link
                 href="/demo"
-                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
+                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-background/70"
               >
                 Try the demo first
               </Link>
 
               <Link
                 href="/sign-up"
-                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
+                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-background/70"
               >
                 Create free account
               </Link>
@@ -603,14 +817,15 @@ export default async function Page() {
               </p>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {seoLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-muted-foreground transition hover:text-foreground"
+                  className="group flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm transition hover:bg-background"
                 >
-                  {link.label}
+                  <span>{link.label}</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground transition group-hover:text-foreground" />
                 </Link>
               ))}
             </div>
@@ -619,7 +834,8 @@ export default async function Page() {
 
         <footer className="border-t border-border py-8">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 sm:flex-row sm:items-center sm:justify-between md:px-10">
-            <div className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
               © {new Date().getFullYear()} MyStudyPlanner
             </div>
 
