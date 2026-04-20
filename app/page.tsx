@@ -247,120 +247,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function HeroMockup() {
-  const upcomingTasks = [
-    {
-      title: "Calculus problem set",
-      tag: "Maths",
-      tagClassName: "bg-[#E4EEF9] text-[#336CB3]",
-      done: true,
-    },
-    {
-      title: "Essay draft — Gatsby",
-      tag: "English",
-      tagClassName: "bg-[#F5EAD6] text-[#A66A12]",
-      done: false,
-    },
-    {
-      title: "Lab report write-up",
-      tag: "Science",
-      tagClassName: "bg-[#E6F0DD] text-[#517535]",
-      done: false,
-    },
-    {
-      title: "Cold War revision notes",
-      tag: "History",
-      tagClassName: "bg-[#F8E7EE] text-[#B14573]",
-      done: false,
-    },
-  ];
-
-  return (
-    <div className="relative mx-auto w-full max-w-[520px]">
-      <div className="absolute inset-0 -z-10 rounded-[2rem] bg-primary/10 blur-3xl" />
-      <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-5 py-4">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#EF6A5B]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#F2C14E]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#58C06D]" />
-          <span className="ml-3 text-xs text-muted-foreground">
-            mystudyplanner.co
-          </span>
-        </div>
-
-        <div className="grid grid-cols-[110px_1fr]">
-          <div className="border-r border-border bg-muted/20 px-4 py-5">
-            <div className="space-y-3 text-sm">
-              <div className="rounded-lg bg-[#E6F0DD] px-3 py-2 font-medium text-[#517535]">
-                Dashboard
-              </div>
-              <div className="px-3 py-1.5 text-muted-foreground">Calendar</div>
-              <div className="px-3 py-1.5 text-muted-foreground">Tasks</div>
-              <div className="px-3 py-1.5 text-muted-foreground">Study log</div>
-              <div className="px-3 py-1.5 text-muted-foreground">Marks</div>
-              <div className="px-3 py-1.5 text-muted-foreground">Insights</div>
-            </div>
-          </div>
-
-          <div className="px-5 py-5">
-            <div className="text-sm font-medium text-foreground">This week</div>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-border bg-background p-4">
-                <div className="text-2xl font-semibold text-foreground">4</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  due soon
-                </div>
-              </div>
-              <div className="rounded-2xl border border-border bg-background p-4">
-                <div className="text-2xl font-semibold text-foreground">2</div>
-                <div className="mt-1 text-xs text-muted-foreground">exams</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-background p-4">
-                <div className="text-2xl font-semibold text-foreground">
-                  6.2h
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  studied
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 text-sm font-medium text-foreground">
-              Upcoming tasks
-            </div>
-
-            <div className="mt-3 space-y-3">
-              {upcomingTasks.map((task) => (
-                <div
-                  key={task.title}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`h-4 w-4 rounded-full border ${
-                        task.done
-                          ? "border-[#517535] bg-[#517535]"
-                          : "border-muted-foreground/40 bg-transparent"
-                      }`}
-                    />
-                    <span className="text-sm text-foreground">{task.title}</span>
-                  </div>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${task.tagClassName}`}
-                  >
-                    {task.tag}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default async function Page() {
   const { userId } = await auth();
 
@@ -409,72 +295,68 @@ export default async function Page() {
       <main>
         <section className="relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 -z-10">
-            <div className="absolute left-1/2 top-12 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:h-96 md:w-96" />
+            <div className="absolute left-1/2 top-10 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:top-12 md:h-80 md:w-80" />
           </div>
 
-          <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:px-10 md:py-24 lg:grid-cols-[1fr_1.05fr] lg:items-center">
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
-                Trusted by over 1,000 students
-              </div>
-
-              <h1 className="mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95] lg:max-w-[9ch]">
-                The study planner built for real student life.
-              </h1>
-
-              <p className="mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8 lg:max-w-xl">
-                MyStudyPlanner is a calm study planner for students who want one
-                place to track assignments, exams, homework, study sessions,
-                marks, and reminders without using five different tools.
-              </p>
-
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-                {featurePills.map((feature) => (
-                  <span
-                    key={feature}
-                    className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
-                  >
-                    {feature}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
-                <Link
-                  href="/demo"
-                  className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
-                >
-                  Try the demo first
-                </Link>
-
-                <Link
-                  href="/sign-up"
-                  className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
-                >
-                  Create free account
-                </Link>
-              </div>
-
-              <p className="mt-5 text-sm text-muted-foreground">
-                Free account available. Premium from{" "}
-                <span className="font-medium text-foreground">US$2.99/month</span>.
-              </p>
-
-              <a
-                href="#features-section"
-                className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground lg:items-start"
-              >
-                <span>See how it works</span>
-                <span
-                  aria-hidden="true"
-                  className="inline-block animate-bounce text-sm"
-                >
-                  ↓
-                </span>
-              </a>
+          <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:px-10 md:py-24">
+            <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
+              Trusted by over 1,000 students
             </div>
 
-            <HeroMockup />
+            <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
+              The study planner built for real student life.
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
+              MyStudyPlanner is a calm study planner for students who want one
+              place to track assignments, exams, homework, study sessions,
+              marks, and reminders without using five different tools.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {featurePills.map((feature) => (
+                <span
+                  key={feature}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+                >
+                  {feature}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+              <Link
+                href="/demo"
+                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
+              >
+                Try the demo first
+              </Link>
+
+              <Link
+                href="/sign-up"
+                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
+              >
+                Create free account
+              </Link>
+            </div>
+
+            <p className="mt-5 text-sm text-muted-foreground">
+              Free account available. Premium from{" "}
+              <span className="font-medium text-foreground">US$2.99/month</span>.
+            </p>
+
+            <a
+              href="#features-section"
+              className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+            >
+              <span>See how it works</span>
+              <span
+                aria-hidden="true"
+                className="inline-block animate-bounce text-sm"
+              >
+                ↓
+              </span>
+            </a>
           </div>
         </section>
 
@@ -586,27 +468,31 @@ export default async function Page() {
           </div>
         </section>
 
-        <section className="border-t border-border bg-[#151714] text-white">
+        <section className="border-t border-border bg-muted/20">
           <div className="mx-auto max-w-5xl px-6 py-12 md:px-10 md:py-14">
             <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                 Free to start. Premium when you need more.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-white/70 md:text-base">
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
                 Start with the core planner for free. Upgrade later for marks,
                 insights, and future advanced features.
               </p>
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-sm backdrop-blur">
-                <div className="text-sm font-semibold uppercase tracking-[0.12em] text-white/70">
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <div className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Free
                 </div>
-                <div className="mt-3 text-5xl font-semibold">$0</div>
-                <p className="mt-2 text-sm text-white/70">Forever free</p>
+                <div className="mt-3 text-5xl font-semibold text-foreground">
+                  $0
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Forever free
+                </p>
 
-                <ul className="mt-6 space-y-3 text-sm text-white/90">
+                <ul className="mt-6 space-y-3 text-sm text-foreground">
                   <li className="flex items-center gap-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
                     Assignments & homework
@@ -627,47 +513,49 @@ export default async function Page() {
 
                 <Link
                   href="/sign-up"
-                  className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 text-sm font-medium text-white transition hover:bg-white/10"
+                  className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-6 text-sm font-medium text-foreground transition hover:bg-muted/60"
                 >
                   Get started free
                 </Link>
               </div>
 
-              <div className="rounded-3xl border border-[#4E8A14] bg-[#38750A] p-6 shadow-sm">
+              <div className="rounded-3xl border border-[#7A9B7F] bg-[#F8FBF8] p-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm font-semibold uppercase tracking-[0.12em] text-[#D4F0BC]">
+                  <div className="text-sm font-semibold uppercase tracking-[0.12em] text-[#5E7A63]">
                     Premium
                   </div>
-                  <span className="rounded-full bg-[#4F8919] px-2.5 py-1 text-[11px] font-semibold text-[#E6F5D8]">
+                  <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
                     Recommended
                   </span>
                 </div>
 
-                <div className="mt-3 text-5xl font-semibold">US$2.99</div>
-                <p className="mt-2 text-sm text-[#E6F5D8]">per month</p>
+                <div className="mt-3 text-5xl font-semibold text-foreground">
+                  US$2.99
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">per month</p>
 
-                <ul className="mt-6 space-y-3 text-sm text-white">
+                <ul className="mt-6 space-y-3 text-sm text-foreground">
                   <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
                     Everything in Free
                   </li>
                   <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
                     Marks tracking
                   </li>
                   <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
                     Insights & stronger visibility
                   </li>
                   <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#D4F0BC]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
                     Advanced features as released
                   </li>
                 </ul>
 
                 <Link
                   href="/sign-up"
-                  className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-xl border border-[#316707] bg-[#3D770F] px-6 text-sm font-medium text-white transition hover:bg-[#35670F]"
+                  className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
                 >
                   Start with Premium
                 </Link>
