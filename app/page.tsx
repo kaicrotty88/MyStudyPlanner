@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
 import { auth } from "@clerk/nextjs/server";
@@ -298,65 +299,80 @@ export default async function Page() {
             <div className="absolute left-1/2 top-10 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/8 blur-3xl md:top-12 md:h-80 md:w-80" />
           </div>
 
-          <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:px-10 md:py-24">
-            <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
-              Trusted by over 1,000 students
-            </div>
+          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:px-10 md:py-24 lg:grid-cols-[1fr_1.05fr] lg:items-center">
+            <div className="text-center lg:text-left">
+              <div className="inline-flex items-center rounded-full border border-[#D7E4D9] bg-[#F7FAF7] px-3 py-1 text-xs font-medium text-[#5E7A63]">
+                Trusted by over 1,000 students
+              </div>
 
-            <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
-              The study planner built for real student life.
-            </h1>
+              <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95] lg:mx-0">
+                The study planner built for real student life.
+              </h1>
 
-            <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-              MyStudyPlanner is a calm study planner for students who want one
-              place to track assignments, exams, homework, study sessions,
-              marks, and reminders without using five different tools.
-            </p>
+              <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8 lg:mx-0 lg:max-w-xl">
+                MyStudyPlanner is a calm study planner for students who want one
+                place to track assignments, exams, homework, study sessions,
+                marks, and reminders without using five different tools.
+              </p>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              {featurePills.map((feature) => (
-                <span
-                  key={feature}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                {featurePills.map((feature) => (
+                  <span
+                    key={feature}
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
+                <Link
+                  href="/demo"
+                  className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
                 >
-                  {feature}
+                  Try the demo first
+                </Link>
+
+                <Link
+                  href="/sign-up"
+                  className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
+                >
+                  Create free account
+                </Link>
+              </div>
+
+              <p className="mt-5 text-sm text-muted-foreground">
+                Free account available. Premium from{" "}
+                <span className="font-medium text-foreground">US$2.99/month</span>.
+              </p>
+
+              <a
+                href="#features-section"
+                className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground lg:items-start"
+              >
+                <span>See how it works</span>
+                <span
+                  aria-hidden="true"
+                  className="inline-block animate-bounce text-sm"
+                >
+                  ↓
                 </span>
-              ))}
+              </a>
             </div>
 
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-              <Link
-                href="/demo"
-                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
-              >
-                Try the demo first
-              </Link>
-
-              <Link
-                href="/sign-up"
-                className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
-              >
-                Create free account
-              </Link>
+            <div className="mx-auto w-full max-w-3xl">
+              <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.08)]">
+                <Image
+                  src="/dashboard-homepage.png"
+                  alt="MyStudyPlanner dashboard showing today's study sessions and upcoming assignments and exams"
+                  width={1664}
+                  height={936}
+                  priority
+                  className="h-auto w-full"
+                />
+              </div>
             </div>
-
-            <p className="mt-5 text-sm text-muted-foreground">
-              Free account available. Premium from{" "}
-              <span className="font-medium text-foreground">US$2.99/month</span>.
-            </p>
-
-            <a
-              href="#features-section"
-              className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-            >
-              <span>See how it works</span>
-              <span
-                aria-hidden="true"
-                className="inline-block animate-bounce text-sm"
-              >
-                ↓
-              </span>
-            </a>
           </div>
         </section>
 
