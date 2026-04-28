@@ -210,7 +210,7 @@ const softwareApplicationSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Study Planner for Students | MyStudyPlanner";
+  const title = "MyStudyPlanner";
   const description =
     "A calm study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.";
 
