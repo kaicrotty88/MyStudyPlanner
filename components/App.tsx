@@ -130,7 +130,10 @@ const makeDefaultData = () => {
       title: "Read pages 120–145",
       subjectId: "5",
       dueDate: tomorrow,
-      type: "task",
+      type: "homework",
+      scheduledDate: today,
+      startTime: "16:00",
+      duration: "45 min",
       periodId: "p1",
     },
     {
@@ -381,6 +384,8 @@ const makeDefaultData = () => {
       id: "r3",
       title: "Buy new pens",
       notes: "Black + blue",
+      dueDate: today,
+      time: "17:30",
       repeat: "none",
       completed: false,
       createdAt: sixDaysAgo,
@@ -625,6 +630,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       pruneAutoDeletedCompletedTasks(
         (parsed.tasks ?? []).map((t: any) => ({
           ...t,
+          type: t?.type === "task" ? "homework" : t?.type,
           dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
           scheduledDate: t?.scheduledDate ? new Date(t.scheduledDate) : undefined,
           completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
@@ -659,14 +665,20 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     );
 
     setReminders(
-      (parsed.reminders ?? []).map((r: any) => ({
-        ...r,
-        title: String(r?.title ?? "").trim(),
-        notes: r?.notes ? String(r.notes) : undefined,
-        dueDate: r?.dueDate ? new Date(r.dueDate) : undefined,
-        completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
-        createdAt: r?.createdAt ? new Date(r.createdAt) : undefined,
-      }))
+      (parsed.reminders ?? []).map((r: any) => {
+        const createdAt = r?.createdAt ? new Date(r.createdAt) : undefined;
+        const dueDate = r?.dueDate ? new Date(r.dueDate) : createdAt ?? new Date();
+
+        return {
+          ...r,
+          title: String(r?.title ?? "").trim(),
+          notes: r?.notes ? String(r.notes) : undefined,
+          dueDate,
+          time: r?.time ? String(r.time) : "09:00",
+          completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
+          createdAt,
+        };
+      })
     );
   };
 
@@ -940,10 +952,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleAddTask = (t: Omit<Task, "id">) => {
     const inferredPeriodId = periodIdForDate(t.dueDate);
+    const safeType = t.type === "task" ? "homework" : t.type;
+
     setTasks((p) => [
       ...p,
       {
         ...t,
+        type: safeType,
         periodId: inferredPeriodId ?? t.periodId,
         id: Date.now().toString(),
       },
@@ -952,10 +967,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleUpdateTask = (id: string, t: Omit<Task, "id">) => {
     const inferredPeriodId = periodIdForDate(t.dueDate);
+    const safeType = t.type === "task" ? "homework" : t.type;
+
     setTasks((p) =>
       p.map((x) =>
         x.id === id
-          ? { ...t, periodId: inferredPeriodId ?? t.periodId, id }
+          ? { ...t, type: safeType, periodId: inferredPeriodId ?? t.periodId, id }
           : x
       )
     );

@@ -33,8 +33,13 @@ type PeriodHydrated = {
   endDate: Date;
 };
 
+type TaskSectionType = "homework" | "assignment" | "exam";
+
 type TaskFormErrors = Partial<
-  Record<"title" | "subjectId" | "dueDate" | "scheduledDate" | "startTime" | "duration", string>
+  Record<
+    "title" | "subjectId" | "dueDate" | "scheduledDate" | "startTime" | "duration",
+    string
+  >
 >;
 
 const RequiredMark = ({ required }: { required?: boolean }) =>
@@ -171,14 +176,31 @@ const dueChip = (dueDate: Date) => {
   return `${d}d`;
 };
 
-const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
+const findMatchingPeriodId = (
+  dueDate: Date,
+  periods: PeriodHydrated[]
+): string | undefined => {
   const t = startOfDay(dueDate).getTime();
+
   for (const p of periods) {
     const a = startOfDay(p.startDate).getTime();
     const b = startOfDay(p.endDate).getTime();
     if (t >= a && t <= b) return p.id;
   }
+
   return undefined;
+};
+
+const typeLabel = (type: TaskSectionType) => {
+  if (type === "assignment") return "Assignment";
+  if (type === "exam") return "Exam";
+  return "Homework";
+};
+
+const sectionLabel = (type: TaskSectionType) => {
+  if (type === "assignment") return "Assignments";
+  if (type === "exam") return "Exams";
+  return "Homework";
 };
 
 interface TasksProps {
@@ -202,14 +224,13 @@ export function Tasks({
 }: TasksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
 
-  const [expandedSections, setExpandedSections] = useState({
-    task: false,
+  const [expandedSections, setExpandedSections] = useState<Record<TaskSectionType, boolean>>({
+    homework: false,
     assignment: false,
     exam: false,
-    homework: false,
   });
 
-  const [showAddForm, setShowAddForm] = useState<"task" | "assignment" | "exam" | "homework" | null>(null);
+  const [showAddForm, setShowAddForm] = useState<TaskSectionType | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -223,25 +244,32 @@ export function Tasks({
   });
 
   const [formErrors, setFormErrors] = useState<TaskFormErrors>({});
-
   const [showCompleted, setShowCompleted] = useState(false);
 
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+
       if (!raw) {
         setPeriods([]);
         return;
       }
+
       const parsed = JSON.parse(raw) as PeriodStored[];
+
       const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
         id: p.id,
         name: p.name,
         startDate: new Date(p.startDate),
         endDate: new Date(p.endDate),
       }));
-      hydrated.sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
+
+      hydrated.sort(
+        (a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime()
+      );
+
       setPeriods(hydrated);
     } catch {
       setPeriods([]);
@@ -250,7 +278,7 @@ export function Tasks({
 
   const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
 
-  const toggleSection = (section: "task" | "assignment" | "exam" | "homework") => {
+  const toggleSection = (section: TaskSectionType) => {
     setExpandedSections((prev) => {
       const next = !prev[section];
 
@@ -264,15 +292,19 @@ export function Tasks({
   };
 
   const filteredTasksBase =
-    selectedSubject === "all" ? tasks : tasks.filter((task) => task.subjectId === selectedSubject);
-  const filteredTasks = showCompleted ? filteredTasksBase : filteredTasksBase.filter((t) => !t.completed);
+    selectedSubject === "all"
+      ? tasks
+      : tasks.filter((task) => task.subjectId === selectedSubject);
+
+  const filteredTasks = showCompleted
+    ? filteredTasksBase
+    : filteredTasksBase.filter((t) => !t.completed);
 
   const tasksByType = useMemo(
     () => ({
-      task: filteredTasks.filter((t) => t.type === "task"),
+      homework: filteredTasks.filter((t) => t.type === "homework" || t.type === "task"),
       assignment: filteredTasks.filter((t) => t.type === "assignment"),
       exam: filteredTasks.filter((t) => t.type === "exam"),
-      homework: filteredTasks.filter((t) => t.type === "homework"),
     }),
     [filteredTasks]
   );
@@ -334,11 +366,10 @@ export function Tasks({
     });
   };
 
-  const handleSubmit = (type: "task" | "assignment" | "exam" | "homework") => {
+  const handleSubmit = (type: TaskSectionType) => {
     if (!validateForm()) return;
 
     const newDueDate = new Date(formData.dueDate);
-
     const nextScheduledDate = formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
     const nextStartTime = formData.startTime.trim() ? formData.startTime.trim() : undefined;
     const nextDuration =
@@ -348,7 +379,8 @@ export function Tasks({
       const existing = tasks.find((t) => t.id === editingId);
 
       const dueChanged =
-        existing?.dueDate && startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
+        existing?.dueDate &&
+        startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
       const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
       const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
@@ -390,6 +422,8 @@ export function Tasks({
   };
 
   const handleEdit = (task: Task) => {
+    const safeType: TaskSectionType = task.type === "task" ? "homework" : task.type;
+
     setEditingId(task.id);
     setFormErrors({});
     setFormData({
@@ -400,8 +434,9 @@ export function Tasks({
       startTime: task.startTime ? time12To24(task.startTime) || task.startTime : "",
       duration: task.duration ?? "60 min",
     });
-    setShowAddForm(task.type);
-    setExpandedSections((prev) => ({ ...prev, [task.type]: true }));
+
+    setShowAddForm(safeType);
+    setExpandedSections((prev) => ({ ...prev, [safeType]: true }));
   };
 
   const handleDelete = (id: string) => {
@@ -420,10 +455,10 @@ export function Tasks({
   const inputOk = "border-border";
   const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
 
-  const renderAddForm = (type: "task" | "assignment" | "exam" | "homework") => (
+  const renderAddForm = (type: TaskSectionType) => (
     <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="text-sm font-semibold text-foreground">
-        {editingId ? "Edit" : "New"} {type}
+        {editingId ? "Edit" : "New"} {typeLabel(type)}
       </div>
 
       <div>
@@ -434,7 +469,7 @@ export function Tasks({
         <input
           id={`task-title-${type}`}
           type="text"
-          placeholder="Title"
+          placeholder={`${typeLabel(type)} title`}
           value={formData.title}
           onChange={(e) => {
             setFormData((p) => ({ ...p, title: e.target.value }));
@@ -507,7 +542,10 @@ export function Tasks({
 
         <div className="mt-3 grid grid-cols-1 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground" htmlFor={`task-scheduled-date-${type}`}>
+            <label
+              className="text-sm font-medium text-foreground"
+              htmlFor={`task-scheduled-date-${type}`}
+            >
               Scheduled date
             </label>
             <input
@@ -526,7 +564,10 @@ export function Tasks({
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-foreground" htmlFor={`task-start-time-${type}`}>
+              <label
+                className="text-sm font-medium text-foreground"
+                htmlFor={`task-start-time-${type}`}
+              >
                 Start time
               </label>
               <input
@@ -549,7 +590,10 @@ export function Tasks({
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground" htmlFor={`task-duration-${type}`}>
+              <label
+                className="text-sm font-medium text-foreground"
+                htmlFor={`task-duration-${type}`}
+              >
                 Duration
               </label>
               <select
@@ -612,6 +656,7 @@ export function Tasks({
         >
           {editingId ? "Save" : "Add"}
         </button>
+
         <button
           type="button"
           onClick={handleCancel}
@@ -623,7 +668,7 @@ export function Tasks({
 
       {periods.length === 0 ? (
         <div className="text-[11px] text-muted-foreground">
-          Tip: add your Term dates in Settings so tasks can be grouped automatically.
+          Tip: add your Term dates in Settings so homework and assessments can be grouped automatically.
         </div>
       ) : null}
     </div>
@@ -634,7 +679,7 @@ export function Tasks({
     label,
     count,
   }: {
-    type: "task" | "assignment" | "exam" | "homework";
+    type: TaskSectionType;
     label: string;
     count: number;
   }) => {
@@ -686,8 +731,10 @@ export function Tasks({
     const subject = getSubjectById(task.subjectId);
     const studiedMins = getMinutesStudiedForTask(task.id);
     const tone = dueTone(task);
-
     const hasScheduledBlock = Boolean(task.scheduledDate && task.startTime);
+
+    const safeTypeLabel =
+      task.type === "assignment" ? "Assignment" : task.type === "exam" ? "Exam" : "Homework";
 
     const toneBorder =
       tone === "overdue"
@@ -748,13 +795,21 @@ export function Tasks({
               </div>
 
               <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>{safeTypeLabel}</span>
+
                 {subject ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject.color }} />
-                    <span className="truncate">{subject.name}</span>
-                  </span>
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject.color }} />
+                      <span className="truncate">{subject.name}</span>
+                    </span>
+                  </>
                 ) : (
-                  <span>Unassigned</span>
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span>Unassigned</span>
+                  </>
                 )}
 
                 {studiedMins > 0 ? (
@@ -803,6 +858,7 @@ export function Tasks({
               >
                 <Edit2 className="h-4 w-4 text-foreground" />
               </button>
+
               <button
                 type="button"
                 onClick={() => setDeletingId(task.id)}
@@ -818,8 +874,8 @@ export function Tasks({
     );
   };
 
-  const renderSection = (taskList: Task[], type: "task" | "assignment" | "exam" | "homework") => {
-    const label = type.charAt(0).toUpperCase() + type.slice(1) + "s";
+  const renderSection = (taskList: Task[], type: TaskSectionType) => {
+    const label = sectionLabel(type);
     const isExpanded = expandedSections[type];
     const sortedTasks = [...taskList].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
@@ -839,7 +895,7 @@ export function Tasks({
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
-                <div className="text-sm font-medium text-foreground">No {type}s yet</div>
+                <div className="text-sm font-medium text-foreground">No {label.toLowerCase()} yet</div>
                 <div className="mt-1 text-xs text-muted-foreground">Click “Add” to create one.</div>
               </div>
             )}
@@ -853,7 +909,9 @@ export function Tasks({
     <div className="mx-auto max-w-7xl space-y-5 px-6 py-7 md:px-10">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
-        <p className="text-sm text-muted-foreground">Organise assessments, track deadlines, and tick things off.</p>
+        <p className="text-sm text-muted-foreground">
+          Organise homework, assignments, exams, and deadlines.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-card p-2">
@@ -873,6 +931,7 @@ export function Tasks({
 
         {subjects.map((s) => {
           const active = selectedSubject === s.id;
+
           return (
             <button
               type="button"
@@ -910,25 +969,26 @@ export function Tasks({
 
       <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">Taskboard</div>
+          <div className="text-xs font-medium text-muted-foreground">Workboard</div>
         </div>
 
         <div className="space-y-4">
-          {renderSection(tasksByType.task, "task")}
+          {renderSection(tasksByType.homework, "homework")}
           {renderSection(tasksByType.assignment, "assignment")}
           {renderSection(tasksByType.exam, "exam")}
-          {renderSection(tasksByType.homework, "homework")}
         </div>
       </div>
 
       {deletingId ? (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingId(null)} />
+
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
               <div className="text-sm font-semibold text-foreground">Delete this item?</div>
               <div className="mt-1 text-xs text-muted-foreground">This action cannot be undone.</div>
             </div>
+
             <div className="flex justify-end gap-2 p-5">
               <button
                 type="button"
@@ -937,6 +997,7 @@ export function Tasks({
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={() => handleDelete(deletingId)}

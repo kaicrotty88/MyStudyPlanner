@@ -5,7 +5,6 @@ import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Plus,
   X,
 } from "lucide-react";
@@ -13,12 +12,15 @@ import {
 import type { Reminder, StudySession, Subject, Task } from "./models";
 
 type ViewMode = "day" | "week" | "month";
-type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | "reminder" | null;
+type AddFormType = "study" | "assignment" | "exam" | "homework" | "reminder" | null;
 
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 const DAY_START_HOUR = 7;
 const DAY_END_HOUR = 22;
 const HOUR_HEIGHT = 64;
+const REMINDER_MARKER_MINUTES = 18;
+const DEADLINE_MARKER_MINUTES = 22;
+const DEADLINE_MARKER_TIME = "08:00";
 
 type PeriodStored = {
   id: string;
@@ -35,7 +37,7 @@ type PeriodHydrated = {
 };
 
 type CalendarItemKind = "task" | "assignment" | "exam" | "homework" | "study" | "reminder";
-type CalendarItemPlacement = "timed" | "all-day" | "due";
+type CalendarItemPlacement = "timed";
 
 type CalendarItem = {
   id: string;
@@ -48,6 +50,8 @@ type CalendarItem = {
   end?: Date;
   timeLabel?: string;
   durationLabel?: string;
+  dueLabel?: string;
+  isDeadlineMarker?: boolean;
   task?: Task;
   session?: StudySession;
   reminder?: Reminder;
@@ -80,7 +84,7 @@ type TaskFormErrors = Partial<
   Record<"title" | "subjectId" | "dueDate" | "scheduledDate" | "startTime" | "duration", string>
 >;
 type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>>;
-type ReminderFormErrors = Partial<Record<"title" | "dueDate", string>>;
+type ReminderFormErrors = Partial<Record<"title" | "dueDate" | "time", string>>;
 
 const RequiredMark = ({ required }: { required?: boolean }) =>
   required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null;
@@ -163,7 +167,7 @@ function typeLabel(t: Task["type"]) {
   if (t === "assignment") return "Assignment";
   if (t === "exam") return "Exam";
   if (t === "homework") return "Homework";
-  return "Task";
+  return "Homework";
 }
 
 const time24To12 = (t: string) => {
@@ -267,6 +271,23 @@ const itemEndMinutes = (item: CalendarItem) => {
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
+const formatDueLabel = (date: Date) => {
+  const today = startOfDay(new Date()).getTime();
+  const due = startOfDay(date).getTime();
+  const diff = Math.round((due - today) / (24 * 60 * 60 * 1000));
+
+  if (diff === 0) return "Due today";
+  if (diff === 1) return "Due tomorrow";
+  if (diff === -1) return "Due yesterday";
+  if (diff < 0) return `Overdue ${Math.abs(diff)}d`;
+
+  return `Due ${date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })}`;
+};
+
 const DURATION_OPTIONS: { label: string; value: string }[] = [
   { label: "15 min", value: "15 min" },
   { label: "20 min", value: "20 min" },
@@ -348,7 +369,7 @@ function CalendarView({
     title: "",
     subjectId: "",
     dueDate: "",
-    type: "task" as "task" | "assignment" | "exam" | "homework",
+    type: "homework" as "assignment" | "exam" | "homework",
     scheduledDate: "",
     startTime: "",
     duration: "60 min",
@@ -410,6 +431,41 @@ function CalendarView({
     }
   }, []);
 
+  const handleCancel = () => {
+    setShowAddForm(null);
+    setShowAddMenu(false);
+    setSelectedDate(null);
+
+    setEditingTaskId(null);
+    setEditingSessionId(null);
+    setEditingReminderId(null);
+
+    setTaskErrors({});
+    setSessionErrors({});
+    setReminderErrors({});
+
+    setTaskFormData({
+      title: "",
+      subjectId: "",
+      dueDate: "",
+      type: "homework",
+      scheduledDate: "",
+      startTime: "",
+      duration: "60 min",
+    });
+
+    setSessionFormData({
+      title: "",
+      subjectId: "",
+      date: "",
+      startTime: "",
+      duration: "60 min",
+      linkedTaskId: "",
+    });
+
+    setReminderFormData({ title: "", dueDate: "", time: "" });
+  };
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") handleCancel();
@@ -450,17 +506,19 @@ function CalendarView({
   const calendarItems = useMemo<CalendarItem[]>(() => {
     const taskItems: CalendarItem[] = activeTasks.flatMap((task) => {
       const scheduledDate = task.scheduledDate;
-      const hasScheduledBlock = Boolean(scheduledDate && task.startTime);
-      const scheduledStartMins = hasScheduledBlock ? parseTimeToMinutes(task.startTime) : null;
+      const startTime = task.startTime;
+      const dueLabel = formatDueLabel(task.dueDate);
+
+      const startMins = scheduledDate && startTime ? parseTimeToMinutes(startTime) : null;
       const durationMins = parseDurationToMinutes(task.duration);
       const items: CalendarItem[] = [];
 
-      if (hasScheduledBlock && scheduledStartMins !== null && scheduledDate) {
-        const start = dateWithMinutes(scheduledDate, scheduledStartMins);
-        const end = dateWithMinutes(scheduledDate, scheduledStartMins + durationMins);
+      if (scheduledDate && startMins !== null) {
+        const start = dateWithMinutes(scheduledDate, startMins);
+        const end = dateWithMinutes(scheduledDate, startMins + durationMins);
 
         items.push({
-          id: `task-timed-${task.id}`,
+          id: `task-scheduled-${task.id}`,
           sourceId: task.id,
           kind: task.type,
           placement: "timed",
@@ -470,24 +528,47 @@ function CalendarView({
           end,
           timeLabel: displayTime(task.startTime),
           durationLabel: task.duration || "60 min",
+          dueLabel,
+          task,
+        });
+      } else {
+        const fallbackStartMins = parseTimeToMinutes(DEADLINE_MARKER_TIME) ?? 8 * 60;
+        const start = dateWithMinutes(task.dueDate, fallbackStartMins);
+        const end = dateWithMinutes(task.dueDate, fallbackStartMins + DEADLINE_MARKER_MINUTES);
+
+        items.push({
+          id: `task-unscheduled-deadline-${task.id}`,
+          sourceId: task.id,
+          kind: task.type,
+          placement: "timed",
+          title: `Due: ${task.title}`,
+          subjectId: task.subjectId,
+          start,
+          end,
+          timeLabel: "Due",
+          dueLabel,
+          isDeadlineMarker: true,
           task,
         });
       }
 
-      const shouldShowDueItem =
-        !hasScheduledBlock ||
-        !scheduledDate ||
-        !isSameDay(startOfDay(task.dueDate), startOfDay(scheduledDate));
+      if (scheduledDate && !isSameDay(startOfDay(task.dueDate), startOfDay(scheduledDate))) {
+        const fallbackStartMins = parseTimeToMinutes(DEADLINE_MARKER_TIME) ?? 8 * 60;
+        const start = dateWithMinutes(task.dueDate, fallbackStartMins);
+        const end = dateWithMinutes(task.dueDate, fallbackStartMins + DEADLINE_MARKER_MINUTES);
 
-      if (shouldShowDueItem) {
         items.push({
-          id: `task-due-${task.id}`,
+          id: `task-deadline-${task.id}`,
           sourceId: task.id,
           kind: task.type,
-          placement: "due",
-          title: task.title,
+          placement: "timed",
+          title: `Due: ${task.title}`,
           subjectId: task.subjectId,
-          start: startOfDay(task.dueDate),
+          start,
+          end,
+          timeLabel: "Due",
+          dueLabel,
+          isDeadlineMarker: true,
           task,
         });
       }
@@ -517,18 +598,17 @@ function CalendarView({
     });
 
     const reminderItems: CalendarItem[] = activeReminders
-      .filter((reminder) => reminder.dueDate)
+      .filter((reminder) => reminder.dueDate && reminder.time)
       .map((reminder) => {
-        const hasTime = Boolean(reminder.time);
         const startMins = parseTimeToMinutes(reminder.time) ?? 9 * 60;
         const start = dateWithMinutes(reminder.dueDate as Date, startMins);
-        const end = dateWithMinutes(reminder.dueDate as Date, startMins + 30);
+        const end = dateWithMinutes(reminder.dueDate as Date, startMins + REMINDER_MARKER_MINUTES);
 
         return {
           id: `reminder-${reminder.id}`,
           sourceId: reminder.id,
           kind: "reminder",
-          placement: hasTime ? "timed" : "all-day",
+          placement: "timed",
           title: reminder.title || "Reminder",
           start,
           end,
@@ -541,14 +621,8 @@ function CalendarView({
       const dayDiff = startOfDay(a.start).getTime() - startOfDay(b.start).getTime();
       if (dayDiff !== 0) return dayDiff;
 
-      const placementOrder: Record<CalendarItemPlacement, number> = {
-        "all-day": 0,
-        due: 1,
-        timed: 2,
-      };
-
-      const placementDiff = placementOrder[a.placement] - placementOrder[b.placement];
-      if (placementDiff !== 0) return placementDiff;
+      const markerDiff = Number(a.isDeadlineMarker ?? false) - Number(b.isDeadlineMarker ?? false);
+      if (markerDiff !== 0) return markerDiff;
 
       return a.start.getTime() - b.start.getTime();
     });
@@ -556,6 +630,7 @@ function CalendarView({
 
   const linkableTasks = useMemo(() => {
     return activeTasks
+      .filter((t) => t.type !== "task")
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
       .slice()
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
@@ -675,7 +750,7 @@ function CalendarView({
         title: "",
         subjectId: "",
         date: dateStr,
-        startTime: "4:00 PM",
+        startTime: "16:00",
         duration: "60 min",
         linkedTaskId: "",
       });
@@ -683,17 +758,17 @@ function CalendarView({
       setReminderFormData({
         title: "",
         dueDate: dateStr,
-        time: "",
+        time: "09:00",
       });
-    } else {
+    } else if (type) {
       setTaskFormData({
         title: "",
         subjectId: "",
-        dueDate: dateStr,
-        type: type as "task" | "assignment" | "exam" | "homework",
-        scheduledDate: "",
-        startTime: "",
-        duration: "60 min",
+        dueDate: type === "exam" ? dateStr : "",
+        type,
+        scheduledDate: dateStr,
+        startTime: "16:00",
+        duration: type === "exam" ? "2h" : "60 min",
       });
     }
 
@@ -704,6 +779,8 @@ function CalendarView({
   const openEditTask = (task: Task) => {
     if (!canEditDeleteTasks) return;
 
+    const safeType = task.type === "task" ? "homework" : task.type;
+
     setEditingTaskId(task.id);
     setSelectedDate(task.scheduledDate ?? task.dueDate);
     setTaskErrors({});
@@ -712,13 +789,13 @@ function CalendarView({
       title: task.title,
       subjectId: task.subjectId,
       dueDate: toLocalDateInputValue(task.dueDate),
-      type: task.type,
-      scheduledDate: task.scheduledDate ? toLocalDateInputValue(task.scheduledDate) : "",
-      startTime: task.startTime ?? "",
+      type: safeType,
+      scheduledDate: task.scheduledDate ? toLocalDateInputValue(task.scheduledDate) : toLocalDateInputValue(task.dueDate),
+      startTime: task.startTime ?? DEADLINE_MARKER_TIME,
       duration: task.duration ?? "60 min",
     });
 
-    setShowAddForm(task.type);
+    setShowAddForm(safeType);
     setShowAddMenu(false);
   };
 
@@ -753,7 +830,7 @@ function CalendarView({
     setReminderFormData({
       title: reminder.title ?? "",
       dueDate: toLocalDateInputValue(reminder.dueDate),
-      time: reminder.time ?? "",
+      time: reminder.time ?? "09:00",
     });
 
     setShowAddForm("reminder");
@@ -771,23 +848,10 @@ function CalendarView({
 
     if (!taskFormData.title.trim()) next.title = "Title is required";
     if (!taskFormData.subjectId) next.subjectId = "Subject is required";
+    if (!taskFormData.scheduledDate) next.scheduledDate = "Scheduled date is required";
+    if (!taskFormData.startTime) next.startTime = "Start time is required";
+    if (!taskFormData.duration) next.duration = "Duration is required";
     if (!taskFormData.dueDate) next.dueDate = "Due date is required";
-
-    const hasScheduledDate = Boolean(taskFormData.scheduledDate);
-    const hasStartTime = Boolean(taskFormData.startTime);
-    const hasDuration = Boolean(taskFormData.duration);
-
-    if ((hasScheduledDate || hasStartTime) && !hasScheduledDate) {
-      next.scheduledDate = "Scheduled date is required when adding a time block";
-    }
-
-    if ((hasScheduledDate || hasStartTime) && !hasStartTime) {
-      next.startTime = "Start time is required when adding a scheduled block";
-    }
-
-    if ((hasScheduledDate || hasStartTime) && !hasDuration) {
-      next.duration = "Duration is required when adding a scheduled block";
-    }
 
     setTaskErrors(next);
 
@@ -813,6 +877,7 @@ function CalendarView({
 
     if (!reminderFormData.title.trim()) next.title = "Title is required";
     if (!reminderFormData.dueDate) next.dueDate = "Date is required";
+    if (!reminderFormData.time) next.time = "Time is required";
 
     setReminderErrors(next);
 
@@ -823,16 +888,9 @@ function CalendarView({
     if (!validateTaskForm()) return;
 
     const newDueDate = new Date(taskFormData.dueDate);
-    const nextScheduledDate = taskFormData.scheduledDate
-      ? new Date(taskFormData.scheduledDate)
-      : undefined;
-    const nextStartTime = taskFormData.startTime?.trim()
-      ? taskFormData.startTime.trim()
-      : undefined;
-    const nextDuration =
-      nextScheduledDate && nextStartTime
-        ? taskFormData.duration?.trim() || "60 min"
-        : undefined;
+    const nextScheduledDate = new Date(taskFormData.scheduledDate);
+    const nextStartTime = taskFormData.startTime.trim();
+    const nextDuration = taskFormData.duration.trim() || "60 min";
 
     if (editingTaskId && onUpdateTask) {
       const existing = tasks.find((t) => t.id === editingTaskId);
@@ -883,7 +941,7 @@ function CalendarView({
       title: "",
       subjectId: "",
       dueDate: "",
-      type: "task",
+      type: "homework",
       scheduledDate: "",
       startTime: "",
       duration: "60 min",
@@ -947,7 +1005,7 @@ function CalendarView({
     const payload: Omit<Reminder, "id"> = {
       title: trimmedTitle,
       dueDate: newDueDate,
-      time: reminderFormData.time?.trim() ? reminderFormData.time.trim() : undefined,
+      time: reminderFormData.time.trim(),
       ...(editingReminderId
         ? {
             notes: existing?.notes,
@@ -971,39 +1029,6 @@ function CalendarView({
     closeForm();
   };
 
-  const handleCancel = () => {
-    setShowAddForm(null);
-    setShowAddMenu(false);
-    setSelectedDate(null);
-
-    setEditingTaskId(null);
-    setEditingSessionId(null);
-    setEditingReminderId(null);
-
-    setTaskErrors({});
-    setSessionErrors({});
-    setReminderErrors({});
-
-    setTaskFormData({
-      title: "",
-      subjectId: "",
-      dueDate: "",
-      type: "task",
-      scheduledDate: "",
-      startTime: "",
-      duration: "60 min",
-    });
-    setSessionFormData({
-      title: "",
-      subjectId: "",
-      date: "",
-      startTime: "",
-      duration: "60 min",
-      linkedTaskId: "",
-    });
-    setReminderFormData({ title: "", dueDate: "", time: "" });
-  };
-
   const handleToggleItem = (event: React.MouseEvent, item: CalendarItem) => {
     event.stopPropagation();
 
@@ -1015,7 +1040,7 @@ function CalendarView({
   const getItemColor = (item: CalendarItem) => {
     if (item.kind === "exam") return "#ef4444";
     if (item.kind === "assignment") return "#f59e0b";
-    if (item.kind === "homework") return "#3b82f6";
+    if (item.kind === "homework" || item.kind === "task") return "#3b82f6";
     if (item.kind === "reminder") return "#64748b";
 
     const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
@@ -1024,6 +1049,7 @@ function CalendarView({
   };
 
   const getItemLabel = (item: CalendarItem) => {
+    if (item.isDeadlineMarker) return "Deadline";
     if (item.kind === "study") return "Study";
     if (item.kind === "reminder") return "Reminder";
     if (item.task) return typeLabel(item.task.type);
@@ -1044,7 +1070,6 @@ function CalendarView({
       }
 
       const firstTimed = getItemsForDate(currentDate)
-        .filter((item) => item.placement === "timed")
         .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
 
       return firstTimed ? itemStartMinutes(firstTimed) : 9 * 60;
@@ -1058,7 +1083,6 @@ function CalendarView({
 
     const weekTimedItems = visibleWeekDays
       .flatMap((day) => getItemsForDate(day))
-      .filter((item) => item.placement === "timed")
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
     return weekTimedItems[0] ? itemStartMinutes(weekTimedItems[0]) : 9 * 60;
@@ -1080,7 +1104,6 @@ function CalendarView({
 
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
-    const isTimed = item.placement === "timed";
 
     return (
       <button
@@ -1091,86 +1114,98 @@ function CalendarView({
           openCalendarItem(item);
         }}
         className={[
-          "group flex h-[22px] min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-[11px] leading-none",
+          "group flex h-[23px] min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-[11px] leading-none",
           "transition hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+          item.isDeadlineMarker ? "border border-border/60 bg-background/70" : "",
         ].join(" ")}
         style={{
-          backgroundColor: `${color}14`,
+          backgroundColor: item.isDeadlineMarker ? undefined : `${color}14`,
           color,
         }}
         title={`${getItemLabel(item)}: ${item.title}`}
       >
-        {isTimed ? (
-          <span className="shrink-0 font-semibold text-[10px]" style={{ color }}>
-            {item.timeLabel}
-          </span>
-        ) : null}
-
-        {!isTimed ? (
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-        ) : null}
+        <span
+          className="shrink-0 font-semibold text-[10px]"
+          style={{ color }}
+        >
+          {item.isDeadlineMarker ? "Due" : item.timeLabel}
+        </span>
 
         <span className="truncate font-medium text-foreground">{item.title}</span>
       </button>
     );
   };
 
-  const renderCompactItem = (item: CalendarItem, compact = false) => {
+  const renderReminderMarker = (item: CalendarItem, dayColumn = false) => {
     const color = getItemColor(item);
-    const canToggle =
-      Boolean(item.task && onToggleTaskCompleted) ||
-      Boolean(item.session && onToggleStudySessionCompleted) ||
-      Boolean(item.reminder && onToggleReminderCompleted);
+    const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
+    const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
+    const canToggle = Boolean(item.reminder && onToggleReminderCompleted);
 
     return (
-      <button
+      <div
         key={item.id}
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          openCalendarItem(item);
-        }}
-        className={[
-          "group flex min-w-0 items-center gap-2 rounded-lg border bg-background/70 px-2 py-1.5 text-left",
-          "shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-muted/60",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-          compact ? "h-7" : "min-h-8",
-        ].join(" ")}
-        style={{ borderLeftWidth: 4, borderLeftColor: color }}
-        title={`${getItemLabel(item)}: ${item.title}`}
+        className="absolute left-1.5 right-1.5 z-10"
+        style={{ top, height: 28 }}
       >
-        {canToggle ? (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(event) => handleToggleItem(event, item)}
-            className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border bg-card transition hover:bg-muted"
-            aria-label="Mark complete"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-primary opacity-0 transition group-hover:opacity-60" />
-          </span>
-        ) : null}
-
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[11px] font-medium text-foreground">{item.title}</div>
-          {!compact ? (
-            <div className="truncate text-[10px] text-muted-foreground">{getItemLabel(item)}</div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            openCalendarItem(item);
+          }}
+          className={[
+            "group flex h-full w-full items-center gap-2 overflow-hidden rounded-lg border bg-card px-2 text-left",
+            "shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:-translate-y-[1px]",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+          ].join(" ")}
+          style={{
+            borderLeftWidth: 4,
+            borderLeftColor: color,
+            backgroundColor: `${color}10`,
+          }}
+          title={`${getItemLabel(item)}: ${item.title}`}
+        >
+          {canToggle ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => handleToggleItem(event, item)}
+              className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border bg-card/80 transition hover:bg-muted"
+              aria-label="Mark complete"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-primary opacity-0 transition group-hover:opacity-60" />
+            </span>
           ) : null}
-        </div>
-      </button>
+
+          <div className="min-w-0 flex-1">
+            <div className={["truncate font-medium text-foreground", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}>
+              {item.title}
+            </div>
+          </div>
+
+          <span className="shrink-0 text-[10px] font-medium text-muted-foreground">
+            {item.timeLabel}
+          </span>
+        </button>
+      </div>
     );
   };
 
   const renderTimedItem = (item: CalendarItem, dayColumn = false) => {
+    if (item.kind === "reminder") return renderReminderMarker(item, dayColumn);
+
     const color = getItemColor(item);
     const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
     const end = Math.min(itemEndMinutes(item), DAY_END_HOUR * 60);
     const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
-    const height = Math.max(36, ((end - start) / 60) * HOUR_HEIGHT);
+    const height = item.isDeadlineMarker
+      ? 32
+      : Math.max(38, ((end - start) / 60) * HOUR_HEIGHT);
 
     const canToggle =
       Boolean(item.session && onToggleStudySessionCompleted) ||
-      Boolean(item.reminder && onToggleReminderCompleted) ||
       Boolean(item.task && onToggleTaskCompleted);
 
     return (
@@ -1190,11 +1225,12 @@ function CalendarView({
             "shadow-[0_4px_10px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.02]",
             "transition hover:-translate-y-[1px] hover:shadow-[0_7px_14px_rgba(0,0,0,0.09)]",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+            item.isDeadlineMarker ? "border-dashed bg-background/80" : "",
           ].join(" ")}
           style={{
             borderLeftWidth: 4,
             borderLeftColor: color,
-            backgroundColor: `${color}12`,
+            backgroundColor: item.isDeadlineMarker ? undefined : `${color}12`,
           }}
           title={`${getItemLabel(item)}: ${item.title}`}
         >
@@ -1220,9 +1256,18 @@ function CalendarView({
               >
                 {item.title}
               </div>
+
               <div className="truncate text-[10px] text-muted-foreground">
-                {item.timeLabel}
-                {item.durationLabel ? ` · ${item.durationLabel}` : ""}
+                {item.isDeadlineMarker ? (
+                  item.dueLabel
+                ) : (
+                  <>
+                    {getItemLabel(item)}
+                    {item.timeLabel ? ` · ${item.timeLabel}` : ""}
+                    {item.durationLabel ? ` · ${item.durationLabel}` : ""}
+                    {item.dueLabel && item.task ? ` · ${item.dueLabel}` : ""}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1380,69 +1425,9 @@ function CalendarView({
             })}
           </div>
 
-          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/10">
-            <div className="border-r border-border px-2 py-2 text-[11px] font-medium text-muted-foreground">
-              All-day
-            </div>
-
-            {days.map((date) => {
-              const allDayItems = getItemsForDate(date).filter((item) => item.placement === "all-day");
-
-              return (
-                <div
-                  key={date.toISOString()}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openAddMenuForDate(date)}
-                  className="min-h-[54px] cursor-pointer border-r border-border p-1.5 text-left transition hover:bg-muted/30"
-                >
-                  <div className="space-y-1">
-                    {allDayItems.slice(0, 2).map((item) => renderCompactItem(item, true))}
-
-                    {allDayItems.length > 2 ? (
-                      <div className="px-1 text-[11px] text-muted-foreground">
-                        +{allDayItems.length - 2} more
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/[0.06]">
-            <div className="border-r border-border px-2 py-2 text-[11px] font-medium text-muted-foreground">
-              Due
-            </div>
-
-            {days.map((date) => {
-              const dueItems = getItemsForDate(date).filter((item) => item.placement === "due");
-
-              return (
-                <div
-                  key={date.toISOString()}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openAddMenuForDate(date)}
-                  className="min-h-[74px] cursor-pointer border-r border-border p-1.5 text-left transition hover:bg-muted/30"
-                >
-                  <div className="space-y-1">
-                    {dueItems.slice(0, 3).map((item) => renderCompactItem(item, true))}
-
-                    {dueItems.length > 3 ? (
-                      <div className="px-1 text-[11px] text-muted-foreground">
-                        +{dueItems.length - 3} more
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
           <div
             ref={timeGridScrollRef}
-            className="max-h-[680px] overflow-y-auto"
+            className="max-h-[760px] overflow-y-auto"
           >
             <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
               <div className="border-r border-border bg-card">
@@ -1458,7 +1443,7 @@ function CalendarView({
               </div>
 
               {days.map((date) => {
-                const timedItems = getItemsForDate(date).filter((item) => item.placement === "timed");
+                const timedItems = getItemsForDate(date);
                 const isToday = isSameDay(new Date(), date);
 
                 return (
@@ -1487,10 +1472,7 @@ function CalendarView({
   };
 
   const renderDayView = () => {
-    const items = getItemsForDate(currentDate);
-    const allDayItems = items.filter((item) => item.placement === "all-day");
-    const dueItems = items.filter((item) => item.placement === "due");
-    const timedItems = items.filter((item) => item.placement === "timed");
+    const timedItems = getItemsForDate(currentDate);
     const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
     const isToday = isSameDay(new Date(), currentDate);
 
@@ -1531,49 +1513,9 @@ function CalendarView({
           </div>
         </div>
 
-        <div className="border-b border-border bg-muted/10 px-5 py-3">
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            All-day
-          </div>
-
-          {allDayItems.length > 0 ? (
-            <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
-              {allDayItems.map((item) => renderCompactItem(item))}
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => openAddMenuForDate(currentDate)}
-              className="rounded-xl border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/40"
-            >
-              No all-day items
-            </button>
-          )}
-        </div>
-
-        <div className="border-b border-border bg-muted/[0.06] px-5 py-3">
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Due
-          </div>
-
-          {dueItems.length > 0 ? (
-            <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
-              {dueItems.map((item) => renderCompactItem(item))}
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => openAddMenuForDate(currentDate)}
-              className="rounded-xl border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/40"
-            >
-              No due items
-            </button>
-          )}
-        </div>
-
         <div
           ref={timeGridScrollRef}
-          className="max-h-[720px] overflow-y-auto"
+          className="max-h-[760px] overflow-y-auto"
         >
           <div className="grid grid-cols-[72px_minmax(0,1fr)]">
             <div className="border-r border-border bg-card">
@@ -1608,13 +1550,115 @@ function CalendarView({
     );
   };
 
+  const renderSharedTimeFields = ({
+    dateLabel,
+    dateValue,
+    onDateChange,
+    dateError,
+    startTimeValue,
+    onStartTimeChange,
+    startTimeError,
+    durationValue,
+    onDurationChange,
+    durationError,
+  }: {
+    dateLabel: string;
+    dateValue: string;
+    onDateChange: (value: string) => void;
+    dateError?: string;
+    startTimeValue: string;
+    onStartTimeChange: (value: string) => void;
+    startTimeError?: string;
+    durationValue?: string;
+    onDurationChange?: (value: string) => void;
+    durationError?: string;
+  }) => (
+    <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
+      <div className="text-sm font-medium text-foreground">Calendar time</div>
+      <div className="mt-1 text-xs leading-5 text-muted-foreground">
+        This is where the item appears in the hourly calendar.
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-3">
+        <div>
+          <label className={labelClass}>
+            {dateLabel}
+            <RequiredMark required />
+          </label>
+          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+            <CalendarIcon className="h-4 w-4" />
+            Date
+          </div>
+          <input
+            type="date"
+            value={dateValue}
+            onChange={(e) => onDateChange(e.target.value)}
+            className={[inputBase, dateError ? inputErr : inputOk].join(" ")}
+            aria-invalid={!!dateError}
+          />
+          <FieldError message={dateError} />
+        </div>
+
+        <div className={onDurationChange ? "grid grid-cols-1 gap-3 md:grid-cols-2" : "grid grid-cols-1 gap-3"}>
+          <div>
+            <label className={labelClass}>
+              Start time
+              <RequiredMark required />
+            </label>
+            <input
+              type="time"
+              value={startTimeValue}
+              onChange={(e) => onStartTimeChange(e.target.value)}
+              className={[
+                "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                startTimeError
+                  ? "border-red-500/50 focus-visible:ring-red-500/20"
+                  : "border-border focus-visible:ring-primary/30",
+              ].join(" ")}
+              aria-invalid={!!startTimeError}
+            />
+            <FieldError message={startTimeError} />
+          </div>
+
+          {onDurationChange ? (
+            <div>
+              <label className={labelClass}>
+                Duration
+                <RequiredMark required />
+              </label>
+              <select
+                value={durationValue}
+                onChange={(e) => onDurationChange(e.target.value)}
+                className={[
+                  "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                  durationError
+                    ? "border-red-500/50 focus-visible:ring-red-500/20"
+                    : "border-border focus-visible:ring-primary/30",
+                ].join(" ")}
+                aria-invalid={!!durationError}
+              >
+                <option value="">Select duration</option>
+                {DURATION_OPTIONS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={durationError} />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-7 sm:px-6 md:px-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
           <p className="text-sm text-muted-foreground">
-            A central calendar for tasks, reminders, exams, homework, and study sessions.
+            Plan study blocks, homework, assignments, exams, and reminders by time.
           </p>
         </div>
 
@@ -1688,7 +1732,7 @@ function CalendarView({
                     day: "numeric",
                   })}
                 </div>
-                <div className="text-xs text-muted-foreground">Add something to this day</div>
+                <div className="text-xs text-muted-foreground">Add to calendar</div>
               </div>
 
               <button
@@ -1702,32 +1746,20 @@ function CalendarView({
             </div>
 
             <div className="space-y-2 p-3">
-              <button
-                onClick={() => handleAddOption("study")}
-                className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 transition hover:bg-background/70"
-                type="button"
-              >
-                <span className="text-sm text-foreground">Add Study Session</span>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              <button
-                onClick={() => handleAddOption("reminder")}
-                className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 transition hover:bg-background/70"
-                type="button"
-              >
-                <span className="text-sm text-foreground">Add Reminder</span>
-                <Plus className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              {(["task", "assignment", "exam", "homework"] as const).map((t) => (
+              {([
+                ["study", "Study Session"],
+                ["reminder", "Reminder"],
+                ["homework", "Homework"],
+                ["assignment", "Assignment"],
+                ["exam", "Exam"],
+              ] as const).map(([type, label]) => (
                 <button
-                  key={t}
-                  onClick={() => handleAddOption(t)}
+                  key={type}
+                  onClick={() => handleAddOption(type)}
                   className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 transition hover:bg-background/70"
                   type="button"
                 >
-                  <span className="text-sm text-foreground">Add {typeLabel(t)}</span>
+                  <span className="text-sm text-foreground">{label}</span>
                   <Plus className="h-4 w-4 text-muted-foreground" />
                 </button>
               ))}
@@ -1772,7 +1804,7 @@ function CalendarView({
               </button>
             </div>
 
-            <div className="space-y-4 p-5">
+            <div className="max-h-[76vh] space-y-4 overflow-y-auto p-5">
               {showAddForm === "study" ? (
                 <>
                   <div>
@@ -1782,7 +1814,7 @@ function CalendarView({
                     </label>
                     <input
                       type="text"
-                      placeholder="Session title"
+                      placeholder="Study session title"
                       value={sessionFormData.title}
                       onChange={(e) => {
                         setSessionFormData({ ...sessionFormData, title: e.target.value });
@@ -1829,8 +1861,33 @@ function CalendarView({
                     <FieldError message={sessionErrors.subjectId} />
                   </div>
 
+                  {renderSharedTimeFields({
+                    dateLabel: "Date",
+                    dateValue: sessionFormData.date,
+                    onDateChange: (value) => {
+                      setSessionFormData({ ...sessionFormData, date: value });
+                      clearError(setSessionErrors, "date");
+                    },
+                    dateError: sessionErrors.date,
+                    startTimeValue: startTimeUiValue,
+                    onStartTimeChange: (value) => {
+                      setSessionFormData({
+                        ...sessionFormData,
+                        startTime: value,
+                      });
+                      clearError(setSessionErrors, "startTime");
+                    },
+                    startTimeError: sessionErrors.startTime,
+                    durationValue: sessionFormData.duration,
+                    onDurationChange: (value) => {
+                      setSessionFormData({ ...sessionFormData, duration: value });
+                      clearError(setSessionErrors, "duration");
+                    },
+                    durationError: sessionErrors.duration,
+                  })}
+
                   <div>
-                    <label className="text-sm font-medium text-foreground">Link to task</label>
+                    <label className="text-sm font-medium text-foreground">Link to homework / assessment</label>
                     <select
                       value={sessionFormData.linkedTaskId}
                       onChange={(e) => {
@@ -1868,7 +1925,7 @@ function CalendarView({
 
                       {linkableTasks.length === 0 ? (
                         <option value="" disabled>
-                          No active tasks available
+                          No active homework or assessments
                         </option>
                       ) : (
                         linkableTasks.map((t) => {
@@ -1889,86 +1946,7 @@ function CalendarView({
                     </select>
 
                     <div className="mt-1 text-[11px] text-muted-foreground">
-                      Only active, not completed tasks are shown.
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>
-                      Date
-                      <RequiredMark required />
-                    </label>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      <CalendarIcon className="h-4 w-4" />
-                      Date
-                    </div>
-                    <input
-                      type="date"
-                      value={sessionFormData.date}
-                      onChange={(e) => {
-                        setSessionFormData({ ...sessionFormData, date: e.target.value });
-                        clearError(setSessionErrors, "date");
-                      }}
-                      className={[inputBase, sessionErrors.date ? inputErr : inputOk].join(" ")}
-                      aria-invalid={!!sessionErrors.date}
-                    />
-                    <FieldError message={sessionErrors.date} />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div>
-                      <label className={labelClass}>
-                        Start time
-                        <RequiredMark required />
-                      </label>
-                      <input
-                        type="time"
-                        value={startTimeUiValue}
-                        onChange={(e) => {
-                          setSessionFormData({
-                            ...sessionFormData,
-                            startTime: time24To12(e.target.value),
-                          });
-                          clearError(setSessionErrors, "startTime");
-                        }}
-                        className={[
-                          "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                          sessionErrors.startTime
-                            ? "border-red-500/50 focus-visible:ring-red-500/20"
-                            : "border-border focus-visible:ring-primary/30",
-                        ].join(" ")}
-                        aria-invalid={!!sessionErrors.startTime}
-                      />
-                      <FieldError message={sessionErrors.startTime} />
-                    </div>
-
-                    <div>
-                      <label className={labelClass}>
-                        Duration
-                        <RequiredMark required />
-                      </label>
-                      <select
-                        value={sessionFormData.duration}
-                        onChange={(e) => {
-                          setSessionFormData({ ...sessionFormData, duration: e.target.value });
-                          clearError(setSessionErrors, "duration");
-                        }}
-                        className={[
-                          "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                          sessionErrors.duration
-                            ? "border-red-500/50 focus-visible:ring-red-500/20"
-                            : "border-border focus-visible:ring-primary/30",
-                        ].join(" ")}
-                        aria-invalid={!!sessionErrors.duration}
-                      >
-                        <option value="">Select duration</option>
-                        {DURATION_OPTIONS.map((d) => (
-                          <option key={d.value} value={d.value}>
-                            {d.label}
-                          </option>
-                        ))}
-                      </select>
-                      <FieldError message={sessionErrors.duration} />
+                      Optional. Useful when this study block is for a specific homework, assignment, or exam.
                     </div>
                   </div>
 
@@ -2024,41 +2002,25 @@ function CalendarView({
                     <FieldError message={reminderErrors.title} />
                   </div>
 
-                  <div>
-                    <label className={labelClass}>
-                      Date
-                      <RequiredMark required />
-                    </label>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      <CalendarIcon className="h-4 w-4" />
-                      Date
-                    </div>
-                    <input
-                      type="date"
-                      value={reminderFormData.dueDate}
-                      onChange={(e) => {
-                        setReminderFormData({ ...reminderFormData, dueDate: e.target.value });
-                        clearError(setReminderErrors, "dueDate");
-                      }}
-                      className={[inputBase, reminderErrors.dueDate ? inputErr : inputOk].join(" ")}
-                      aria-invalid={!!reminderErrors.dueDate}
-                    />
-                    <FieldError message={reminderErrors.dueDate} />
-                  </div>
+                  {renderSharedTimeFields({
+                    dateLabel: "Date",
+                    dateValue: reminderFormData.dueDate,
+                    onDateChange: (value) => {
+                      setReminderFormData({ ...reminderFormData, dueDate: value });
+                      clearError(setReminderErrors, "dueDate");
+                    },
+                    dateError: reminderErrors.dueDate,
+                    startTimeValue: reminderFormData.time,
+                    onStartTimeChange: (value) => {
+                      setReminderFormData({ ...reminderFormData, time: value });
+                      clearError(setReminderErrors, "time");
+                    },
+                    startTimeError: reminderErrors.time,
+                  })}
 
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Time</label>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Optional. Timed reminders appear in the hourly grid.
-                    </div>
-                    <input
-                      type="time"
-                      value={reminderFormData.time}
-                      onChange={(e) =>
-                        setReminderFormData({ ...reminderFormData, time: e.target.value })
-                      }
-                      className="h-11 w-full rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    />
+                  <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
+                    Reminders appear as small timed markers, not long blocks. Use them for quick things like texting someone,
+                    packing something, or bringing equipment.
                   </div>
 
                   <div className="flex gap-2 pt-1">
@@ -2101,7 +2063,7 @@ function CalendarView({
                     </label>
                     <input
                       type="text"
-                      placeholder="Title"
+                      placeholder={`${typeLabel(showAddForm as Task["type"])} title`}
                       value={taskFormData.title}
                       onChange={(e) => {
                         setTaskFormData({ ...taskFormData, title: e.target.value });
@@ -2137,11 +2099,43 @@ function CalendarView({
                     <FieldError message={taskErrors.subjectId} />
                   </div>
 
+                  {renderSharedTimeFields({
+                    dateLabel: showAddForm === "exam" ? "Exam date" : "Planned work date",
+                    dateValue: taskFormData.scheduledDate,
+                    onDateChange: (value) => {
+                      setTaskFormData((p) => ({
+                        ...p,
+                        scheduledDate: value,
+                        dueDate: p.type === "exam" && !p.dueDate ? value : p.dueDate,
+                      }));
+                      clearError(setTaskErrors, "scheduledDate");
+                    },
+                    dateError: taskErrors.scheduledDate,
+                    startTimeValue: taskStartTimeUiValue,
+                    onStartTimeChange: (value) => {
+                      setTaskFormData({
+                        ...taskFormData,
+                        startTime: value,
+                      });
+                      clearError(setTaskErrors, "startTime");
+                    },
+                    startTimeError: taskErrors.startTime,
+                    durationValue: taskFormData.duration,
+                    onDurationChange: (value) => {
+                      setTaskFormData({ ...taskFormData, duration: value });
+                      clearError(setTaskErrors, "duration");
+                    },
+                    durationError: taskErrors.duration,
+                  })}
+
                   <div>
                     <label className={labelClass}>
                       Due date
                       <RequiredMark required />
                     </label>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                      This is the deadline. Later, when classes are in Calendar, this can connect to the correct subject period.
+                    </div>
                     <input
                       type="date"
                       value={taskFormData.dueDate}
@@ -2155,98 +2149,8 @@ function CalendarView({
                     <FieldError message={taskErrors.dueDate} />
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
-                    <div className="text-sm font-medium text-foreground">
-                      Schedule on calendar
-                    </div>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Optional. Use this for exams or planned task blocks that should appear in the hourly grid.
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-1 gap-3">
-                      <div>
-                        <label className="text-sm font-medium text-foreground">Scheduled date</label>
-                        <input
-                          type="date"
-                          value={taskFormData.scheduledDate}
-                          onChange={(e) => {
-                            setTaskFormData({ ...taskFormData, scheduledDate: e.target.value });
-                            clearError(setTaskErrors, "scheduledDate");
-                          }}
-                          className={[inputBase, taskErrors.scheduledDate ? inputErr : inputOk].join(" ")}
-                          aria-invalid={!!taskErrors.scheduledDate}
-                        />
-                        <FieldError message={taskErrors.scheduledDate} />
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div>
-                          <label className="text-sm font-medium text-foreground">Start time</label>
-                          <input
-                            type="time"
-                            value={taskStartTimeUiValue}
-                            onChange={(e) => {
-                              setTaskFormData({
-                                ...taskFormData,
-                                startTime: e.target.value,
-                              });
-                              clearError(setTaskErrors, "startTime");
-                            }}
-                            className={[
-                              "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                              taskErrors.startTime
-                                ? "border-red-500/50 focus-visible:ring-red-500/20"
-                                : "border-border focus-visible:ring-primary/30",
-                            ].join(" ")}
-                            aria-invalid={!!taskErrors.startTime}
-                          />
-                          <FieldError message={taskErrors.startTime} />
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-medium text-foreground">Duration</label>
-                          <select
-                            value={taskFormData.duration}
-                            onChange={(e) => {
-                              setTaskFormData({ ...taskFormData, duration: e.target.value });
-                              clearError(setTaskErrors, "duration");
-                            }}
-                            className={[
-                              "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                              taskErrors.duration
-                                ? "border-red-500/50 focus-visible:ring-red-500/20"
-                                : "border-border focus-visible:ring-primary/30",
-                            ].join(" ")}
-                            aria-invalid={!!taskErrors.duration}
-                          >
-                            <option value="">Select duration</option>
-                            {DURATION_OPTIONS.map((d) => (
-                              <option key={d.value} value={d.value}>
-                                {d.label}
-                              </option>
-                            ))}
-                          </select>
-                          <FieldError message={taskErrors.duration} />
-                        </div>
-                      </div>
-
-                      {(taskFormData.scheduledDate || taskFormData.startTime) ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setTaskFormData({
-                              ...taskFormData,
-                              scheduledDate: "",
-                              startTime: "",
-                              duration: "60 min",
-                            })
-                          }
-                          className="w-fit rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                        >
-                          Clear scheduled time
-                        </button>
-                      ) : null}
-                    </div>
+                  <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
+                    The calendar block shows when you are doing it. The due date appears as a clean deadline label on the item.
                   </div>
 
                   <div className="flex gap-2 pt-1">

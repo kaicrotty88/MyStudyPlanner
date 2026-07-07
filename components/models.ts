@@ -30,7 +30,7 @@ export interface PeriodStored {
   endDate: string; // ISO string
 }
 
-/* -------------------- Tasks -------------------- */
+/* -------------------- Tasks / Assessments -------------------- */
 
 export interface TaskResult {
   score: number; // e.g. 78
@@ -44,27 +44,54 @@ export interface Task {
   id: string;
   title: string;
   subjectId: string;
+
+  /**
+   * Deadline date.
+   *
+   * For homework/assignments:
+   * - dueDate = when it is due.
+   * - scheduledDate/startTime/duration = when the student plans to do it.
+   *
+   * Future timetable logic can use:
+   * - subjectId
+   * - dueDate
+   * to infer the actual class/period where the homework is due.
+   */
   dueDate: Date;
 
+  /**
+   * "task" is kept only for old saved data.
+   * New UI should create only: homework, assignment, exam.
+   */
   type: "task" | "assignment" | "exam" | "homework";
 
-  // Optional scheduled calendar block.
-  // If scheduledDate + startTime exist, this item can appear in Week/Day hourly grid.
-  // dueDate still remains the deadline/date due.
+  /**
+   * Optional scheduled calendar block.
+   *
+   * In Calendar UI, these should be required for homework/assignment/exam
+   * created from Calendar.
+   *
+   * They stay optional in the model so old saved data does not break.
+   */
   scheduledDate?: Date;
-  startTime?: string; // stored as "HH:MM" 24h or display-safe time string
+  startTime?: string; // "HH:MM" 24h preferred
   duration?: string; // e.g. "30 min", "1h", "1h 30m"
 
-  // Term grouping (auto-assigned based on dueDate once Terms exist)
+  /**
+   * Term grouping.
+   * Auto-assigned based on dueDate once Terms exist.
+   */
   periodId?: string;
 
-  // Optional mark/result (used by assignment/exam in UI)
+  /**
+   * Optional mark/result.
+   * Mostly used by assignments/exams.
+   */
   result?: TaskResult;
 
   completed?: boolean;
   completedAt?: Date;
 
-  /* -------- NEW (simple repeats) -------- */
   repeat?: "none" | "daily" | "weekly";
   repeatUntil?: Date;
 }
@@ -76,8 +103,8 @@ export interface StudySession {
   subjectId: string;
   title?: string; // UI falls back to "Study session"
   date: Date;
-  startTime: string;
-  duration: string;
+  startTime: string; // "HH:MM" 24h preferred
+  duration: string; // e.g. "60 min", "1h 30m"
   linkedTaskId?: string;
   completed?: boolean;
   completedAt?: Date;
@@ -86,19 +113,25 @@ export interface StudySession {
 /* -------------------- Reminders -------------------- */
 
 /**
- * A lightweight, general reminder (not tied to a subject).
- * Optional date + time; can also be "floating" (no date) for sticky reminders.
+ * Calendar reminder.
+ *
+ * Reminders are instant/timed markers, not duration blocks.
+ * They should appear at a specific time in Calendar.
+ *
+ * New reminders should always have:
+ * - dueDate
+ * - time
+ *
+ * These are kept technically optional only so old saved reminders without
+ * date/time can still load and be normalised in App.tsx.
  */
 export interface Reminder {
   id: string;
   title: string;
   notes?: string;
 
-  // If omitted, reminder is a "sticky" note-style reminder.
   dueDate?: Date;
-
-  // Optional time label for the UI (stored as "HH:MM" 24h)
-  time?: string;
+  time?: string; // "HH:MM" 24h
 
   repeat?: "none" | "daily" | "weekly";
 
@@ -109,7 +142,7 @@ export interface Reminder {
 }
 
 /**
- * LocalStorage-safe Reminder shape (dates as ISO strings).
+ * LocalStorage-safe Reminder shape.
  */
 export interface ReminderStored {
   id: string;
@@ -117,7 +150,7 @@ export interface ReminderStored {
   notes?: string;
 
   dueDate?: string; // ISO
-  time?: string;
+  time?: string; // "HH:MM" 24h
 
   repeat?: "none" | "daily" | "weekly";
 
@@ -126,11 +159,11 @@ export interface ReminderStored {
   createdAt?: string; // ISO
 }
 
-/* -------------------- Calendar Events (NEW) -------------------- */
+/* -------------------- Calendar Events -------------------- */
 
 /**
- * General calendar events (not tasks or reminders).
- * Examples: excursions, sport, tutoring, school events.
+ * General calendar events.
+ * Future use: classes, school periods, excursions, sport, tutoring.
  */
 export interface CalendarEvent {
   id: string;
