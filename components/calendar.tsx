@@ -35,16 +35,17 @@ type PeriodHydrated = {
 };
 
 type CalendarItemKind = "task" | "assignment" | "exam" | "homework" | "study" | "reminder";
+type CalendarItemPlacement = "timed" | "all-day" | "due";
 
 type CalendarItem = {
   id: string;
   sourceId: string;
   kind: CalendarItemKind;
+  placement: CalendarItemPlacement;
   title: string;
   subjectId?: string;
   start: Date;
   end?: Date;
-  allDay: boolean;
   timeLabel?: string;
   durationLabel?: string;
   task?: Task;
@@ -435,10 +436,10 @@ function CalendarView({
       id: `task-${task.id}`,
       sourceId: task.id,
       kind: task.type,
+      placement: "due",
       title: task.title,
       subjectId: task.subjectId,
       start: startOfDay(task.dueDate),
-      allDay: true,
       task,
     }));
 
@@ -452,11 +453,11 @@ function CalendarView({
         id: `study-${session.id}`,
         sourceId: session.id,
         kind: "study",
+        placement: "timed",
         title: session.title || "Study Session",
         subjectId: session.subjectId,
         start,
         end,
-        allDay: false,
         timeLabel: displaySessionTime(session.startTime),
         durationLabel: session.duration,
         session,
@@ -475,10 +476,10 @@ function CalendarView({
           id: `reminder-${reminder.id}`,
           sourceId: reminder.id,
           kind: "reminder",
+          placement: hasTime ? "timed" : "all-day",
           title: reminder.title || "Reminder",
           start,
           end,
-          allDay: !hasTime,
           timeLabel: reminder.time ? time24To12(reminder.time) : undefined,
           reminder,
         };
@@ -488,7 +489,14 @@ function CalendarView({
       const dayDiff = startOfDay(a.start).getTime() - startOfDay(b.start).getTime();
       if (dayDiff !== 0) return dayDiff;
 
-      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      const placementOrder: Record<CalendarItemPlacement, number> = {
+        "all-day": 0,
+        due: 1,
+        timed: 2,
+      };
+
+      const placementDiff = placementOrder[a.placement] - placementOrder[b.placement];
+      if (placementDiff !== 0) return placementDiff;
 
       return a.start.getTime() - b.start.getTime();
     });
@@ -910,6 +918,7 @@ function CalendarView({
 
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
+    const isTimed = item.placement === "timed";
 
     return (
       <button
@@ -920,21 +929,31 @@ function CalendarView({
           openCalendarItem(item);
         }}
         className={[
-          "group flex h-5 min-w-0 items-center gap-1 rounded-md px-1.5 text-left text-[11px] leading-none",
-          "hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+          "group flex h-[22px] min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-[11px] leading-none",
+          "transition hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
         ].join(" ")}
+        style={{
+          backgroundColor: `${color}14`,
+          color,
+        }}
         title={`${getItemLabel(item)}: ${item.title}`}
       >
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-        {item.timeLabel ? (
-          <span className="shrink-0 font-medium text-muted-foreground">{item.timeLabel}</span>
+        {isTimed ? (
+          <span className="shrink-0 font-semibold text-[10px]" style={{ color }}>
+            {item.timeLabel}
+          </span>
         ) : null}
-        <span className="truncate text-foreground">{item.title}</span>
+
+        {!isTimed ? (
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        ) : null}
+
+        <span className="truncate font-medium text-foreground">{item.title}</span>
       </button>
     );
   };
 
-  const renderAllDayItem = (item: CalendarItem, compact = false) => {
+  const renderCompactItem = (item: CalendarItem, compact = false) => {
     const color = getItemColor(item);
     const canToggle =
       Boolean(item.task && onToggleTaskCompleted) ||
@@ -993,7 +1012,7 @@ function CalendarView({
     return (
       <div
         key={item.id}
-        className="absolute left-1 right-1"
+        className="absolute left-1 right-1 z-10"
         style={{ top, height }}
       >
         <button
@@ -1003,7 +1022,7 @@ function CalendarView({
             openCalendarItem(item);
           }}
           className={[
-            "group h-full w-full overflow-hidden rounded-lg border bg-card px-2 py-1 text-left shadow-sm",
+            "group h-full w-full overflow-hidden rounded-lg border bg-card px-2 py-1 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
             "transition hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           ].join(" ")}
           style={{
@@ -1046,6 +1065,20 @@ function CalendarView({
     );
   };
 
+  const renderHourGridLines = (hours: number[]) => (
+    <div className="pointer-events-none absolute inset-0 z-0">
+      {hours.slice(0, -1).map((hour) => (
+        <div
+          key={hour}
+          className="relative border-b border-border/70"
+          style={{ height: HOUR_HEIGHT }}
+        >
+          <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-border/40" />
+        </div>
+      ))}
+    </div>
+  );
+
   const renderMonthView = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -1068,25 +1101,26 @@ function CalendarView({
         <div className="grid grid-cols-7">
           {cells.map((date) => {
             const dayItems = getItemsForDate(date);
-            const visible = dayItems.slice(0, 5);
+            const visible = dayItems.slice(0, 4);
             const hiddenCount = Math.max(0, dayItems.length - visible.length);
 
             const isToday = isSameDay(new Date(), date);
             const isOtherMonth = date.getMonth() !== month;
 
             return (
-              <button
+              <div
                 key={date.toISOString()}
-                type="button"
                 onClick={() => openAddMenuForDate(date)}
+                role="button"
+                tabIndex={0}
                 className={[
-                  "min-h-[124px] border-r border-b border-border p-1.5 text-left transition",
+                  "min-h-[128px] cursor-pointer border-r border-b border-border p-1.5 text-left transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                  isOtherMonth ? "bg-muted/10 text-muted-foreground" : "bg-card hover:bg-muted/30",
+                  isOtherMonth ? "bg-muted/10 text-muted-foreground" : "bg-card hover:bg-muted/25",
                   isToday ? "bg-primary/[0.04]" : "",
                 ].join(" ")}
               >
-                <div className="mb-1 flex items-center justify-between">
+                <div className="mb-1.5 flex items-center justify-between">
                   <span
                     className={[
                       "grid h-6 w-6 place-items-center rounded-full text-xs",
@@ -1098,11 +1132,13 @@ function CalendarView({
                   </span>
 
                   {dayItems.length > 0 ? (
-                    <span className="text-[10px] text-muted-foreground">{dayItems.length}</span>
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {dayItems.length}
+                    </span>
                   ) : null}
                 </div>
 
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {visible.map(renderMonthItem)}
 
                   {hiddenCount > 0 ? (
@@ -1111,7 +1147,7 @@ function CalendarView({
                     </div>
                   ) : null}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -1162,25 +1198,56 @@ function CalendarView({
             </div>
 
             {days.map((date) => {
-              const allDayItems = getItemsForDate(date).filter((item) => item.allDay);
+              const allDayItems = getItemsForDate(date).filter((item) => item.placement === "all-day");
 
               return (
-                <button
+                <div
                   key={date.toISOString()}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openAddMenuForDate(date)}
-                  className="min-h-[70px] border-r border-border p-1.5 text-left transition hover:bg-muted/30"
+                  className="min-h-[54px] cursor-pointer border-r border-border p-1.5 text-left transition hover:bg-muted/30"
                 >
                   <div className="space-y-1">
-                    {allDayItems.slice(0, 3).map((item) => renderAllDayItem(item, true))}
+                    {allDayItems.slice(0, 2).map((item) => renderCompactItem(item, true))}
 
-                    {allDayItems.length > 3 ? (
+                    {allDayItems.length > 2 ? (
                       <div className="px-1 text-[11px] text-muted-foreground">
-                        +{allDayItems.length - 3} more
+                        +{allDayItems.length - 2} more
                       </div>
                     ) : null}
                   </div>
-                </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/[0.06]">
+            <div className="border-r border-border px-2 py-2 text-[11px] text-muted-foreground">
+              Due
+            </div>
+
+            {days.map((date) => {
+              const dueItems = getItemsForDate(date).filter((item) => item.placement === "due");
+
+              return (
+                <div
+                  key={date.toISOString()}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openAddMenuForDate(date)}
+                  className="min-h-[74px] cursor-pointer border-r border-border p-1.5 text-left transition hover:bg-muted/30"
+                >
+                  <div className="space-y-1">
+                    {dueItems.slice(0, 3).map((item) => renderCompactItem(item, true))}
+
+                    {dueItems.length > 3 ? (
+                      <div className="px-1 text-[11px] text-muted-foreground">
+                        +{dueItems.length - 3} more
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1190,7 +1257,7 @@ function CalendarView({
               {hours.slice(0, -1).map((hour) => (
                 <div
                   key={hour}
-                  className="border-b border-border pr-2 pt-1 text-right text-[11px] text-muted-foreground"
+                  className="border-b border-border/70 pr-2 pt-1 text-right text-[11px] text-muted-foreground"
                   style={{ height: HOUR_HEIGHT }}
                 >
                   {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
@@ -1199,26 +1266,20 @@ function CalendarView({
             </div>
 
             {days.map((date) => {
-              const timedItems = getItemsForDate(date).filter((item) => !item.allDay);
+              const timedItems = getItemsForDate(date).filter((item) => item.placement === "timed");
 
               return (
-                <button
+                <div
                   key={date.toISOString()}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openAddMenuForDate(date)}
-                  className="relative border-r border-border bg-card text-left"
+                  className="relative cursor-pointer border-r border-border bg-card text-left"
                   style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
                 >
-                  {hours.slice(0, -1).map((hour) => (
-                    <div
-                      key={hour}
-                      className="border-b border-border"
-                      style={{ height: HOUR_HEIGHT }}
-                    />
-                  ))}
-
+                  {renderHourGridLines(hours)}
                   {timedItems.map((item) => renderTimedItem(item))}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1229,8 +1290,9 @@ function CalendarView({
 
   const renderDayView = () => {
     const items = getItemsForDate(currentDate);
-    const allDayItems = items.filter((item) => item.allDay);
-    const timedItems = items.filter((item) => !item.allDay);
+    const allDayItems = items.filter((item) => item.placement === "all-day");
+    const dueItems = items.filter((item) => item.placement === "due");
+    const timedItems = items.filter((item) => item.placement === "timed");
     const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
     const isToday = isSameDay(new Date(), currentDate);
 
@@ -1278,7 +1340,7 @@ function CalendarView({
 
           {allDayItems.length > 0 ? (
             <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
-              {allDayItems.map((item) => renderAllDayItem(item))}
+              {allDayItems.map((item) => renderCompactItem(item))}
             </div>
           ) : (
             <button
@@ -1291,12 +1353,32 @@ function CalendarView({
           )}
         </div>
 
+        <div className="border-b border-border bg-muted/[0.06] px-5 py-3">
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Due
+          </div>
+
+          {dueItems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
+              {dueItems.map((item) => renderCompactItem(item))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAddMenuForDate(currentDate)}
+              className="rounded-xl border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/40"
+            >
+              No due items
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-[72px_minmax(0,1fr)]">
           <div className="border-r border-border bg-card">
             {hours.slice(0, -1).map((hour) => (
               <div
                 key={hour}
-                className="border-b border-border pr-3 pt-1 text-right text-[11px] text-muted-foreground"
+                className="border-b border-border/70 pr-3 pt-1 text-right text-[11px] text-muted-foreground"
                 style={{ height: HOUR_HEIGHT }}
               >
                 {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
@@ -1304,22 +1386,16 @@ function CalendarView({
             ))}
           </div>
 
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => openAddMenuForDate(currentDate)}
-            className="relative bg-card text-left"
+            className="relative cursor-pointer bg-card text-left"
             style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
           >
-            {hours.slice(0, -1).map((hour) => (
-              <div
-                key={hour}
-                className="border-b border-border"
-                style={{ height: HOUR_HEIGHT }}
-              />
-            ))}
-
-            {timedItems.length > 0 ? timedItems.map((item) => renderTimedItem(item, true)) : null}
-          </button>
+            {renderHourGridLines(hours)}
+            {timedItems.map((item) => renderTimedItem(item, true))}
+          </div>
         </div>
       </div>
     );
