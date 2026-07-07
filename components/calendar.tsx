@@ -1,14 +1,24 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, JSX } from "react";
-import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Plus } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Plus,
+  X,
+} from "lucide-react";
 
-import type { Subject, Task, StudySession, Reminder } from "./models";
+import type { Reminder, StudySession, Subject, Task } from "./models";
 
 type ViewMode = "day" | "week" | "month";
 type AddFormType = "study" | "task" | "assignment" | "exam" | "homework" | "reminder" | null;
 
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+const DAY_START_HOUR = 7;
+const DAY_END_HOUR = 22;
+const HOUR_HEIGHT = 64;
 
 type PeriodStored = {
   id: string;
@@ -22,6 +32,24 @@ type PeriodHydrated = {
   name: string;
   startDate: Date;
   endDate: Date;
+};
+
+type CalendarItemKind = "task" | "assignment" | "exam" | "homework" | "study" | "reminder";
+
+type CalendarItem = {
+  id: string;
+  sourceId: string;
+  kind: CalendarItemKind;
+  title: string;
+  subjectId?: string;
+  start: Date;
+  end?: Date;
+  allDay: boolean;
+  timeLabel?: string;
+  durationLabel?: string;
+  task?: Task;
+  session?: StudySession;
+  reminder?: Reminder;
 };
 
 interface CalendarProps {
@@ -59,6 +87,12 @@ const FieldError = ({ message }: { message?: string }) =>
 
 const labelClass = "text-sm font-medium text-foreground";
 
+const inputBase =
+  "w-full rounded-xl border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+
+const inputOk = "border-border";
+const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
+
 const toLocalDateInputValue = (d: Date) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -66,26 +100,26 @@ const toLocalDateInputValue = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const isSameDay = (date1: Date, date2: Date) =>
-  date1.getDate() === date2.getDate() &&
-  date1.getMonth() === date2.getMonth() &&
-  date1.getFullYear() === date2.getFullYear();
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const addDays = (date: Date, days: number) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
 
 const startOfWeek = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
+  const x = startOfDay(d);
   x.setDate(x.getDate() - x.getDay());
   return x;
 };
 
-const endOfWeek = (d: Date) => {
-  const s = startOfWeek(d);
-  const e = new Date(s);
-  e.setDate(s.getDate() + 6);
-  return e;
-};
-
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const endOfWeek = (d: Date) => addDays(startOfWeek(d), 6);
 
 const startOfWeekMonday = (d: Date) => {
   const x = startOfDay(d);
@@ -111,11 +145,14 @@ const weekOfTerm = (today: Date, termStart: Date) => {
 
 const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
   const t = startOfDay(dueDate).getTime();
+
   for (const p of periods) {
     const a = startOfDay(p.startDate).getTime();
     const b = startOfDay(p.endDate).getTime();
+
     if (t >= a && t <= b) return p.id;
   }
+
   return undefined;
 };
 
@@ -128,16 +165,26 @@ function typeLabel(t: Task["type"]) {
 
 const time24To12 = (t: string) => {
   if (!t) return "";
-  const [hh, mm] = t.split(":").map((x) => Number(x));
+
+  const [hhRaw, mmRaw] = t.split(":");
+  const hh = Number(hhRaw);
+  const mm = Number(mmRaw);
+
   if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+
   const ampm = hh >= 12 ? "PM" : "AM";
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
+
   return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
 };
 
 const time12To24 = (t: string) => {
   if (!t) return "";
+
   const s = t.trim().toUpperCase();
+
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+
   const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
   if (!m) return "";
 
@@ -146,10 +193,12 @@ const time12To24 = (t: string) => {
   const ap = m[3];
 
   if (Number.isNaN(h) || Number.isNaN(mins)) return "";
+
   h = Math.max(1, Math.min(12, h));
 
   let hh = h % 12;
   if (ap === "PM") hh += 12;
+
   return `${String(hh).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 };
 
@@ -158,6 +207,58 @@ const displaySessionTime = (t: string) => {
   if (!s) return "";
   if (/^\d{2}:\d{2}$/.test(s)) return time24To12(s);
   return s;
+};
+
+const parseTimeToMinutes = (value?: string) => {
+  if (!value) return null;
+
+  const raw = value.trim();
+  const as24 = /^\d{2}:\d{2}$/.test(raw) ? raw : time12To24(raw);
+
+  if (!as24) return null;
+
+  const [hhRaw, mmRaw] = as24.split(":");
+  const hh = Number(hhRaw);
+  const mm = Number(mmRaw);
+
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+
+  return hh * 60 + mm;
+};
+
+const parseDurationToMinutes = (value?: string) => {
+  if (!value) return 60;
+
+  const s = value.toLowerCase().trim();
+
+  const hourMatch = s.match(/(\d+(?:\.\d+)?)\s*h/);
+  const minMatch = s.match(/(\d+)\s*m/);
+
+  let total = 0;
+
+  if (hourMatch) total += Number(hourMatch[1]) * 60;
+  if (minMatch) total += Number(minMatch[1]);
+
+  if (!hourMatch && !minMatch) {
+    const onlyNumber = Number(s.replace(/[^\d.]/g, ""));
+    if (!Number.isNaN(onlyNumber) && onlyNumber > 0) total = onlyNumber;
+  }
+
+  return total > 0 ? Math.round(total) : 60;
+};
+
+const dateWithMinutes = (date: Date, minutes: number) => {
+  const d = startOfDay(date);
+  d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return d;
+};
+
+const itemStartMinutes = (item: CalendarItem) =>
+  item.start.getHours() * 60 + item.start.getMinutes();
+
+const itemEndMinutes = (item: CalendarItem) => {
+  if (!item.end) return itemStartMinutes(item) + 60;
+  return item.end.getHours() * 60 + item.end.getMinutes();
 };
 
 const DURATION_OPTIONS: { label: string; value: string }[] = [
@@ -174,12 +275,32 @@ const DURATION_OPTIONS: { label: string; value: string }[] = [
   { label: "3h", value: "3h" },
 ];
 
-const lineClampStyle = (lines: number) => ({
-  display: "-webkit-box",
-  WebkitLineClamp: lines,
-  WebkitBoxOrient: "vertical" as const,
-  overflow: "hidden",
-});
+const CalendarShell = ({ children }: { children: React.ReactNode }) => (
+  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">{children}</div>
+);
+
+const SwitchPill = ({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className={[
+      "rounded-lg px-3 py-1.5 text-sm font-medium transition",
+      active
+        ? "bg-primary text-primary-foreground shadow-sm"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+    ].join(" ")}
+    type="button"
+  >
+    {label}
+  </button>
+);
 
 function CalendarView({
   studySessions,
@@ -201,58 +322,18 @@ function CalendarView({
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [showPopover, setShowPopover] = useState(false);
-  const [showAddForm, setShowAddForm] = useState<AddFormType>(null);
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showAddForm, setShowAddForm] = useState<AddFormType>(null);
 
-  const closePopover = () => {
-    setShowPopover(false);
-    setSelectedDate(null);
-  };
-
-  const closeForm = () => {
-    setShowAddForm(null);
-    setSelectedDate(null);
-  };
+  const addMenuRef = useRef<HTMLDivElement>(null);
 
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
-      if (!raw) {
-        setPeriods([]);
-        return;
-      }
-      const parsed = JSON.parse(raw) as PeriodStored[];
-      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        startDate: new Date(p.startDate),
-        endDate: new Date(p.endDate),
-      }));
-      hydrated.sort((a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime());
-      setPeriods(hydrated);
-    } catch {
-      setPeriods([]);
-    }
-  }, []);
-
-  const termWeekLabel = useMemo(() => {
-    if (periods.length === 0) return undefined;
-    const active = periods.find((p) => inRangeInclusive(currentDate, p.startDate, p.endDate));
-    if (!active) return undefined;
-    const wk = weekOfTerm(currentDate, active.startDate);
-    return `${active.name} · Week ${wk}`;
-  }, [currentDate, periods]);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
-
-  const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
-  const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
-  const canEditDeleteReminders = Boolean(onUpdateReminder && onDeleteReminder);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -280,22 +361,58 @@ function CalendarView({
   const [sessionErrors, setSessionErrors] = useState<SessionFormErrors>({});
   const [reminderErrors, setReminderErrors] = useState<ReminderFormErrors>({});
 
-  const inputBase =
-    "w-full rounded-xl border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
-  const inputOk = "border-border";
-  const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
+  const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
+  const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
+  const canEditDeleteReminders = Boolean(onUpdateReminder && onDeleteReminder);
 
-  const clearError = <T extends Record<string, string | undefined>>(
-    setFn: React.Dispatch<React.SetStateAction<T>>,
-    key: keyof T
-  ) => {
-    setFn((e) => {
-      if (!e[key]) return e;
-      const copy = { ...e };
-      delete copy[key];
-      return copy;
-    });
-  };
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+
+      if (!raw) {
+        setPeriods([]);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as PeriodStored[];
+
+      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      }));
+
+      hydrated.sort(
+        (a, b) => startOfDay(a.startDate).getTime() - startOfDay(b.startDate).getTime()
+      );
+
+      setPeriods(hydrated);
+    } catch {
+      setPeriods([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") handleCancel();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const termWeekLabel = useMemo(() => {
+    if (periods.length === 0) return undefined;
+
+    const active = periods.find((p) => inRangeInclusive(currentDate, p.startDate, p.endDate));
+    if (!active) return undefined;
+
+    const wk = weekOfTerm(currentDate, active.startDate);
+
+    return `${active.name} · Week ${wk}`;
+  }, [currentDate, periods]);
 
   const subjectById = useMemo(() => {
     const map = new Map<string, Subject>();
@@ -313,6 +430,70 @@ function CalendarView({
   const activeSessions = useMemo(() => studySessions.filter((s: any) => !s.completed), [studySessions]);
   const activeReminders = useMemo(() => reminders.filter((r: any) => !r.completed), [reminders]);
 
+  const calendarItems = useMemo<CalendarItem[]>(() => {
+    const taskItems: CalendarItem[] = activeTasks.map((task) => ({
+      id: `task-${task.id}`,
+      sourceId: task.id,
+      kind: task.type,
+      title: task.title,
+      subjectId: task.subjectId,
+      start: startOfDay(task.dueDate),
+      allDay: true,
+      task,
+    }));
+
+    const sessionItems: CalendarItem[] = activeSessions.map((session) => {
+      const startMins = parseTimeToMinutes(session.startTime) ?? 16 * 60;
+      const durationMins = parseDurationToMinutes(session.duration);
+      const start = dateWithMinutes(session.date, startMins);
+      const end = dateWithMinutes(session.date, startMins + durationMins);
+
+      return {
+        id: `study-${session.id}`,
+        sourceId: session.id,
+        kind: "study",
+        title: session.title || "Study Session",
+        subjectId: session.subjectId,
+        start,
+        end,
+        allDay: false,
+        timeLabel: displaySessionTime(session.startTime),
+        durationLabel: session.duration,
+        session,
+      };
+    });
+
+    const reminderItems: CalendarItem[] = activeReminders
+      .filter((reminder) => reminder.dueDate)
+      .map((reminder) => {
+        const hasTime = Boolean(reminder.time);
+        const startMins = parseTimeToMinutes(reminder.time) ?? 9 * 60;
+        const start = dateWithMinutes(reminder.dueDate as Date, startMins);
+        const end = dateWithMinutes(reminder.dueDate as Date, startMins + 30);
+
+        return {
+          id: `reminder-${reminder.id}`,
+          sourceId: reminder.id,
+          kind: "reminder",
+          title: reminder.title || "Reminder",
+          start,
+          end,
+          allDay: !hasTime,
+          timeLabel: reminder.time ? time24To12(reminder.time) : undefined,
+          reminder,
+        };
+      });
+
+    return [...taskItems, ...sessionItems, ...reminderItems].sort((a, b) => {
+      const dayDiff = startOfDay(a.start).getTime() - startOfDay(b.start).getTime();
+      if (dayDiff !== 0) return dayDiff;
+
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+
+      return a.start.getTime() - b.start.getTime();
+    });
+  }, [activeTasks, activeSessions, activeReminders]);
+
   const linkableTasks = useMemo(() => {
     return activeTasks
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
@@ -326,45 +507,93 @@ function CalendarView({
     return taskById.get(id) ?? null;
   }, [sessionFormData.linkedTaskId, taskById]);
 
-  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+  const startTimeUiValue = useMemo(() => {
+    const s = (sessionFormData.startTime ?? "").trim();
+    if (/^\d{2}:\d{2}$/.test(s)) return s;
+    return time12To24(s);
+  }, [sessionFormData.startTime]);
 
-  const previousWeek = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() - 7);
-    setCurrentDate(newDate);
-  };
-  const nextWeek = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + 7);
-    setCurrentDate(newDate);
-  };
+  const clearError = <T extends Record<string, string | undefined>>(
+    setFn: React.Dispatch<React.SetStateAction<T>>,
+    key: keyof T
+  ) => {
+    setFn((e) => {
+      if (!e[key]) return e;
 
-  const previousDay = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() - 1);
-    setCurrentDate(newDate);
-  };
-  const nextDay = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + 1);
-    setCurrentDate(newDate);
+      const copy = { ...e };
+      delete copy[key];
+
+      return copy;
+    });
   };
 
-  const getItemsForDate = (date: Date) => {
-    const dateTasks = activeTasks.filter((task) => isSameDay(task.dueDate, date));
-    const dateSessions = activeSessions.filter((session) => isSameDay(session.date, date));
-    const dateReminders = activeReminders.filter((r) => (r.dueDate ? isSameDay(r.dueDate, date) : false));
-    return { tasks: dateTasks, sessions: dateSessions, reminders: dateReminders };
+  const getItemsForDate = (date: Date) =>
+    calendarItems.filter((item) => isSameDay(item.start, date));
+
+  const getHeaderLabel = () => {
+    if (viewMode === "month") {
+      return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    }
+
+    if (viewMode === "week") {
+      const s = startOfWeek(currentDate);
+      const e = endOfWeek(currentDate);
+
+      return `${s.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })} – ${e.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })}`;
+    }
+
+    return currentDate.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
-  const handleDayClick = (date: Date) => {
+  const handleNavigate = (direction: "prev" | "next") => {
+    if (viewMode === "month") {
+      setCurrentDate(
+        new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + (direction === "next" ? 1 : -1),
+          1
+        )
+      );
+      return;
+    }
+
+    if (viewMode === "week") {
+      setCurrentDate(addDays(currentDate, direction === "next" ? 7 : -7));
+      return;
+    }
+
+    setCurrentDate(addDays(currentDate, direction === "next" ? 1 : -1));
+  };
+
+  const openAddMenuForDate = (date: Date) => {
     setSelectedDate(date);
-    setShowPopover(true);
+    setShowAddMenu(true);
+  };
+
+  const closeAddMenu = () => {
+    setShowAddMenu(false);
+    setSelectedDate(null);
+  };
+
+  const closeForm = () => {
+    setShowAddForm(null);
+    setSelectedDate(null);
   };
 
   const handleAddOption = (type: AddFormType) => {
     if (!selectedDate) return;
+
     const dateStr = toLocalDateInputValue(selectedDate);
 
     setEditingTaskId(null);
@@ -380,7 +609,7 @@ function CalendarView({
         title: "",
         subjectId: "",
         date: dateStr,
-        startTime: "",
+        startTime: "4:00 PM",
         duration: "60 min",
         linkedTaskId: "",
       });
@@ -400,7 +629,7 @@ function CalendarView({
     }
 
     setShowAddForm(type);
-    setShowPopover(false);
+    setShowAddMenu(false);
   };
 
   const openEditTask = (task: Task) => {
@@ -418,7 +647,7 @@ function CalendarView({
     });
 
     setShowAddForm(task.type);
-    setShowPopover(false);
+    setShowAddMenu(false);
   };
 
   const openEditSession = (session: StudySession) => {
@@ -438,7 +667,7 @@ function CalendarView({
     });
 
     setShowAddForm("study");
-    setShowPopover(false);
+    setShowAddMenu(false);
   };
 
   const openEditReminder = (reminder: Reminder) => {
@@ -456,34 +685,49 @@ function CalendarView({
     });
 
     setShowAddForm("reminder");
-    setShowPopover(false);
+    setShowAddMenu(false);
+  };
+
+  const openCalendarItem = (item: CalendarItem) => {
+    if (item.task) openEditTask(item.task);
+    else if (item.session) openEditSession(item.session);
+    else if (item.reminder) openEditReminder(item.reminder);
   };
 
   const validateTaskForm = () => {
     const next: TaskFormErrors = {};
+
     if (!taskFormData.title.trim()) next.title = "Title is required";
     if (!taskFormData.subjectId) next.subjectId = "Subject is required";
     if (!taskFormData.dueDate) next.dueDate = "Due date is required";
+
     setTaskErrors(next);
+
     return Object.keys(next).length === 0;
   };
 
   const validateSessionForm = () => {
     const next: SessionFormErrors = {};
+
     if (!sessionFormData.title.trim()) next.title = "Title is required";
     if (!sessionFormData.subjectId) next.subjectId = "Subject is required";
     if (!sessionFormData.date) next.date = "Date is required";
     if (!sessionFormData.startTime.trim()) next.startTime = "Start time is required";
     if (!sessionFormData.duration.trim()) next.duration = "Duration is required";
+
     setSessionErrors(next);
+
     return Object.keys(next).length === 0;
   };
 
   const validateReminderForm = () => {
     const next: ReminderFormErrors = {};
+
     if (!reminderFormData.title.trim()) next.title = "Title is required";
     if (!reminderFormData.dueDate) next.dueDate = "Date is required";
+
     setReminderErrors(next);
+
     return Object.keys(next).length === 0;
   };
 
@@ -496,7 +740,8 @@ function CalendarView({
       const existing = tasks.find((t) => t.id === editingTaskId);
 
       const dueChanged =
-        existing?.dueDate && startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
+        existing?.dueDate &&
+        startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
       const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
       const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
@@ -546,13 +791,19 @@ function CalendarView({
       ...(editingSessionId
         ? (() => {
             const current = studySessions.find((x) => x.id === editingSessionId);
-            return { completed: current?.completed, completedAt: current?.completedAt };
+            return {
+              completed: current?.completed,
+              completedAt: current?.completedAt,
+            };
           })()
         : {}),
     };
 
-    if (editingSessionId && onUpdateStudySession) onUpdateStudySession(editingSessionId, payload);
-    else onAddStudySession(payload);
+    if (editingSessionId && onUpdateStudySession) {
+      onUpdateStudySession(editingSessionId, payload);
+    } else {
+      onAddStudySession(payload);
+    }
 
     setEditingSessionId(null);
     setSessionFormData({
@@ -572,11 +823,14 @@ function CalendarView({
 
     const newDueDate = new Date(reminderFormData.dueDate);
     const trimmedTitle = reminderFormData.title.trim();
+
     if (!trimmedTitle) return;
 
-    const existing = editingReminderId ? reminders.find((r) => r.id === editingReminderId) : undefined;
+    const existing = editingReminderId
+      ? reminders.find((r) => r.id === editingReminderId)
+      : undefined;
 
-    const payloadBase: Omit<Reminder, "id"> = {
+    const payload: Omit<Reminder, "id"> = {
       title: trimmedTitle,
       dueDate: newDueDate,
       time: reminderFormData.time?.trim() ? reminderFormData.time.trim() : undefined,
@@ -591,8 +845,11 @@ function CalendarView({
         : {}),
     };
 
-    if (editingReminderId && onUpdateReminder) onUpdateReminder(editingReminderId, payloadBase);
-    else onAddReminder(payloadBase);
+    if (editingReminderId && onUpdateReminder) {
+      onUpdateReminder(editingReminderId, payload);
+    } else {
+      onAddReminder(payload);
+    }
 
     setEditingReminderId(null);
     setReminderFormData({ title: "", dueDate: "", time: "" });
@@ -602,7 +859,7 @@ function CalendarView({
 
   const handleCancel = () => {
     setShowAddForm(null);
-    setShowPopover(false);
+    setShowAddMenu(false);
     setSelectedDate(null);
 
     setEditingTaskId(null);
@@ -625,587 +882,535 @@ function CalendarView({
     setReminderFormData({ title: "", dueDate: "", time: "" });
   };
 
-  const SectionShell = ({ children }: { children: React.ReactNode }) => (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">{children}</div>
-  );
+  const handleToggleItem = (event: React.MouseEvent, item: CalendarItem) => {
+    event.stopPropagation();
 
-  const SwitchPill = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      className={[
-        "px-3 py-1.5 rounded-full text-sm transition",
-        active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted border border-border bg-card",
-      ].join(" ")}
-      type="button"
-    >
-      {label}
-    </button>
-  );
+    if (item.task && onToggleTaskCompleted) onToggleTaskCompleted(item.task.id);
+    else if (item.session && onToggleStudySessionCompleted) onToggleStudySessionCompleted(item.session.id);
+    else if (item.reminder && onToggleReminderCompleted) onToggleReminderCompleted(item.reminder.id);
+  };
 
-  const CompleteDot = ({
-    onClick,
-    aria,
-  }: {
-    onClick: (e: React.MouseEvent) => void;
-    aria: string;
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={aria}
-      className={[
-        "mt-0.5 h-5 w-5 rounded-full border border-border",
-        "bg-background/40 hover:bg-muted/60 transition shrink-0",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-      ].join(" ")}
-    >
-      <span className="sr-only">{aria}</span>
-      <div className="h-full w-full grid place-items-center">
-        <div className="h-2 w-2 rounded-full bg-primary opacity-0 group-hover:opacity-60 group-focus-within:opacity-60 transition-opacity" />
-      </div>
-    </button>
-  );
+  const getItemColor = (item: CalendarItem) => {
+    if (item.kind === "exam") return "#ef4444";
+    if (item.kind === "assignment") return "#f59e0b";
+    if (item.kind === "homework") return "#3b82f6";
+    if (item.kind === "reminder") return "#64748b";
 
-  const renderChip = ({
-    title,
-    subjectId,
-    task,
-    session,
-    reminder,
-    compact,
-  }: {
-    title: string;
-    subjectId?: string;
-    task?: Task;
-    session?: StudySession;
-    reminder?: Reminder;
-    compact?: boolean;
-  }) => {
-    const subject = subjectId ? subjectById.get(subjectId) : undefined;
-    const dot = subject?.color ?? "#94a3b8";
+    const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
 
-    const titleLines = compact ? 2 : 3;
+    return subject?.color ?? "#6366f1";
+  };
 
-    const timeLabel = session
-      ? `${displaySessionTime(session.startTime)} ${session.duration}`.trim()
-      : reminder?.time
-        ? time24To12(reminder.time)
-        : "";
+  const getItemLabel = (item: CalendarItem) => {
+    if (item.kind === "study") return "Study";
+    if (item.kind === "reminder") return "Reminder";
+    if (item.task) return typeLabel(item.task.type);
+    return "Item";
+  };
 
-    const handleOpen = () => {
-      if (task) openEditTask(task);
-      else if (session) openEditSession(session);
-      else if (reminder) openEditReminder(reminder);
-    };
+  const renderMonthItem = (item: CalendarItem) => {
+    const color = getItemColor(item);
 
-    const canOpen = Boolean(
-      (task && canEditDeleteTasks) || (session && canEditDeleteSessions) || (reminder && canEditDeleteReminders)
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          openCalendarItem(item);
+        }}
+        className={[
+          "group flex h-5 min-w-0 items-center gap-1 rounded-md px-1.5 text-left text-[11px] leading-none",
+          "hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+        ].join(" ")}
+        title={`${getItemLabel(item)}: ${item.title}`}
+      >
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        {item.timeLabel ? (
+          <span className="shrink-0 font-medium text-muted-foreground">{item.timeLabel}</span>
+        ) : null}
+        <span className="truncate text-foreground">{item.title}</span>
+      </button>
     );
+  };
 
-    const isExam = task?.type === "exam";
-    const isAssignment = task?.type === "assignment";
+  const renderAllDayItem = (item: CalendarItem, compact = false) => {
+    const color = getItemColor(item);
+    const canToggle =
+      Boolean(item.task && onToggleTaskCompleted) ||
+      Boolean(item.session && onToggleStudySessionCompleted) ||
+      Boolean(item.reminder && onToggleReminderCompleted);
 
-    const bottomLeft = reminder ? "" : subject?.name ?? "Unassigned";
-    const bottomRight = task
-      ? typeLabel(task.type)
-      : session
-        ? "Study Session"
-        : reminder
-          ? "Reminder"
-          : "";
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          openCalendarItem(item);
+        }}
+        className={[
+          "group flex min-w-0 items-center gap-2 rounded-lg border bg-background/70 px-2 py-1.5 text-left",
+          "transition hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+          compact ? "h-7" : "min-h-8",
+        ].join(" ")}
+        style={{ borderLeftWidth: 4, borderLeftColor: color }}
+        title={`${getItemLabel(item)}: ${item.title}`}
+      >
+        {canToggle ? (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(event) => handleToggleItem(event, item)}
+            className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border bg-card transition hover:bg-muted"
+            aria-label="Mark complete"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-primary opacity-0 transition group-hover:opacity-60" />
+          </span>
+        ) : null}
 
-    const canToggleTask = Boolean(task && onToggleTaskCompleted);
-    const canToggleSession = Boolean(session && onToggleStudySessionCompleted);
-    const canToggleReminder = Boolean(reminder && onToggleReminderCompleted);
-    const showToggle = canToggleTask || canToggleSession || canToggleReminder;
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[11px] font-medium text-foreground">{item.title}</div>
+          {!compact ? (
+            <div className="truncate text-[10px] text-muted-foreground">{getItemLabel(item)}</div>
+          ) : null}
+        </div>
+      </button>
+    );
+  };
 
-    const handleToggle = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (task && onToggleTaskCompleted) onToggleTaskCompleted(task.id);
-      else if (session && onToggleStudySessionCompleted) onToggleStudySessionCompleted(session.id);
-      else if (reminder && onToggleReminderCompleted) onToggleReminderCompleted(reminder.id);
-    };
+  const renderTimedItem = (item: CalendarItem, dayColumn = false) => {
+    const color = getItemColor(item);
+    const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
+    const end = Math.min(itemEndMinutes(item), DAY_END_HOUR * 60);
+    const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const height = Math.max(34, ((end - start) / 60) * HOUR_HEIGHT);
 
-    const rightPaddingClass = timeLabel ? "pr-14" : "pr-2";
-
-    const chipClassName = [
-      "group relative flex items-start gap-2 rounded-lg border px-2 py-1.5 transition",
-      canOpen ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" : "",
-      isExam
-        ? "border-rose-300/70 bg-rose-50/90 dark:bg-rose-950/25 dark:border-rose-800/60 shadow-sm hover:bg-rose-50 dark:hover:bg-rose-950/35"
-        : "",
-      isAssignment
-        ? "border-amber-300/70 bg-amber-50/90 dark:bg-amber-950/25 dark:border-amber-800/60 shadow-sm hover:bg-amber-50 dark:hover:bg-amber-950/35"
-        : "",
-      !isExam && !isAssignment ? "border-border bg-background/40 hover:bg-background/60" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    const badgeClasses = isExam
-      ? "border-rose-300/70 bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60"
-      : isAssignment
-        ? "border-amber-300/70 bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
-        : "border-border bg-muted/50 text-muted-foreground";
+    const canToggle =
+      Boolean(item.session && onToggleStudySessionCompleted) ||
+      Boolean(item.reminder && onToggleReminderCompleted);
 
     return (
       <div
-        role={canOpen ? "button" : undefined}
-        tabIndex={canOpen ? 0 : undefined}
-        onClick={(e) => {
-          if (!canOpen) return;
-          e.stopPropagation();
-          handleOpen();
-        }}
-        onKeyDown={(e) => {
-          if (!canOpen) return;
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            e.stopPropagation();
-            handleOpen();
-          }
-        }}
-        className={chipClassName}
-        style={{ borderLeftWidth: 4, borderLeftColor: dot }}
-        title={title}
+        key={item.id}
+        className="absolute left-1 right-1"
+        style={{ top, height }}
       >
-        {showToggle ? (
-          <CompleteDot
-            onClick={handleToggle}
-            aria={
-              task ? "Complete task" : session ? "Complete study session" : reminder ? "Complete reminder" : "Complete"
-            }
-          />
-        ) : null}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            openCalendarItem(item);
+          }}
+          className={[
+            "group h-full w-full overflow-hidden rounded-lg border bg-card px-2 py-1 text-left shadow-sm",
+            "transition hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+          ].join(" ")}
+          style={{
+            borderLeftWidth: 4,
+            borderLeftColor: color,
+            backgroundColor: `${color}12`,
+          }}
+          title={`${getItemLabel(item)}: ${item.title}`}
+        >
+          <div className="flex min-w-0 items-start gap-1.5">
+            {canToggle ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(event) => handleToggleItem(event, item)}
+                className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border bg-card/70 transition hover:bg-muted"
+                aria-label="Mark complete"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary opacity-0 transition group-hover:opacity-60" />
+              </span>
+            ) : null}
 
-        <div className={["min-w-0 flex-1", rightPaddingClass].join(" ")}>
-          <div className="text-[11px] text-foreground leading-tight font-medium" style={lineClampStyle(titleLines)}>
-            {title}
-          </div>
-
-          <div className="mt-1 flex items-center gap-1 min-w-0">
-            {bottomLeft ? (
-              <div className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">{bottomLeft}</div>
-            ) : (
-              <div className="flex-1" />
-            )}
-
-            {bottomRight ? (
+            <div className="min-w-0 flex-1">
               <div
                 className={[
-                  "shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold leading-none whitespace-nowrap",
-                  badgeClasses,
+                  "truncate font-semibold text-foreground",
+                  dayColumn ? "text-xs" : "text-[11px]",
                 ].join(" ")}
               >
-                {bottomRight}
+                {item.title}
               </div>
-            ) : null}
+              <div className="truncate text-[10px] text-muted-foreground">
+                {item.timeLabel}
+                {item.durationLabel ? ` · ${item.durationLabel}` : ""}
+              </div>
+            </div>
           </div>
-        </div>
-
-        {timeLabel ? (
-          <div className="absolute top-1 right-2 w-[52px] text-right text-[10px] leading-3 text-muted-foreground">
-            {timeLabel}
-          </div>
-        ) : null}
+        </button>
       </div>
     );
   };
 
   const renderMonthView = () => {
-    const days = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-    const weeks: JSX.Element[] = [];
-    let cells: JSX.Element[] = [];
+    const firstOfMonth = new Date(year, month, 1);
+    const gridStart = startOfWeek(firstOfMonth);
 
-    for (let i = 0; i < firstDay; i++) {
-      cells.push(
-        <div
-          key={`empty-${i}`}
-          className="min-h-[170px] p-2 bg-muted/20 border-r border-b border-border"
-          aria-hidden="true"
-        />
-      );
-    }
+    const cells = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
 
-    for (let day = 1; day <= days; day++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      const { tasks: dayTasks, sessions: daySessions, reminders: dayReminders } = getItemsForDate(date);
-
-      const isToday = isSameDay(new Date(), date);
-      const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
-
-      const previewItems = [
-        ...dayTasks.map((t) => ({ kind: "task" as const, t })),
-        ...daySessions.map((s) => ({ kind: "session" as const, s })),
-        ...dayReminders.map((r) => ({ kind: "reminder" as const, r })),
-      ].slice(0, 3);
-
-      const totalCount = dayTasks.length + daySessions.length + dayReminders.length;
-
-      const ariaLabel = `${date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      })}. ${totalCount === 0 ? "No items." : `${totalCount} item${totalCount === 1 ? "" : "s"}.`}`;
-
-      cells.push(
-        <div
-          key={day}
-          role="button"
-          tabIndex={0}
-          aria-label={ariaLabel}
-          onClick={() => handleDayClick(date)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") handleDayClick(date);
-          }}
-          className={[
-            "min-h-[170px] text-left p-2.5 border-r border-b border-border hover:bg-muted/40 transition",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-            "flex flex-col cursor-pointer bg-card",
-            isToday ? "bg-primary/[0.04]" : "",
-            isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
-          ].join(" ")}
-        >
-          <div className="flex items-center justify-between">
-            <div
-              className={[
-                "h-7 w-7 grid place-items-center rounded-full text-sm",
-                isToday ? "bg-primary/10 text-primary font-semibold" : "text-foreground",
-                isSelected ? "ring-1 ring-primary/30" : "",
-              ].join(" ")}
-            >
+    return (
+      <div>
+        <div className="grid grid-cols-7 border-b border-border bg-muted/20">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div key={day} className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">
               {day}
             </div>
-
-            {isToday ? (
-              <span className="text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Today
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-2 space-y-1.5 min-h-0">
-            {previewItems.map((x, idx) => {
-              if (x.kind === "task") {
-                return (
-                  <div key={x.t.id + idx} className="min-w-0">
-                    {renderChip({ title: x.t.title, subjectId: x.t.subjectId, task: x.t, compact: true })}
-                  </div>
-                );
-              }
-              if (x.kind === "session") {
-                return (
-                  <div key={x.s.id + idx} className="min-w-0">
-                    {renderChip({
-                      title: x.s.title || "Study Session",
-                      subjectId: x.s.subjectId,
-                      session: x.s,
-                      compact: true,
-                    })}
-                  </div>
-                );
-              }
-              return (
-                <div key={x.r.id + idx} className="min-w-0">
-                  {renderChip({
-                    title: x.r.title || "Reminder",
-                    reminder: x.r,
-                    compact: true,
-                  })}
-                </div>
-              );
-            })}
-
-            {totalCount > 3 ? (
-              <div className="text-[11px] text-muted-foreground mt-1">+{totalCount - 3} more</div>
-            ) : null}
-          </div>
+          ))}
         </div>
-      );
 
-      if ((firstDay + day) % 7 === 0 || day === days) {
-        weeks.push(
-          <div key={`week-${weeks.length}`} className="grid grid-cols-7">
-            {cells}
-          </div>
-        );
-        cells = [];
-      }
-    }
+        <div className="grid grid-cols-7">
+          {cells.map((date) => {
+            const dayItems = getItemsForDate(date);
+            const visible = dayItems.slice(0, 5);
+            const hiddenCount = Math.max(0, dayItems.length - visible.length);
 
-    return <div className="space-y-0">{weeks}</div>;
+            const isToday = isSameDay(new Date(), date);
+            const isOtherMonth = date.getMonth() !== month;
+
+            return (
+              <button
+                key={date.toISOString()}
+                type="button"
+                onClick={() => openAddMenuForDate(date)}
+                className={[
+                  "min-h-[124px] border-r border-b border-border p-1.5 text-left transition",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                  isOtherMonth ? "bg-muted/10 text-muted-foreground" : "bg-card hover:bg-muted/30",
+                  isToday ? "bg-primary/[0.04]" : "",
+                ].join(" ")}
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <span
+                    className={[
+                      "grid h-6 w-6 place-items-center rounded-full text-xs",
+                      isToday ? "bg-primary text-primary-foreground font-semibold" : "text-foreground",
+                      isOtherMonth && !isToday ? "text-muted-foreground" : "",
+                    ].join(" ")}
+                  >
+                    {date.getDate()}
+                  </span>
+
+                  {dayItems.length > 0 ? (
+                    <span className="text-[10px] text-muted-foreground">{dayItems.length}</span>
+                  ) : null}
+                </div>
+
+                <div className="space-y-0.5">
+                  {visible.map(renderMonthItem)}
+
+                  {hiddenCount > 0 ? (
+                    <div className="px-1.5 pt-0.5 text-[11px] font-medium text-muted-foreground">
+                      +{hiddenCount} more
+                    </div>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const renderWeekView = () => {
-    const s = startOfWeek(currentDate);
-    const days: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(s);
-      d.setDate(s.getDate() + i);
-      days.push(d);
-    }
+    const start = startOfWeek(currentDate);
+    const days = Array.from({ length: 7 }, (_, index) => addDays(start, index));
+    const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
 
     return (
-      <div className="grid grid-cols-7 border-t border-border">
-        {days.map((date, i) => {
-          const { tasks: dayTasks, sessions: daySessions, reminders: dayReminders } = getItemsForDate(date);
-          const isToday = isSameDay(new Date(), date);
-          const isSelected = selectedDate ? isSameDay(selectedDate, date) : false;
+      <div className="overflow-x-auto">
+        <div className="min-w-[980px]">
+          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-card">
+            <div className="border-r border-border" />
 
-          const ariaLabel = `${date.toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })}. ${dayTasks.length + daySessions.length + dayReminders.length} items.`;
+            {days.map((date) => {
+              const isToday = isSameDay(new Date(), date);
 
-          return (
-            <div
-              key={i}
-              role="button"
-              tabIndex={0}
-              aria-label={ariaLabel}
-              onClick={() => handleDayClick(date)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") handleDayClick(date);
-              }}
-              className={[
-                "min-h-[580px] p-3 text-left border-r border-border cursor-pointer transition",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                isToday ? "bg-primary/[0.04]" : "bg-card hover:bg-muted/40",
-                isSelected ? "ring-1 ring-primary/30 ring-inset" : "",
-              ].join(" ")}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
+              return (
+                <button
+                  key={date.toISOString()}
+                  type="button"
+                  onClick={() => openAddMenuForDate(date)}
+                  className="border-r border-border px-2 py-3 text-center transition hover:bg-muted/30"
+                >
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {date.toLocaleDateString("en-US", { weekday: "short" })}
                   </div>
-                  <div className={["text-lg font-semibold", isToday ? "text-primary" : "text-foreground"].join(" ")}>
+                  <div
+                    className={[
+                      "mx-auto mt-1 grid h-8 w-8 place-items-center rounded-full text-sm font-semibold",
+                      isToday ? "bg-primary text-primary-foreground" : "text-foreground",
+                    ].join(" ")}
+                  >
                     {date.getDate()}
                   </div>
-                </div>
-                {isToday ? (
-                  <span className="text-[11px] px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    Today
-                  </span>
-                ) : null}
-              </div>
+                </button>
+              );
+            })}
+          </div>
 
-              <div className="mt-3 space-y-2">
-                {dayTasks.map((t) => (
-                  <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}</div>
-                ))}
-                {daySessions.map((sess) => (
-                  <div key={sess.id}>
-                    {renderChip({
-                      title: sess.title || "Study Session",
-                      subjectId: sess.subjectId,
-                      session: sess,
-                      compact: false,
-                    })}
-                  </div>
-                ))}
-                {dayReminders.map((r) => (
-                  <div key={r.id}>
-                    {renderChip({
-                      title: r.title || "Reminder",
-                      reminder: r,
-                      compact: false,
-                    })}
-                  </div>
-                ))}
-
-                {dayTasks.length === 0 && daySessions.length === 0 && dayReminders.length === 0 ? (
-                  <div className="mt-6 text-xs text-muted-foreground border border-dashed border-border rounded-xl p-3 bg-background/30">
-                    Empty
-                  </div>
-                ) : null}
-              </div>
+          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/10">
+            <div className="border-r border-border px-2 py-2 text-[11px] text-muted-foreground">
+              All-day
             </div>
-          );
-        })}
+
+            {days.map((date) => {
+              const allDayItems = getItemsForDate(date).filter((item) => item.allDay);
+
+              return (
+                <button
+                  key={date.toISOString()}
+                  type="button"
+                  onClick={() => openAddMenuForDate(date)}
+                  className="min-h-[70px] border-r border-border p-1.5 text-left transition hover:bg-muted/30"
+                >
+                  <div className="space-y-1">
+                    {allDayItems.slice(0, 3).map((item) => renderAllDayItem(item, true))}
+
+                    {allDayItems.length > 3 ? (
+                      <div className="px-1 text-[11px] text-muted-foreground">
+                        +{allDayItems.length - 3} more
+                      </div>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
+            <div className="border-r border-border bg-card">
+              {hours.slice(0, -1).map((hour) => (
+                <div
+                  key={hour}
+                  className="border-b border-border pr-2 pt-1 text-right text-[11px] text-muted-foreground"
+                  style={{ height: HOUR_HEIGHT }}
+                >
+                  {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
+                </div>
+              ))}
+            </div>
+
+            {days.map((date) => {
+              const timedItems = getItemsForDate(date).filter((item) => !item.allDay);
+
+              return (
+                <button
+                  key={date.toISOString()}
+                  type="button"
+                  onClick={() => openAddMenuForDate(date)}
+                  className="relative border-r border-border bg-card text-left"
+                  style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
+                >
+                  {hours.slice(0, -1).map((hour) => (
+                    <div
+                      key={hour}
+                      className="border-b border-border"
+                      style={{ height: HOUR_HEIGHT }}
+                    />
+                  ))}
+
+                  {timedItems.map((item) => renderTimedItem(item))}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   };
 
   const renderDayView = () => {
-    const { tasks: dayTasks, sessions: daySessions, reminders: dayReminders } = getItemsForDate(currentDate);
+    const items = getItemsForDate(currentDate);
+    const allDayItems = items.filter((item) => item.allDay);
+    const timedItems = items.filter((item) => !item.allDay);
+    const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
     const isToday = isSameDay(new Date(), currentDate);
 
     return (
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xs text-muted-foreground">
-              {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
+      <div>
+        <div className="border-b border-border px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <div
+                  className={[
+                    "grid h-9 w-9 place-items-center rounded-full text-base font-semibold",
+                    isToday ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                  ].join(" ")}
+                >
+                  {currentDate.getDate()}
+                </div>
+                <div className="text-lg font-semibold text-foreground">
+                  {currentDate.toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="mt-1 text-xl font-semibold text-foreground">
-              {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-            </div>
+
+            <button
+              type="button"
+              onClick={() => openAddMenuForDate(currentDate)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              Add item
+            </button>
           </div>
-          {isToday ? (
-            <span className="text-[11px] px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-              Today
-            </span>
-          ) : null}
         </div>
 
-        <div className="mt-4 space-y-3">
-          {dayTasks.length === 0 && daySessions.length === 0 && dayReminders.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-background/40 px-4 py-12 text-center">
-              <div className="text-sm font-medium text-foreground">No items planned</div>
-              <div className="mt-1 text-xs text-muted-foreground">Click below to add something to this day.</div>
-              <button
-                onClick={() => handleDayClick(currentDate)}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
-                type="button"
-              >
-                <Plus className="h-4 w-4" />
-                Add item
-              </button>
+        <div className="border-b border-border bg-muted/10 px-5 py-3">
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            All-day
+          </div>
+
+          {allDayItems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
+              {allDayItems.map((item) => renderAllDayItem(item))}
             </div>
           ) : (
-            <>
-              {dayTasks.map((t) => (
-                <div key={t.id}>{renderChip({ title: t.title, subjectId: t.subjectId, task: t, compact: false })}</div>
-              ))}
-              {daySessions.map((sess) => (
-                <div key={sess.id}>
-                  {renderChip({
-                    title: sess.title || "Study Session",
-                    subjectId: sess.subjectId,
-                    session: sess,
-                    compact: false,
-                  })}
-                </div>
-              ))}
-              {dayReminders.map((r) => (
-                <div key={r.id}>
-                  {renderChip({
-                    title: r.title || "Reminder",
-                    reminder: r,
-                    compact: false,
-                  })}
-                </div>
-              ))}
-            </>
+            <button
+              type="button"
+              onClick={() => openAddMenuForDate(currentDate)}
+              className="rounded-xl border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/40"
+            >
+              No all-day items
+            </button>
           )}
+        </div>
+
+        <div className="grid grid-cols-[72px_minmax(0,1fr)]">
+          <div className="border-r border-border bg-card">
+            {hours.slice(0, -1).map((hour) => (
+              <div
+                key={hour}
+                className="border-b border-border pr-3 pt-1 text-right text-[11px] text-muted-foreground"
+                style={{ height: HOUR_HEIGHT }}
+              >
+                {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openAddMenuForDate(currentDate)}
+            className="relative bg-card text-left"
+            style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
+          >
+            {hours.slice(0, -1).map((hour) => (
+              <div
+                key={hour}
+                className="border-b border-border"
+                style={{ height: HOUR_HEIGHT }}
+              />
+            ))}
+
+            {timedItems.length > 0 ? timedItems.map((item) => renderTimedItem(item, true)) : null}
+          </button>
         </div>
       </div>
     );
   };
 
-  const getHeaderLabel = () => {
-    if (viewMode === "month") return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    if (viewMode === "week") {
-      const s = startOfWeek(currentDate);
-      const e = endOfWeek(currentDate);
-      return `${s.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${e.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })}`;
-    }
-    return currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  };
-
-  const handleNavigate = (direction: "prev" | "next") => {
-    if (viewMode === "month") direction === "prev" ? previousMonth() : nextMonth();
-    else if (viewMode === "week") direction === "prev" ? previousWeek() : nextWeek();
-    else direction === "prev" ? previousDay() : nextDay();
-  };
-
-  const startTimeUiValue = useMemo(() => {
-    const s = (sessionFormData.startTime ?? "").trim();
-    if (/^\d{2}:\d{2}$/.test(s)) return s;
-    return time12To24(s);
-  }, [sessionFormData.startTime]);
-
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 md:px-8 py-7 space-y-5">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
-        <p className="text-sm text-muted-foreground">Click a day to add a task, reminder, or study session.</p>
+    <div className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-7 sm:px-6 md:px-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
+          <p className="text-sm text-muted-foreground">
+            A central calendar for tasks, reminders, exams, homework, and study sessions.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => openAddMenuForDate(currentDate)}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" />
+          Add item
+        </button>
       </div>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleNavigate("prev")}
-            className="h-9 w-9 grid place-items-center rounded-lg border border-border bg-card hover:bg-muted transition"
-            aria-label="Previous"
-            type="button"
-          >
-            <ChevronLeft className="h-4 w-4 text-foreground" />
-          </button>
+      <CalendarShell>
+        <div className="flex flex-col gap-3 border-b border-border bg-card px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleNavigate("prev")}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-card transition hover:bg-muted"
+              aria-label="Previous"
+              type="button"
+            >
+              <ChevronLeft className="h-4 w-4 text-foreground" />
+            </button>
 
-          <div className="min-w-[220px] text-left md:text-center">
-            <div className="text-sm font-semibold text-foreground">{getHeaderLabel()}</div>
-            {termWeekLabel ? <div className="text-xs text-muted-foreground mt-0.5">{termWeekLabel}</div> : null}
+            <button
+              onClick={() => handleNavigate("next")}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-card transition hover:bg-muted"
+              aria-label="Next"
+              type="button"
+            >
+              <ChevronRight className="h-4 w-4 text-foreground" />
+            </button>
+
+            <div className="ml-2 min-w-[220px]">
+              <div className="text-lg font-semibold text-foreground">{getHeaderLabel()}</div>
+              {termWeekLabel ? (
+                <div className="text-xs text-muted-foreground">{termWeekLabel}</div>
+              ) : null}
+            </div>
           </div>
 
-          <button
-            onClick={() => handleNavigate("next")}
-            className="h-9 w-9 grid place-items-center rounded-lg border border-border bg-card hover:bg-muted transition"
-            aria-label="Next"
-            type="button"
-          >
-            <ChevronRight className="h-4 w-4 text-foreground" />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="rounded-full border border-border bg-card p-1 flex gap-1">
-            <SwitchPill label="Month" active={viewMode === "month"} onClick={() => setViewMode("month")} />
-            <SwitchPill label="Week" active={viewMode === "week"} onClick={() => setViewMode("week")} />
-            <SwitchPill label="Day" active={viewMode === "day"} onClick={() => setViewMode("day")} />
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-xl border border-border bg-muted/20 p-1">
+              <SwitchPill label="Month" active={viewMode === "month"} onClick={() => setViewMode("month")} />
+              <SwitchPill label="Week" active={viewMode === "week"} onClick={() => setViewMode("week")} />
+              <SwitchPill label="Day" active={viewMode === "day"} onClick={() => setViewMode("day")} />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">Plan</div>
-        </div>
+        {viewMode === "month" ? renderMonthView() : null}
+        {viewMode === "week" ? renderWeekView() : null}
+        {viewMode === "day" ? renderDayView() : null}
+      </CalendarShell>
 
-        <SectionShell>
-          {viewMode === "month" ? (
-            <>
-              <div className="grid grid-cols-7 bg-muted/20 border-b border-border">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                  <div key={day} className="p-3 text-center text-xs font-medium text-muted-foreground">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              {renderMonthView()}
-            </>
-          ) : null}
-
-          {viewMode === "week" ? renderWeekView() : null}
-          {viewMode === "day" ? renderDayView() : null}
-        </SectionShell>
-      </div>
-
-      {showPopover && selectedDate ? (
+      {showAddMenu && selectedDate ? (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={closePopover} />
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={closeAddMenu} />
+
           <div
-            ref={popoverRef}
-            className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] rounded-2xl border border-border bg-card shadow-xl overflow-hidden"
+            ref={addMenuRef}
+            className="fixed left-1/2 top-1/2 z-50 w-[330px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-foreground">
-                  {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                  {selectedDate.toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
                 </div>
                 <div className="text-xs text-muted-foreground">Add something to this day</div>
               </div>
+
               <button
-                onClick={closePopover}
-                className="h-8 w-8 grid place-items-center rounded-lg hover:bg-muted transition"
+                onClick={closeAddMenu}
+                className="grid h-8 w-8 place-items-center rounded-lg transition hover:bg-muted"
                 aria-label="Close"
                 type="button"
               >
@@ -1213,19 +1418,19 @@ function CalendarView({
               </button>
             </div>
 
-            <div className="p-3 space-y-2">
+            <div className="space-y-2 p-3">
               <button
                 onClick={() => handleAddOption("study")}
-                className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
+                className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 transition hover:bg-background/70"
                 type="button"
               >
                 <span className="text-sm text-foreground">Add Study Session</span>
-                <Plus className="h-4 w-4 text-muted-foreground" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
               </button>
 
               <button
                 onClick={() => handleAddOption("reminder")}
-                className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
+                className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 transition hover:bg-background/70"
                 type="button"
               >
                 <span className="text-sm text-foreground">Add Reminder</span>
@@ -1236,7 +1441,7 @@ function CalendarView({
                 <button
                   key={t}
                   onClick={() => handleAddOption(t)}
-                  className="w-full flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 hover:bg-background/60 transition"
+                  className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2 transition hover:bg-background/70"
                   type="button"
                 >
                   <span className="text-sm text-foreground">Add {typeLabel(t)}</span>
@@ -1250,9 +1455,10 @@ function CalendarView({
 
       {showAddForm ? (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={handleCancel} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={handleCancel} />
+
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div className="space-y-0.5">
                 <div className="text-sm font-semibold text-foreground">
                   {showAddForm === "study"
@@ -1261,16 +1467,21 @@ function CalendarView({
                       ? `${editingReminderId ? "Edit" : "Add"} Reminder`
                       : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
+
                 <div className="text-xs text-muted-foreground">
                   {selectedDate
-                    ? selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    ? selectedDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
                     : ""}
                 </div>
               </div>
 
               <button
                 onClick={handleCancel}
-                className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition"
+                className="grid h-9 w-9 place-items-center rounded-lg transition hover:bg-muted"
                 aria-label="Close"
                 type="button"
               >
@@ -1278,7 +1489,7 @@ function CalendarView({
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="space-y-4 p-5">
               {showAddForm === "study" ? (
                 <>
                   <div>
@@ -1288,7 +1499,7 @@ function CalendarView({
                     </label>
                     <input
                       type="text"
-                      placeholder="Session title (e.g. Trig graphs revision)"
+                      placeholder="Session title"
                       value={sessionFormData.title}
                       onChange={(e) => {
                         setSessionFormData({ ...sessionFormData, title: e.target.value });
@@ -1309,8 +1520,9 @@ function CalendarView({
                       value={sessionFormData.subjectId}
                       onChange={(e) => {
                         const nextSubjectId = e.target.value;
-
-                        const linked = sessionFormData.linkedTaskId ? taskById.get(sessionFormData.linkedTaskId) : null;
+                        const linked = sessionFormData.linkedTaskId
+                          ? taskById.get(sessionFormData.linkedTaskId)
+                          : null;
                         const shouldClearLink = linked && linked.subjectId !== nextSubjectId;
 
                         setSessionFormData((p) => ({
@@ -1318,6 +1530,7 @@ function CalendarView({
                           subjectId: nextSubjectId,
                           linkedTaskId: shouldClearLink ? "" : p.linkedTaskId,
                         }));
+
                         clearError(setSessionErrors, "subjectId");
                       }}
                       className={[inputBase, sessionErrors.subjectId ? inputErr : inputOk].join(" ")}
@@ -1333,9 +1546,8 @@ function CalendarView({
                     <FieldError message={sessionErrors.subjectId} />
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">Link to task (optional)</div>
-
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Link to task</label>
                     <select
                       value={sessionFormData.linkedTaskId}
                       onChange={(e) => {
@@ -1347,6 +1559,7 @@ function CalendarView({
                         }
 
                         const linked = taskById.get(nextId);
+
                         if (!linked) {
                           setSessionFormData((p) => ({ ...p, linkedTaskId: "" }));
                           return;
@@ -1357,6 +1570,7 @@ function CalendarView({
                           linkedTaskId: nextId,
                           subjectId: linked.subjectId,
                         }));
+
                         clearError(setSessionErrors, "subjectId");
                       }}
                       className={[inputBase, inputOk].join(" ")}
@@ -1377,7 +1591,11 @@ function CalendarView({
                         linkableTasks.map((t) => {
                           const subj = subjectById.get(t.subjectId);
                           const subjName = subj?.name ?? "Unassigned";
-                          const due = t.dueDate?.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                          const due = t.dueDate?.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          });
+
                           return (
                             <option key={t.id} value={t.id}>
                               {typeLabel(t.type)} • {t.title} — {subjName} (due {due})
@@ -1387,7 +1605,9 @@ function CalendarView({
                       )}
                     </select>
 
-                    <div className="text-[11px] text-muted-foreground">Only shows active (not completed) tasks.</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Only active, not completed tasks are shown.
+                    </div>
                   </div>
 
                   <div>
@@ -1395,11 +1615,9 @@ function CalendarView({
                       Date
                       <RequiredMark required />
                     </label>
-                    <div className="mt-1">
-                      <label className="text-xs text-muted-foreground flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        Date
-                      </label>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <CalendarIcon className="h-4 w-4" />
+                      Date
                     </div>
                     <input
                       type="date"
@@ -1414,7 +1632,7 @@ function CalendarView({
                     <FieldError message={sessionErrors.date} />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
                       <label className={labelClass}>
                         Start time
@@ -1424,7 +1642,10 @@ function CalendarView({
                         type="time"
                         value={startTimeUiValue}
                         onChange={(e) => {
-                          setSessionFormData({ ...sessionFormData, startTime: time24To12(e.target.value) });
+                          setSessionFormData({
+                            ...sessionFormData,
+                            startTime: time24To12(e.target.value),
+                          });
                           clearError(setSessionErrors, "startTime");
                         }}
                         className={[
@@ -1475,7 +1696,7 @@ function CalendarView({
                           onDeleteStudySession(editingSessionId);
                           handleCancel();
                         }}
-                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
                         type="button"
                       >
                         Delete
@@ -1484,14 +1705,15 @@ function CalendarView({
 
                     <button
                       onClick={handleSessionSubmit}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                       type="button"
                     >
                       {editingSessionId ? "Save" : "Add"}
                     </button>
+
                     <button
                       onClick={handleCancel}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
                       type="button"
                     >
                       Cancel
@@ -1507,7 +1729,7 @@ function CalendarView({
                     </label>
                     <input
                       type="text"
-                      placeholder="Reminder title (e.g. Pack calculator)"
+                      placeholder="Reminder title"
                       value={reminderFormData.title}
                       onChange={(e) => {
                         setReminderFormData({ ...reminderFormData, title: e.target.value });
@@ -1524,11 +1746,9 @@ function CalendarView({
                       Date
                       <RequiredMark required />
                     </label>
-                    <div className="mt-1">
-                      <label className="text-xs text-muted-foreground flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        Date
-                      </label>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <CalendarIcon className="h-4 w-4" />
+                      Date
                     </div>
                     <input
                       type="date"
@@ -1543,13 +1763,18 @@ function CalendarView({
                     <FieldError message={reminderErrors.dueDate} />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2">
-                    <label className="text-xs text-muted-foreground">Time (optional)</label>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Time</label>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Optional. Timed reminders appear in the hourly grid.
+                    </div>
                     <input
                       type="time"
                       value={reminderFormData.time}
-                      onChange={(e) => setReminderFormData({ ...reminderFormData, time: e.target.value })}
-                      className="w-full h-11 rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      onChange={(e) =>
+                        setReminderFormData({ ...reminderFormData, time: e.target.value })
+                      }
+                      className="h-11 w-full rounded-xl border border-border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     />
                   </div>
 
@@ -1560,7 +1785,7 @@ function CalendarView({
                           onDeleteReminder(editingReminderId);
                           handleCancel();
                         }}
-                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
                         type="button"
                       >
                         Delete
@@ -1569,14 +1794,15 @@ function CalendarView({
 
                     <button
                       onClick={handleReminderSubmit}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                       type="button"
                     >
                       {editingReminderId ? "Save" : "Add"}
                     </button>
+
                     <button
                       onClick={handleCancel}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
                       type="button"
                     >
                       Cancel
@@ -1653,7 +1879,7 @@ function CalendarView({
                           onDeleteTask(editingTaskId);
                           handleCancel();
                         }}
-                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition"
+                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
                         type="button"
                       >
                         Delete
@@ -1662,14 +1888,15 @@ function CalendarView({
 
                     <button
                       onClick={handleTaskSubmit}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                       type="button"
                     >
                       {editingTaskId ? "Save" : "Add"}
                     </button>
+
                     <button
                       onClick={handleCancel}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
                       type="button"
                     >
                       Cancel
