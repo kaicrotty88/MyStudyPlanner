@@ -76,7 +76,9 @@ interface CalendarProps {
   onDeleteReminder?: (id: string) => void;
 }
 
-type TaskFormErrors = Partial<Record<"title" | "subjectId" | "dueDate", string>>;
+type TaskFormErrors = Partial<
+  Record<"title" | "subjectId" | "dueDate" | "scheduledDate" | "startTime" | "duration", string>
+>;
 type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>>;
 type ReminderFormErrors = Partial<Record<"title" | "dueDate", string>>;
 
@@ -203,7 +205,7 @@ const time12To24 = (t: string) => {
   return `${String(hh).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 };
 
-const displaySessionTime = (t: string) => {
+const displayTime = (t?: string) => {
   const s = (t ?? "").trim();
   if (!s) return "";
   if (/^\d{2}:\d{2}$/.test(s)) return time24To12(s);
@@ -261,6 +263,9 @@ const itemEndMinutes = (item: CalendarItem) => {
   if (!item.end) return itemStartMinutes(item) + 60;
   return item.end.getHours() * 60 + item.end.getMinutes();
 };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
 
 const DURATION_OPTIONS: { label: string; value: string }[] = [
   { label: "15 min", value: "15 min" },
@@ -323,6 +328,9 @@ function CalendarView({
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [now, setNow] = useState(new Date());
+
+  const timeGridScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -341,6 +349,9 @@ function CalendarView({
     subjectId: "",
     dueDate: "",
     type: "task" as "task" | "assignment" | "exam" | "homework",
+    scheduledDate: "",
+    startTime: "",
+    duration: "60 min",
   });
 
   const [sessionFormData, setSessionFormData] = useState({
@@ -365,6 +376,11 @@ function CalendarView({
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
   const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
   const canEditDeleteReminders = Boolean(onUpdateReminder && onDeleteReminder);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     try {
@@ -432,16 +448,52 @@ function CalendarView({
   const activeReminders = useMemo(() => reminders.filter((r: any) => !r.completed), [reminders]);
 
   const calendarItems = useMemo<CalendarItem[]>(() => {
-    const taskItems: CalendarItem[] = activeTasks.map((task) => ({
-      id: `task-${task.id}`,
-      sourceId: task.id,
-      kind: task.type,
-      placement: "due",
-      title: task.title,
-      subjectId: task.subjectId,
-      start: startOfDay(task.dueDate),
-      task,
-    }));
+    const taskItems: CalendarItem[] = activeTasks.flatMap((task) => {
+      const scheduledDate = task.scheduledDate;
+      const hasScheduledBlock = Boolean(scheduledDate && task.startTime);
+      const scheduledStartMins = hasScheduledBlock ? parseTimeToMinutes(task.startTime) : null;
+      const durationMins = parseDurationToMinutes(task.duration);
+      const items: CalendarItem[] = [];
+
+      if (hasScheduledBlock && scheduledStartMins !== null && scheduledDate) {
+        const start = dateWithMinutes(scheduledDate, scheduledStartMins);
+        const end = dateWithMinutes(scheduledDate, scheduledStartMins + durationMins);
+
+        items.push({
+          id: `task-timed-${task.id}`,
+          sourceId: task.id,
+          kind: task.type,
+          placement: "timed",
+          title: task.title,
+          subjectId: task.subjectId,
+          start,
+          end,
+          timeLabel: displayTime(task.startTime),
+          durationLabel: task.duration || "60 min",
+          task,
+        });
+      }
+
+      const shouldShowDueItem =
+        !hasScheduledBlock ||
+        !scheduledDate ||
+        !isSameDay(startOfDay(task.dueDate), startOfDay(scheduledDate));
+
+      if (shouldShowDueItem) {
+        items.push({
+          id: `task-due-${task.id}`,
+          sourceId: task.id,
+          kind: task.type,
+          placement: "due",
+          title: task.title,
+          subjectId: task.subjectId,
+          start: startOfDay(task.dueDate),
+          task,
+        });
+      }
+
+      return items;
+    });
 
     const sessionItems: CalendarItem[] = activeSessions.map((session) => {
       const startMins = parseTimeToMinutes(session.startTime) ?? 16 * 60;
@@ -458,7 +510,7 @@ function CalendarView({
         subjectId: session.subjectId,
         start,
         end,
-        timeLabel: displaySessionTime(session.startTime),
+        timeLabel: displayTime(session.startTime),
         durationLabel: session.duration,
         session,
       };
@@ -520,6 +572,12 @@ function CalendarView({
     if (/^\d{2}:\d{2}$/.test(s)) return s;
     return time12To24(s);
   }, [sessionFormData.startTime]);
+
+  const taskStartTimeUiValue = useMemo(() => {
+    const s = (taskFormData.startTime ?? "").trim();
+    if (/^\d{2}:\d{2}$/.test(s)) return s;
+    return time12To24(s);
+  }, [taskFormData.startTime]);
 
   const clearError = <T extends Record<string, string | undefined>>(
     setFn: React.Dispatch<React.SetStateAction<T>>,
@@ -633,6 +691,9 @@ function CalendarView({
         subjectId: "",
         dueDate: dateStr,
         type: type as "task" | "assignment" | "exam" | "homework",
+        scheduledDate: "",
+        startTime: "",
+        duration: "60 min",
       });
     }
 
@@ -644,7 +705,7 @@ function CalendarView({
     if (!canEditDeleteTasks) return;
 
     setEditingTaskId(task.id);
-    setSelectedDate(task.dueDate);
+    setSelectedDate(task.scheduledDate ?? task.dueDate);
     setTaskErrors({});
 
     setTaskFormData({
@@ -652,6 +713,9 @@ function CalendarView({
       subjectId: task.subjectId,
       dueDate: toLocalDateInputValue(task.dueDate),
       type: task.type,
+      scheduledDate: task.scheduledDate ? toLocalDateInputValue(task.scheduledDate) : "",
+      startTime: task.startTime ?? "",
+      duration: task.duration ?? "60 min",
     });
 
     setShowAddForm(task.type);
@@ -709,6 +773,22 @@ function CalendarView({
     if (!taskFormData.subjectId) next.subjectId = "Subject is required";
     if (!taskFormData.dueDate) next.dueDate = "Due date is required";
 
+    const hasScheduledDate = Boolean(taskFormData.scheduledDate);
+    const hasStartTime = Boolean(taskFormData.startTime);
+    const hasDuration = Boolean(taskFormData.duration);
+
+    if ((hasScheduledDate || hasStartTime) && !hasScheduledDate) {
+      next.scheduledDate = "Scheduled date is required when adding a time block";
+    }
+
+    if ((hasScheduledDate || hasStartTime) && !hasStartTime) {
+      next.startTime = "Start time is required when adding a scheduled block";
+    }
+
+    if ((hasScheduledDate || hasStartTime) && !hasDuration) {
+      next.duration = "Duration is required when adding a scheduled block";
+    }
+
     setTaskErrors(next);
 
     return Object.keys(next).length === 0;
@@ -743,6 +823,16 @@ function CalendarView({
     if (!validateTaskForm()) return;
 
     const newDueDate = new Date(taskFormData.dueDate);
+    const nextScheduledDate = taskFormData.scheduledDate
+      ? new Date(taskFormData.scheduledDate)
+      : undefined;
+    const nextStartTime = taskFormData.startTime?.trim()
+      ? taskFormData.startTime.trim()
+      : undefined;
+    const nextDuration =
+      nextScheduledDate && nextStartTime
+        ? taskFormData.duration?.trim() || "60 min"
+        : undefined;
 
     if (editingTaskId && onUpdateTask) {
       const existing = tasks.find((t) => t.id === editingTaskId);
@@ -759,10 +849,15 @@ function CalendarView({
         subjectId: taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
+        scheduledDate: nextScheduledDate,
+        startTime: nextStartTime,
+        duration: nextDuration,
         completed: existing?.completed,
         completedAt: existing?.completedAt,
         periodId: nextPeriodId,
         result: existing?.result,
+        repeat: existing?.repeat,
+        repeatUntil: existing?.repeatUntil,
       };
 
       onUpdateTask(editingTaskId, payload);
@@ -774,6 +869,9 @@ function CalendarView({
         subjectId: taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
+        scheduledDate: nextScheduledDate,
+        startTime: nextStartTime,
+        duration: nextDuration,
         periodId: computedPeriodId,
       };
 
@@ -781,7 +879,15 @@ function CalendarView({
     }
 
     setEditingTaskId(null);
-    setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
+    setTaskFormData({
+      title: "",
+      subjectId: "",
+      dueDate: "",
+      type: "task",
+      scheduledDate: "",
+      startTime: "",
+      duration: "60 min",
+    });
     setShowAddForm(null);
     closeForm();
   };
@@ -878,7 +984,15 @@ function CalendarView({
     setSessionErrors({});
     setReminderErrors({});
 
-    setTaskFormData({ title: "", subjectId: "", dueDate: "", type: "task" });
+    setTaskFormData({
+      title: "",
+      subjectId: "",
+      dueDate: "",
+      type: "task",
+      scheduledDate: "",
+      startTime: "",
+      duration: "60 min",
+    });
     setSessionFormData({
       title: "",
       subjectId: "",
@@ -915,6 +1029,54 @@ function CalendarView({
     if (item.task) return typeLabel(item.task.type);
     return "Item";
   };
+
+  const visibleWeekDays = useMemo(() => {
+    const start = startOfWeek(currentDate);
+    return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+  }, [currentDate]);
+
+  const getAutoScrollTargetMinutes = () => {
+    const today = startOfDay(now);
+
+    if (viewMode === "day") {
+      if (isSameDay(currentDate, today)) {
+        return now.getHours() * 60 + now.getMinutes();
+      }
+
+      const firstTimed = getItemsForDate(currentDate)
+        .filter((item) => item.placement === "timed")
+        .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+
+      return firstTimed ? itemStartMinutes(firstTimed) : 9 * 60;
+    }
+
+    const weekHasToday = visibleWeekDays.some((day) => isSameDay(day, today));
+
+    if (weekHasToday) {
+      return now.getHours() * 60 + now.getMinutes();
+    }
+
+    const weekTimedItems = visibleWeekDays
+      .flatMap((day) => getItemsForDate(day))
+      .filter((item) => item.placement === "timed")
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    return weekTimedItems[0] ? itemStartMinutes(weekTimedItems[0]) : 9 * 60;
+  };
+
+  useEffect(() => {
+    if (viewMode === "month") return;
+
+    const target = getAutoScrollTargetMinutes();
+    const rawTop = ((target - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT - 160;
+    const maxTop = (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT;
+
+    window.setTimeout(() => {
+      if (!timeGridScrollRef.current) return;
+
+      timeGridScrollRef.current.scrollTop = clamp(rawTop, 0, maxTop);
+    }, 0);
+  }, [viewMode, currentDate, calendarItems.length]);
 
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
@@ -970,7 +1132,8 @@ function CalendarView({
         }}
         className={[
           "group flex min-w-0 items-center gap-2 rounded-lg border bg-background/70 px-2 py-1.5 text-left",
-          "transition hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+          "shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-muted/60",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           compact ? "h-7" : "min-h-8",
         ].join(" ")}
         style={{ borderLeftWidth: 4, borderLeftColor: color }}
@@ -1003,16 +1166,17 @@ function CalendarView({
     const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
     const end = Math.min(itemEndMinutes(item), DAY_END_HOUR * 60);
     const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
-    const height = Math.max(34, ((end - start) / 60) * HOUR_HEIGHT);
+    const height = Math.max(36, ((end - start) / 60) * HOUR_HEIGHT);
 
     const canToggle =
       Boolean(item.session && onToggleStudySessionCompleted) ||
-      Boolean(item.reminder && onToggleReminderCompleted);
+      Boolean(item.reminder && onToggleReminderCompleted) ||
+      Boolean(item.task && onToggleTaskCompleted);
 
     return (
       <div
         key={item.id}
-        className="absolute left-1 right-1 z-10"
+        className="absolute left-1.5 right-1.5 z-10"
         style={{ top, height }}
       >
         <button
@@ -1022,8 +1186,10 @@ function CalendarView({
             openCalendarItem(item);
           }}
           className={[
-            "group h-full w-full overflow-hidden rounded-lg border bg-card px-2 py-1 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
-            "transition hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+            "group h-full w-full overflow-hidden rounded-xl border bg-card px-2.5 py-1.5 text-left",
+            "shadow-[0_4px_10px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.02]",
+            "transition hover:-translate-y-[1px] hover:shadow-[0_7px_14px_rgba(0,0,0,0.09)]",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           ].join(" ")}
           style={{
             borderLeftWidth: 4,
@@ -1070,14 +1236,34 @@ function CalendarView({
       {hours.slice(0, -1).map((hour) => (
         <div
           key={hour}
-          className="relative border-b border-border/70"
+          className="relative border-b border-border/60"
           style={{ height: HOUR_HEIGHT }}
         >
-          <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-border/40" />
+          <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-border/35" />
         </div>
       ))}
     </div>
   );
+
+  const renderCurrentTimeLine = (date: Date, wide = false) => {
+    if (!isSameDay(date, now)) return null;
+
+    const minutes = now.getHours() * 60 + now.getMinutes();
+
+    if (minutes < DAY_START_HOUR * 60 || minutes > DAY_END_HOUR * 60) return null;
+
+    const top = ((minutes - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
+    return (
+      <div
+        className="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
+        style={{ top }}
+      >
+        <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+        <div className={["h-[2px] flex-1 bg-primary", wide ? "shadow-sm" : ""].join(" ")} />
+      </div>
+    );
+  };
 
   const renderMonthView = () => {
     const year = currentDate.getFullYear();
@@ -1092,7 +1278,7 @@ function CalendarView({
       <div>
         <div className="grid grid-cols-7 border-b border-border bg-muted/20">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">
+            <div key={day} className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {day}
             </div>
           ))}
@@ -1156,8 +1342,7 @@ function CalendarView({
   };
 
   const renderWeekView = () => {
-    const start = startOfWeek(currentDate);
-    const days = Array.from({ length: 7 }, (_, index) => addDays(start, index));
+    const days = visibleWeekDays;
     const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
 
     return (
@@ -1174,15 +1359,18 @@ function CalendarView({
                   key={date.toISOString()}
                   type="button"
                   onClick={() => openAddMenuForDate(date)}
-                  className="border-r border-border px-2 py-3 text-center transition hover:bg-muted/30"
+                  className={[
+                    "border-r border-border px-2 py-3 text-center transition hover:bg-muted/30",
+                    isToday ? "bg-primary/[0.04]" : "",
+                  ].join(" ")}
                 >
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {date.toLocaleDateString("en-US", { weekday: "short" })}
                   </div>
                   <div
                     className={[
                       "mx-auto mt-1 grid h-8 w-8 place-items-center rounded-full text-sm font-semibold",
-                      isToday ? "bg-primary text-primary-foreground" : "text-foreground",
+                      isToday ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground",
                     ].join(" ")}
                   >
                     {date.getDate()}
@@ -1193,7 +1381,7 @@ function CalendarView({
           </div>
 
           <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/10">
-            <div className="border-r border-border px-2 py-2 text-[11px] text-muted-foreground">
+            <div className="border-r border-border px-2 py-2 text-[11px] font-medium text-muted-foreground">
               All-day
             </div>
 
@@ -1223,7 +1411,7 @@ function CalendarView({
           </div>
 
           <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/[0.06]">
-            <div className="border-r border-border px-2 py-2 text-[11px] text-muted-foreground">
+            <div className="border-r border-border px-2 py-2 text-[11px] font-medium text-muted-foreground">
               Due
             </div>
 
@@ -1252,36 +1440,46 @@ function CalendarView({
             })}
           </div>
 
-          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
-            <div className="border-r border-border bg-card">
-              {hours.slice(0, -1).map((hour) => (
-                <div
-                  key={hour}
-                  className="border-b border-border/70 pr-2 pt-1 text-right text-[11px] text-muted-foreground"
-                  style={{ height: HOUR_HEIGHT }}
-                >
-                  {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
-                </div>
-              ))}
+          <div
+            ref={timeGridScrollRef}
+            className="max-h-[680px] overflow-y-auto"
+          >
+            <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
+              <div className="border-r border-border bg-card">
+                {hours.slice(0, -1).map((hour) => (
+                  <div
+                    key={hour}
+                    className="border-b border-border/60 pr-2 pt-1 text-right text-[11px] text-muted-foreground"
+                    style={{ height: HOUR_HEIGHT }}
+                  >
+                    {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
+                  </div>
+                ))}
+              </div>
+
+              {days.map((date) => {
+                const timedItems = getItemsForDate(date).filter((item) => item.placement === "timed");
+                const isToday = isSameDay(new Date(), date);
+
+                return (
+                  <div
+                    key={date.toISOString()}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openAddMenuForDate(date)}
+                    className={[
+                      "relative cursor-pointer border-r border-border bg-card text-left",
+                      isToday ? "bg-primary/[0.025]" : "",
+                    ].join(" ")}
+                    style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
+                  >
+                    {renderHourGridLines(hours)}
+                    {renderCurrentTimeLine(date)}
+                    {timedItems.map((item) => renderTimedItem(item))}
+                  </div>
+                );
+              })}
             </div>
-
-            {days.map((date) => {
-              const timedItems = getItemsForDate(date).filter((item) => item.placement === "timed");
-
-              return (
-                <div
-                  key={date.toISOString()}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openAddMenuForDate(date)}
-                  className="relative cursor-pointer border-r border-border bg-card text-left"
-                  style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
-                >
-                  {renderHourGridLines(hours)}
-                  {timedItems.map((item) => renderTimedItem(item))}
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
@@ -1301,14 +1499,14 @@ function CalendarView({
         <div className="border-b border-border px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <div
                   className={[
                     "grid h-9 w-9 place-items-center rounded-full text-base font-semibold",
-                    isToday ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                    isToday ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-foreground",
                   ].join(" ")}
                 >
                   {currentDate.getDate()}
@@ -1373,28 +1571,37 @@ function CalendarView({
           )}
         </div>
 
-        <div className="grid grid-cols-[72px_minmax(0,1fr)]">
-          <div className="border-r border-border bg-card">
-            {hours.slice(0, -1).map((hour) => (
-              <div
-                key={hour}
-                className="border-b border-border/70 pr-3 pt-1 text-right text-[11px] text-muted-foreground"
-                style={{ height: HOUR_HEIGHT }}
-              >
-                {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
-              </div>
-            ))}
-          </div>
+        <div
+          ref={timeGridScrollRef}
+          className="max-h-[720px] overflow-y-auto"
+        >
+          <div className="grid grid-cols-[72px_minmax(0,1fr)]">
+            <div className="border-r border-border bg-card">
+              {hours.slice(0, -1).map((hour) => (
+                <div
+                  key={hour}
+                  className="border-b border-border/60 pr-3 pt-1 text-right text-[11px] text-muted-foreground"
+                  style={{ height: HOUR_HEIGHT }}
+                >
+                  {time24To12(`${String(hour).padStart(2, "0")}:00`).replace(":00", "")}
+                </div>
+              ))}
+            </div>
 
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => openAddMenuForDate(currentDate)}
-            className="relative cursor-pointer bg-card text-left"
-            style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
-          >
-            {renderHourGridLines(hours)}
-            {timedItems.map((item) => renderTimedItem(item, true))}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => openAddMenuForDate(currentDate)}
+              className={[
+                "relative cursor-pointer bg-card text-left",
+                isToday ? "bg-primary/[0.025]" : "",
+              ].join(" ")}
+              style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
+            >
+              {renderHourGridLines(hours)}
+              {renderCurrentTimeLine(currentDate, true)}
+              {timedItems.map((item) => renderTimedItem(item, true))}
+            </div>
           </div>
         </div>
       </div>
@@ -1946,6 +2153,100 @@ function CalendarView({
                       aria-invalid={!!taskErrors.dueDate}
                     />
                     <FieldError message={taskErrors.dueDate} />
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
+                    <div className="text-sm font-medium text-foreground">
+                      Schedule on calendar
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Optional. Use this for exams or planned task blocks that should appear in the hourly grid.
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Scheduled date</label>
+                        <input
+                          type="date"
+                          value={taskFormData.scheduledDate}
+                          onChange={(e) => {
+                            setTaskFormData({ ...taskFormData, scheduledDate: e.target.value });
+                            clearError(setTaskErrors, "scheduledDate");
+                          }}
+                          className={[inputBase, taskErrors.scheduledDate ? inputErr : inputOk].join(" ")}
+                          aria-invalid={!!taskErrors.scheduledDate}
+                        />
+                        <FieldError message={taskErrors.scheduledDate} />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="text-sm font-medium text-foreground">Start time</label>
+                          <input
+                            type="time"
+                            value={taskStartTimeUiValue}
+                            onChange={(e) => {
+                              setTaskFormData({
+                                ...taskFormData,
+                                startTime: e.target.value,
+                              });
+                              clearError(setTaskErrors, "startTime");
+                            }}
+                            className={[
+                              "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                              taskErrors.startTime
+                                ? "border-red-500/50 focus-visible:ring-red-500/20"
+                                : "border-border focus-visible:ring-primary/30",
+                            ].join(" ")}
+                            aria-invalid={!!taskErrors.startTime}
+                          />
+                          <FieldError message={taskErrors.startTime} />
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-foreground">Duration</label>
+                          <select
+                            value={taskFormData.duration}
+                            onChange={(e) => {
+                              setTaskFormData({ ...taskFormData, duration: e.target.value });
+                              clearError(setTaskErrors, "duration");
+                            }}
+                            className={[
+                              "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                              taskErrors.duration
+                                ? "border-red-500/50 focus-visible:ring-red-500/20"
+                                : "border-border focus-visible:ring-primary/30",
+                            ].join(" ")}
+                            aria-invalid={!!taskErrors.duration}
+                          >
+                            <option value="">Select duration</option>
+                            {DURATION_OPTIONS.map((d) => (
+                              <option key={d.value} value={d.value}>
+                                {d.label}
+                              </option>
+                            ))}
+                          </select>
+                          <FieldError message={taskErrors.duration} />
+                        </div>
+                      </div>
+
+                      {(taskFormData.scheduledDate || taskFormData.startTime) ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setTaskFormData({
+                              ...taskFormData,
+                              scheduledDate: "",
+                              startTime: "",
+                              duration: "60 min",
+                            })
+                          }
+                          className="w-fit rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        >
+                          Clear scheduled time
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">

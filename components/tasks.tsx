@@ -2,7 +2,15 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Calendar, ChevronDown, ChevronUp, Edit2, Plus, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Edit2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import type { Subject, Task, StudySession } from "./models";
 
@@ -25,7 +33,9 @@ type PeriodHydrated = {
   endDate: Date;
 };
 
-type TaskFormErrors = Partial<Record<"title" | "subjectId" | "dueDate", string>>;
+type TaskFormErrors = Partial<
+  Record<"title" | "subjectId" | "dueDate" | "scheduledDate" | "startTime" | "duration", string>
+>;
 
 const RequiredMark = ({ required }: { required?: boolean }) =>
   required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null;
@@ -34,6 +44,20 @@ const FieldError = ({ message }: { message?: string }) =>
   message ? <div className="mt-1 text-xs text-red-600">{message}</div> : null;
 
 const labelClass = "text-sm font-medium text-foreground";
+
+const DURATION_OPTIONS: { label: string; value: string }[] = [
+  { label: "15 min", value: "15 min" },
+  { label: "20 min", value: "20 min" },
+  { label: "30 min", value: "30 min" },
+  { label: "45 min", value: "45 min" },
+  { label: "60 min", value: "60 min" },
+  { label: "1h 15m", value: "1h 15m" },
+  { label: "1h 30m", value: "1h 30m" },
+  { label: "1h 45m", value: "1h 45m" },
+  { label: "2h", value: "2h" },
+  { label: "2h 30m", value: "2h 30m" },
+  { label: "3h", value: "3h" },
+];
 
 const parseDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
@@ -69,7 +93,61 @@ const formatMinutes = (total: number): string => {
   return `${h}h ${m}m`;
 };
 
+const time24To12 = (t: string) => {
+  if (!t) return "";
+
+  const [hhRaw, mmRaw] = t.split(":");
+  const hh = Number(hhRaw);
+  const mm = Number(mmRaw);
+
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+
+  return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+};
+
+const time12To24 = (t: string) => {
+  if (!t) return "";
+
+  const s = t.trim().toUpperCase();
+
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  if (!m) return "";
+
+  let h = Number(m[1]);
+  const mins = Number(m[2] ?? "0");
+  const ap = m[3];
+
+  if (Number.isNaN(h) || Number.isNaN(mins)) return "";
+
+  h = Math.max(1, Math.min(12, h));
+
+  let hh = h % 12;
+  if (ap === "PM") hh += 12;
+
+  return `${String(hh).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+};
+
+const displayTime = (value?: string) => {
+  const s = (value ?? "").trim();
+  if (!s) return "";
+  if (/^\d{2}:\d{2}$/.test(s)) return time24To12(s);
+  return s;
+};
+
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+const toLocalDateInputValue = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const daysUntil = (due: Date) => {
   const a = startOfDay(new Date()).getTime();
   const b = startOfDay(due).getTime();
@@ -139,13 +217,15 @@ export function Tasks({
     title: "",
     subjectId: "",
     dueDate: "",
+    scheduledDate: "",
+    startTime: "",
+    duration: "60 min",
   });
 
   const [formErrors, setFormErrors] = useState<TaskFormErrors>({});
 
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // ✅ Load periods from localStorage (created in Settings)
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
   useEffect(() => {
     try {
@@ -208,7 +288,14 @@ export function Tasks({
   };
 
   const resetForm = () => {
-    setFormData({ title: "", subjectId: "", dueDate: "" });
+    setFormData({
+      title: "",
+      subjectId: "",
+      dueDate: "",
+      scheduledDate: "",
+      startTime: "",
+      duration: "60 min",
+    });
     setFormErrors({});
   };
 
@@ -218,6 +305,21 @@ export function Tasks({
     if (!formData.title.trim()) next.title = "Title is required";
     if (!formData.subjectId) next.subjectId = "Subject is required";
     if (!formData.dueDate) next.dueDate = "Due date is required";
+
+    const hasScheduledDate = Boolean(formData.scheduledDate);
+    const hasStartTime = Boolean(formData.startTime);
+
+    if ((hasScheduledDate || hasStartTime) && !hasScheduledDate) {
+      next.scheduledDate = "Scheduled date is required when adding a calendar block";
+    }
+
+    if ((hasScheduledDate || hasStartTime) && !hasStartTime) {
+      next.startTime = "Start time is required when adding a calendar block";
+    }
+
+    if ((hasScheduledDate || hasStartTime) && !formData.duration) {
+      next.duration = "Duration is required when adding a calendar block";
+    }
 
     setFormErrors(next);
     return Object.keys(next).length === 0;
@@ -237,6 +339,11 @@ export function Tasks({
 
     const newDueDate = new Date(formData.dueDate);
 
+    const nextScheduledDate = formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
+    const nextStartTime = formData.startTime.trim() ? formData.startTime.trim() : undefined;
+    const nextDuration =
+      nextScheduledDate && nextStartTime ? formData.duration.trim() || "60 min" : undefined;
+
     if (editingId) {
       const existing = tasks.find((t) => t.id === editingId);
 
@@ -251,10 +358,15 @@ export function Tasks({
         subjectId: formData.subjectId,
         dueDate: newDueDate,
         type,
+        scheduledDate: nextScheduledDate,
+        startTime: nextStartTime,
+        duration: nextDuration,
         completed: existing?.completed,
         completedAt: existing?.completedAt,
         periodId: nextPeriodId,
         result: existing?.result,
+        repeat: existing?.repeat,
+        repeatUntil: existing?.repeatUntil,
       });
 
       setEditingId(null);
@@ -266,6 +378,9 @@ export function Tasks({
         subjectId: formData.subjectId,
         dueDate: newDueDate,
         type,
+        scheduledDate: nextScheduledDate,
+        startTime: nextStartTime,
+        duration: nextDuration,
         periodId: computedPeriodId,
       });
     }
@@ -280,7 +395,10 @@ export function Tasks({
     setFormData({
       title: task.title,
       subjectId: task.subjectId,
-      dueDate: task.dueDate.toISOString().split("T")[0],
+      dueDate: toLocalDateInputValue(task.dueDate),
+      scheduledDate: task.scheduledDate ? toLocalDateInputValue(task.scheduledDate) : "",
+      startTime: task.startTime ? time12To24(task.startTime) || task.startTime : "",
+      duration: task.duration ?? "60 min",
     });
     setShowAddForm(task.type);
     setExpandedSections((prev) => ({ ...prev, [task.type]: true }));
@@ -303,7 +421,7 @@ export function Tasks({
   const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
 
   const renderAddForm = (type: "task" | "assignment" | "exam" | "homework") => (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+    <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="text-sm font-semibold text-foreground">
         {editingId ? "Edit" : "New"} {type}
       </div>
@@ -373,18 +491,131 @@ export function Tasks({
         <FieldError message={formErrors.dueDate} />
       </div>
 
+      <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
+        <div className="flex items-start gap-2">
+          <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </div>
+
+          <div>
+            <div className="text-sm font-medium text-foreground">Schedule on calendar</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid.
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-3">
+          <div>
+            <label className="text-sm font-medium text-foreground" htmlFor={`task-scheduled-date-${type}`}>
+              Scheduled date
+            </label>
+            <input
+              id={`task-scheduled-date-${type}`}
+              type="date"
+              value={formData.scheduledDate}
+              onChange={(e) => {
+                setFormData((p) => ({ ...p, scheduledDate: e.target.value }));
+                clearError("scheduledDate");
+              }}
+              className={[inputBase, formErrors.scheduledDate ? inputErr : inputOk].join(" ")}
+              aria-invalid={!!formErrors.scheduledDate}
+            />
+            <FieldError message={formErrors.scheduledDate} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium text-foreground" htmlFor={`task-start-time-${type}`}>
+                Start time
+              </label>
+              <input
+                id={`task-start-time-${type}`}
+                type="time"
+                value={formData.startTime}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, startTime: e.target.value }));
+                  clearError("startTime");
+                }}
+                className={[
+                  "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                  formErrors.startTime
+                    ? "border-red-500/50 focus-visible:ring-red-500/20"
+                    : "border-border focus-visible:ring-primary/30",
+                ].join(" ")}
+                aria-invalid={!!formErrors.startTime}
+              />
+              <FieldError message={formErrors.startTime} />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground" htmlFor={`task-duration-${type}`}>
+                Duration
+              </label>
+              <select
+                id={`task-duration-${type}`}
+                value={formData.duration}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, duration: e.target.value }));
+                  clearError("duration");
+                }}
+                className={[
+                  "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
+                  formErrors.duration
+                    ? "border-red-500/50 focus-visible:ring-red-500/20"
+                    : "border-border focus-visible:ring-primary/30",
+                ].join(" ")}
+                aria-invalid={!!formErrors.duration}
+              >
+                <option value="">Select duration</option>
+                {DURATION_OPTIONS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={formErrors.duration} />
+            </div>
+          </div>
+
+          {formData.scheduledDate || formData.startTime ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFormData((p) => ({
+                  ...p,
+                  scheduledDate: "",
+                  startTime: "",
+                  duration: "60 min",
+                }));
+                setFormErrors((e) => {
+                  const copy = { ...e };
+                  delete copy.scheduledDate;
+                  delete copy.startTime;
+                  delete copy.duration;
+                  return copy;
+                });
+              }}
+              className="w-fit rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            >
+              Clear scheduled time
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="flex gap-2 pt-1">
         <button
           type="button"
           onClick={() => handleSubmit(type)}
-          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           {editingId ? "Save" : "Add"}
         </button>
         <button
           type="button"
           onClick={handleCancel}
-          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           Cancel
         </button>
@@ -417,14 +648,14 @@ export function Tasks({
       >
         <button
           onClick={() => toggleSection(type)}
-          className="flex items-center gap-3 flex-1 text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="flex flex-1 items-center gap-3 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           type="button"
         >
-          <div className="h-9 w-9 rounded-xl border border-border bg-muted/20 grid place-items-center">
+          <div className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-muted/20">
             {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
           </div>
 
@@ -442,9 +673,9 @@ export function Tasks({
             setEditingId(null);
             resetForm();
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="h-4 w-4" />
           Add
         </button>
       </div>
@@ -455,6 +686,8 @@ export function Tasks({
     const subject = getSubjectById(task.subjectId);
     const studiedMins = getMinutesStudiedForTask(task.id);
     const tone = dueTone(task);
+
+    const hasScheduledBlock = Boolean(task.scheduledDate && task.startTime);
 
     const toneBorder =
       tone === "overdue"
@@ -476,18 +709,17 @@ export function Tasks({
 
     const chipClass =
       tone === "overdue"
-        ? "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"
+        ? "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300"
         : tone === "today"
-          ? "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20"
+          ? "border-orange-500/20 bg-orange-500/10 text-orange-700 dark:text-orange-300"
           : tone === "soon"
-            ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/20"
-            : "bg-muted/40 text-foreground border-border";
+            ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
+            : "border-border bg-muted/40 text-foreground";
 
     return (
       <div
         className={[
-          "group rounded-2xl border px-4 py-3 shadow-sm hover:shadow-md transition",
-          "hover:bg-background/40",
+          "group rounded-2xl border px-4 py-3 shadow-sm transition hover:bg-background/40 hover:shadow-md",
           toneBorder,
           toneWash,
           task.completed ? "opacity-75" : "",
@@ -495,11 +727,11 @@ export function Tasks({
         style={{ borderLeftWidth: 4, borderLeftColor: subject?.color ?? ALL_ACCENT }}
       >
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
               onClick={() => onToggleCompleted(task.id)}
-              className="h-5 w-5 rounded border border-border grid place-items-center bg-background/40 hover:bg-muted transition shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="grid h-5 w-5 shrink-0 place-items-center rounded border border-border bg-background/40 transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
             >
               {task.completed ? <div className="h-3 w-3 rounded-sm bg-primary" /> : null}
@@ -508,14 +740,14 @@ export function Tasks({
             <div className="min-w-0">
               <div
                 className={[
-                  "text-sm font-medium truncate",
-                  task.completed ? "line-through text-muted-foreground" : "text-foreground",
+                  "truncate text-sm font-medium",
+                  task.completed ? "text-muted-foreground line-through" : "text-foreground",
                 ].join(" ")}
               >
                 {task.title}
               </div>
 
-              <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 {subject ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject.color }} />
@@ -531,36 +763,53 @@ export function Tasks({
                     <span>Studied {formatMinutes(studiedMins)}</span>
                   </>
                 ) : null}
+
+                {hasScheduledBlock && task.scheduledDate ? (
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>
+                        {task.scheduledDate.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        {displayTime(task.startTime)}
+                        {task.duration ? ` · ${task.duration}` : ""}
+                      </span>
+                    </span>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="w-3.5 h-3.5" />
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+              <Calendar className="h-3.5 w-3.5" />
               <span>{task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
             </div>
 
-            <span className={["px-2 py-1 rounded-full border text-xs font-medium", chipClass].join(" ")}>
+            <span className={["rounded-full border px-2 py-1 text-xs font-medium", chipClass].join(" ")}>
               {dueChip(task.dueDate)}
             </span>
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
               <button
                 type="button"
                 onClick={() => handleEdit(task)}
-                className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 aria-label="Edit"
               >
-                <Edit2 className="w-4 h-4 text-foreground" />
+                <Edit2 className="h-4 w-4 text-foreground" />
               </button>
               <button
                 type="button"
                 onClick={() => setDeletingId(task.id)}
-                className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 aria-label="Delete"
               >
-                <Trash2 className="w-4 h-4 text-muted-foreground" />
+                <Trash2 className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
           </div>
@@ -579,7 +828,7 @@ export function Tasks({
         <SectionHeader type={type} label={label} count={sortedTasks.length} />
 
         {isExpanded ? (
-          <div className="ml-3 sm:ml-5 pl-3 sm:pl-4 border-l border-border/60 space-y-3">
+          <div className="ml-3 space-y-3 border-l border-border/60 pl-3 sm:ml-5 sm:pl-4">
             {showAddForm === type ? renderAddForm(type) : null}
 
             {sortedTasks.length ? (
@@ -601,22 +850,22 @@ export function Tasks({
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-7 space-y-5">
+    <div className="mx-auto max-w-7xl space-y-5 px-6 py-7 md:px-10">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
         <p className="text-sm text-muted-foreground">Organise assessments, track deadlines, and tick things off.</p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-2 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-card p-2">
         <button
           type="button"
           onClick={() => setSelectedSubject("all")}
           className={[
-            "px-4 py-2 rounded-full text-sm font-medium transition border",
+            "rounded-full border px-4 py-2 text-sm font-medium transition",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
             selectedSubject === "all"
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-card text-foreground border-border hover:bg-muted",
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-card text-foreground hover:bg-muted",
           ].join(" ")}
         >
           All
@@ -630,15 +879,15 @@ export function Tasks({
               key={s.id}
               onClick={() => setSelectedSubject(s.id)}
               className={[
-                "px-4 py-2 rounded-full text-sm font-medium transition border",
+                "rounded-full border px-4 py-2 text-sm font-medium transition",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                active ? "bg-muted/50 border-border" : "bg-card border-border hover:bg-muted",
+                active ? "border-border bg-muted/50" : "border-border bg-card hover:bg-muted",
               ].join(" ")}
               style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
             >
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                <span className="text-foreground truncate">{s.name}</span>
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                <span className="truncate text-foreground">{s.name}</span>
               </span>
             </button>
           );
@@ -653,7 +902,7 @@ export function Tasks({
         <button
           type="button"
           onClick={() => setShowCompleted((v) => !v)}
-          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           {showCompleted ? "Hide completed" : "Show completed"}
         </button>
@@ -674,24 +923,24 @@ export function Tasks({
 
       {deletingId ? (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingId(null)} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingId(null)} />
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+            <div className="border-b border-border px-5 py-4">
               <div className="text-sm font-semibold text-foreground">Delete this item?</div>
-              <div className="text-xs text-muted-foreground mt-1">This action cannot be undone.</div>
+              <div className="mt-1 text-xs text-muted-foreground">This action cannot be undone.</div>
             </div>
-            <div className="p-5 flex gap-2 justify-end">
+            <div className="flex justify-end gap-2 p-5">
               <button
                 type="button"
                 onClick={() => setDeletingId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(deletingId)}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
               >
                 Delete
               </button>

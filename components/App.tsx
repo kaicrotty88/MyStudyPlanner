@@ -11,7 +11,6 @@ import { Settings } from "./settings";
 import { Insights } from "./insights";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
-import { Reminders } from "./reminders";
 
 import type { Subject, Task, StudySession, Period, Reminder } from "./models";
 
@@ -53,7 +52,6 @@ type Tab =
   | "study"
   | "insights"
   | "marks"
-  | "reminders"
   | "settings";
 
 type AppMode = "demo" | "app";
@@ -628,7 +626,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         (parsed.tasks ?? []).map((t: any) => ({
           ...t,
           dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
+          scheduledDate: t?.scheduledDate ? new Date(t.scheduledDate) : undefined,
           completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
+          repeatUntil: t?.repeatUntil ? new Date(t.repeatUntil) : undefined,
           result: t?.result
             ? {
                 ...t.result,
@@ -834,8 +834,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         setStudySessions([]);
         setReminders([]);
 
-        // New signed-in user only. Do not upsert an empty planner during startup.
-        // If Supabase or auth was only briefly slow, saving here could overwrite real data.
         finishLoading();
       } catch (e) {
         console.error("Failed to init planner state:", e);
@@ -847,8 +845,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           finishLoading();
           return;
         }
-
-        // Keep the loading screen instead of showing an empty planner that looks deleted.
       }
     })();
 
@@ -1039,7 +1035,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     ["study", "Study Log"],
     ["insights", "Insights"],
     ["marks", "Marks"],
-    ["reminders", "Reminders"],
   ];
 
   if (!isReady) return <LoadingScreen label="Opening your planner…" />;
@@ -1323,16 +1318,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               onGoToSettings={() => setActiveTab("settings")}
             />
           ))}
-
-        {activeTab === "reminders" && (
-          <Reminders
-            reminders={reminders}
-            onAddReminder={handleAddReminder}
-            onUpdateReminder={handleUpdateReminder}
-            onDeleteReminder={handleDeleteReminder}
-            onToggleCompleted={handleToggleReminderCompleted}
-          />
-        )}
 
         {activeTab === "settings" && (
           <Settings

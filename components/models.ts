@@ -48,6 +48,13 @@ export interface Task {
 
   type: "task" | "assignment" | "exam" | "homework";
 
+  // Optional scheduled calendar block.
+  // If scheduledDate + startTime exist, this item can appear in Week/Day hourly grid.
+  // dueDate still remains the deadline/date due.
+  scheduledDate?: Date;
+  startTime?: string; // stored as "HH:MM" 24h or display-safe time string
+  duration?: string; // e.g. "30 min", "1h", "1h 30m"
+
   // Term grouping (auto-assigned based on dueDate once Terms exist)
   periodId?: string;
 
