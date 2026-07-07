@@ -734,6 +734,27 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
+    const finishLoading = () => {
+      if (cancelled) return;
+      hydrated.current = true;
+      markReadyNextPaint();
+    };
+
+    const loadLocalFallback = () => {
+      try {
+        const rawLocal = localStorage.getItem(storageKey);
+        if (!rawLocal) return false;
+
+        const parsedLocal = JSON.parse(rawLocal);
+        applyParsedState(parsedLocal);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     if (mode === "demo") {
       try {
         localStorage.removeItem(DEMO_STORAGE_KEY);
@@ -748,80 +769,92 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setStudySessions(seeded.studySessions);
       setReminders(seeded.reminders);
 
-      hydrated.current = true;
-      markReadyNextPaint();
-      return;
+      finishLoading();
+      return () => {
+        cancelled = true;
+      };
     }
 
-    if (!userLoaded) return;
+    if (!userLoaded) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    if (!isSignedIn || !supabase) {
-      hydrated.current = true;
-      markReadyNextPaint();
-      return;
+    if (!isSignedIn) {
+      finishLoading();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!supabase) {
+      return () => {
+        cancelled = true;
+      };
     }
 
     (async () => {
-      const remote = await fetchPlannerState(supabase);
+      try {
+        const remote = await fetchPlannerState(supabase);
 
-      const remoteHasPlannerData =
-        !!remote &&
-        (Array.isArray((remote as any).tasks) ||
-          Array.isArray((remote as any).subjects) ||
-          Array.isArray((remote as any).periods) ||
-          Array.isArray((remote as any).studySessions) ||
-          Array.isArray((remote as any).reminders));
+        if (cancelled) return;
 
-      if (remoteHasPlannerData) {
-        applyParsedState(remote);
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(remote));
-        } catch {}
-        hydrated.current = true;
-        markReadyNextPaint();
-        return;
-      }
+        const remoteHasPlannerData =
+          !!remote &&
+          (Array.isArray((remote as any).tasks) ||
+            Array.isArray((remote as any).subjects) ||
+            Array.isArray((remote as any).periods) ||
+            Array.isArray((remote as any).studySessions) ||
+            Array.isArray((remote as any).reminders));
 
-      const rawLocal = (() => {
-        try {
-          return localStorage.getItem(storageKey);
-        } catch {
-          return null;
-        }
-      })();
-
-      if (rawLocal) {
-        try {
-          const parsedLocal = JSON.parse(rawLocal);
-          applyParsedState(parsedLocal);
-          await upsertPlannerState(supabase, parsedLocal);
-          hydrated.current = true;
-          markReadyNextPaint();
+        if (remoteHasPlannerData) {
+          applyParsedState(remote);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(remote));
+          } catch {}
+          finishLoading();
           return;
-        } catch {}
+        }
+
+        const localLoaded = loadLocalFallback();
+
+        if (localLoaded) {
+          const snapshotFromLocal = JSON.parse(localStorage.getItem(storageKey) || "{}");
+          await upsertPlannerState(supabase, snapshotFromLocal);
+
+          if (cancelled) return;
+          finishLoading();
+          return;
+        }
+
+        setSubjects([]);
+        setPeriods([]);
+        setTasks([]);
+        setStudySessions([]);
+        setReminders([]);
+
+        // New signed-in user only. Do not upsert an empty planner during startup.
+        // If Supabase or auth was only briefly slow, saving here could overwrite real data.
+        finishLoading();
+      } catch (e) {
+        console.error("Failed to init planner state:", e);
+
+        if (cancelled) return;
+
+        const localLoaded = loadLocalFallback();
+        if (localLoaded) {
+          finishLoading();
+          return;
+        }
+
+        // Keep the loading screen instead of showing an empty planner that looks deleted.
       }
+    })();
 
-      setSubjects([]);
-      setPeriods([]);
-      setTasks([]);
-      setStudySessions([]);
-      setReminders([]);
-
-      await upsertPlannerState(supabase, {
-        subjects: [],
-        periods: [],
-        tasks: [],
-        studySessions: [],
-        reminders: [],
-      });
-
-      hydrated.current = true;
-      markReadyNextPaint();
-    })().catch((e) => {
-      console.error("Failed to init planner state:", e);
-      hydrated.current = true;
-      markReadyNextPaint();
-    });
+    return () => {
+      cancelled = true;
+    };
   }, [mode, storageKey, userLoaded, isSignedIn, supabase]);
 
   const saveRemoteDebounced = useMemo(
@@ -843,7 +876,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       localStorage.setItem(storageKey, JSON.stringify(snapshot));
     } catch {}
 
-    if (mode === "app" && Boolean(isSignedIn) && supabase) {
+    if (mode === "app" && Boolean(isSignedIn) && supabase && isReady) {
       saveRemoteDebounced(snapshot);
     }
   }, [
@@ -857,6 +890,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     isSignedIn,
     supabase,
     saveRemoteDebounced,
+    isReady,
   ]);
 
   const handleClearAllData = async () => {
