@@ -9,7 +9,15 @@ import {
   X,
 } from "lucide-react";
 
-import type { Reminder, StudySession, Subject, Task } from "./models";
+import type {
+  Reminder,
+  StudySession,
+  Subject,
+  Task,
+  TimetableClass,
+  TimetableSettings,
+  TimetableWeek,
+} from "./models";
 
 type ViewMode = "day" | "week" | "month";
 type AddFormType = "study" | "assignment" | "exam" | "homework" | "reminder" | null;
@@ -36,7 +44,15 @@ type PeriodHydrated = {
   endDate: Date;
 };
 
-type CalendarItemKind = "task" | "assignment" | "exam" | "homework" | "study" | "reminder";
+type CalendarItemKind =
+  | "task"
+  | "assignment"
+  | "exam"
+  | "homework"
+  | "study"
+  | "reminder"
+  | "class";
+
 type CalendarItemPlacement = "timed";
 
 type CalendarItem = {
@@ -52,9 +68,11 @@ type CalendarItem = {
   durationLabel?: string;
   dueLabel?: string;
   isDeadlineMarker?: boolean;
+  isTimetableClass?: boolean;
   task?: Task;
   session?: StudySession;
   reminder?: Reminder;
+  timetableClass?: TimetableClass;
 };
 
 interface CalendarProps {
@@ -62,6 +80,9 @@ interface CalendarProps {
   tasks: Task[];
   reminders: Reminder[];
   subjects: Subject[];
+
+  timetableSettings: TimetableSettings;
+  timetableClasses: TimetableClass[];
 
   onAddTask: (task: Omit<Task, "id">) => void;
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
@@ -83,7 +104,11 @@ interface CalendarProps {
 type TaskFormErrors = Partial<
   Record<"title" | "subjectId" | "dueDate" | "scheduledDate" | "startTime" | "duration", string>
 >;
-type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>>;
+
+type SessionFormErrors = Partial<
+  Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>
+>;
+
 type ReminderFormErrors = Partial<Record<"title" | "dueDate" | "time", string>>;
 
 const RequiredMark = ({ required }: { required?: boolean }) =>
@@ -107,7 +132,8 @@ const toLocalDateInputValue = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -150,7 +176,10 @@ const weekOfTerm = (today: Date, termStart: Date) => {
   return diffWeeks + 1;
 };
 
-const findMatchingPeriodId = (dueDate: Date, periods: PeriodHydrated[]): string | undefined => {
+const findMatchingPeriodId = (
+  dueDate: Date,
+  periods: PeriodHydrated[]
+): string | undefined => {
   const t = startOfDay(dueDate).getTime();
 
   for (const p of periods) {
@@ -271,7 +300,37 @@ const itemEndMinutes = (item: CalendarItem) => {
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
-const formatDueLabel = (date: Date) => {
+const getTimetableWeekForDate = (
+  date: Date,
+  settings: TimetableSettings
+): TimetableWeek => {
+  if (settings.cycle !== "fortnightly") return "both";
+  if (!settings.cycleStartDate) return "A";
+
+  const dateWeekStart = startOfWeekMonday(date).getTime();
+  const cycleWeekStart = startOfWeekMonday(settings.cycleStartDate).getTime();
+
+  const diffWeeks = Math.floor(
+    (dateWeekStart - cycleWeekStart) / (7 * 24 * 60 * 60 * 1000)
+  );
+
+  const safeMod = ((diffWeeks % 2) + 2) % 2;
+  return safeMod === 0 ? "A" : "B";
+};
+
+const isTimetableClassOnDate = (
+  date: Date,
+  item: TimetableClass,
+  settings: TimetableSettings
+) => {
+  if (item.dayOfWeek !== date.getDay()) return false;
+  if (settings.cycle === "weekly") return true;
+  if (item.week === "both") return true;
+
+  return item.week === getTimetableWeekForDate(date, settings);
+};
+
+const formatDueLabelBase = (date: Date) => {
   const today = startOfDay(new Date()).getTime();
   const due = startOfDay(date).getTime();
   const diff = Math.round((due - today) / (24 * 60 * 60 * 1000));
@@ -303,7 +362,9 @@ const DURATION_OPTIONS: { label: string; value: string }[] = [
 ];
 
 const CalendarShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">{children}</div>
+  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    {children}
+  </div>
 );
 
 const SwitchPill = ({
@@ -334,6 +395,8 @@ function CalendarView({
   tasks,
   reminders,
   subjects,
+  timetableSettings,
+  timetableClasses,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -483,9 +546,13 @@ function CalendarView({
     if (!active) return undefined;
 
     const wk = weekOfTerm(currentDate, active.startDate);
+    const abWeek =
+      timetableSettings.cycle === "fortnightly"
+        ? ` · Week ${getTimetableWeekForDate(currentDate, timetableSettings)}`
+        : "";
 
-    return `${active.name} · Week ${wk}`;
-  }, [currentDate, periods]);
+    return `${active.name} · Week ${wk}${abWeek}`;
+  }, [currentDate, periods, timetableSettings]);
 
   const subjectById = useMemo(() => {
     const map = new Map<string, Subject>();
@@ -500,14 +567,36 @@ function CalendarView({
   }, [tasks]);
 
   const activeTasks = useMemo(() => tasks.filter((t: any) => !t.completed), [tasks]);
-  const activeSessions = useMemo(() => studySessions.filter((s: any) => !s.completed), [studySessions]);
-  const activeReminders = useMemo(() => reminders.filter((r: any) => !r.completed), [reminders]);
+  const activeSessions = useMemo(
+    () => studySessions.filter((s: any) => !s.completed),
+    [studySessions]
+  );
+  const activeReminders = useMemo(
+    () => reminders.filter((r: any) => !r.completed),
+    [reminders]
+  );
+
+  const findMatchingTimetableClassForTask = (task: Task) => {
+    return timetableClasses
+      .filter((item) => item.subjectId === task.subjectId)
+      .filter((item) => isTimetableClassOnDate(task.dueDate, item, timetableSettings))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+  };
+
+  const formatDueLabel = (task: Task) => {
+    const base = formatDueLabelBase(task.dueDate);
+    const matchingClass = findMatchingTimetableClassForTask(task);
+
+    if (!matchingClass) return base;
+
+    return `${base} · ${matchingClass.title} ${displayTime(matchingClass.startTime)}`;
+  };
 
   const calendarItems = useMemo<CalendarItem[]>(() => {
     const taskItems: CalendarItem[] = activeTasks.flatMap((task) => {
       const scheduledDate = task.scheduledDate;
       const startTime = task.startTime;
-      const dueLabel = formatDueLabel(task.dueDate);
+      const dueLabel = formatDueLabel(task);
 
       const startMins = scheduledDate && startTime ? parseTimeToMinutes(startTime) : null;
       const durationMins = parseDurationToMinutes(task.duration);
@@ -626,7 +715,38 @@ function CalendarView({
 
       return a.start.getTime() - b.start.getTime();
     });
-  }, [activeTasks, activeSessions, activeReminders]);
+  }, [activeTasks, activeSessions, activeReminders, timetableClasses, timetableSettings]);
+
+  const getTimetableItemsForDate = (date: Date): CalendarItem[] => {
+    return timetableClasses
+      .filter((item) => isTimetableClassOnDate(date, item, timetableSettings))
+      .map((item): CalendarItem => {
+        const startMins = parseTimeToMinutes(item.startTime) ?? 9 * 60;
+        const endMins = parseTimeToMinutes(item.endTime) ?? startMins + 60;
+        const safeEndMins = Math.max(endMins, startMins + 15);
+
+        return {
+          id: `class-${item.id}-${toLocalDateInputValue(date)}`,
+          sourceId: item.id,
+          kind: "class",
+          placement: "timed",
+          title: item.title,
+          subjectId: item.subjectId,
+          start: dateWithMinutes(date, startMins),
+          end: dateWithMinutes(date, safeEndMins),
+          timeLabel: `${displayTime(item.startTime)} – ${displayTime(item.endTime)}`,
+          durationLabel:
+            timetableSettings.cycle === "fortnightly"
+              ? item.week === "both"
+                ? "Both weeks"
+                : `Week ${item.week}`
+              : "Every week",
+          isTimetableClass: true,
+          timetableClass: item,
+        };
+      })
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  };
 
   const linkableTasks = useMemo(() => {
     return activeTasks
@@ -670,6 +790,20 @@ function CalendarView({
 
   const getItemsForDate = (date: Date) =>
     calendarItems.filter((item) => isSameDay(item.start, date));
+
+  const getVisibleTimedItemsForDate = (date: Date) => {
+    const normalItems = getItemsForDate(date);
+    const classItems = viewMode === "month" ? [] : getTimetableItemsForDate(date);
+
+    return [...classItems, ...normalItems].sort((a, b) => {
+      const classOrder =
+        Number(a.isTimetableClass ?? false) - Number(b.isTimetableClass ?? false);
+
+      if (classOrder !== 0) return classOrder;
+
+      return a.start.getTime() - b.start.getTime();
+    });
+  };
 
   const getHeaderLabel = () => {
     if (viewMode === "month") {
@@ -790,7 +924,9 @@ function CalendarView({
       subjectId: task.subjectId,
       dueDate: toLocalDateInputValue(task.dueDate),
       type: safeType,
-      scheduledDate: task.scheduledDate ? toLocalDateInputValue(task.scheduledDate) : toLocalDateInputValue(task.dueDate),
+      scheduledDate: task.scheduledDate
+        ? toLocalDateInputValue(task.scheduledDate)
+        : toLocalDateInputValue(task.dueDate),
       startTime: task.startTime ?? DEADLINE_MARKER_TIME,
       duration: task.duration ?? "60 min",
     });
@@ -838,6 +974,7 @@ function CalendarView({
   };
 
   const openCalendarItem = (item: CalendarItem) => {
+    if (item.isTimetableClass) return;
     if (item.task) openEditTask(item.task);
     else if (item.session) openEditSession(item.session);
     else if (item.reminder) openEditReminder(item.reminder);
@@ -1033,8 +1170,10 @@ function CalendarView({
     event.stopPropagation();
 
     if (item.task && onToggleTaskCompleted) onToggleTaskCompleted(item.task.id);
-    else if (item.session && onToggleStudySessionCompleted) onToggleStudySessionCompleted(item.session.id);
-    else if (item.reminder && onToggleReminderCompleted) onToggleReminderCompleted(item.reminder.id);
+    else if (item.session && onToggleStudySessionCompleted)
+      onToggleStudySessionCompleted(item.session.id);
+    else if (item.reminder && onToggleReminderCompleted)
+      onToggleReminderCompleted(item.reminder.id);
   };
 
   const getItemColor = (item: CalendarItem) => {
@@ -1049,6 +1188,7 @@ function CalendarView({
   };
 
   const getItemLabel = (item: CalendarItem) => {
+    if (item.isTimetableClass) return "Class";
     if (item.isDeadlineMarker) return "Deadline";
     if (item.kind === "study") return "Study";
     if (item.kind === "reminder") return "Reminder";
@@ -1069,7 +1209,7 @@ function CalendarView({
         return now.getHours() * 60 + now.getMinutes();
       }
 
-      const firstTimed = getItemsForDate(currentDate)
+      const firstTimed = getVisibleTimedItemsForDate(currentDate)
         .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
 
       return firstTimed ? itemStartMinutes(firstTimed) : 9 * 60;
@@ -1082,7 +1222,7 @@ function CalendarView({
     }
 
     const weekTimedItems = visibleWeekDays
-      .flatMap((day) => getItemsForDate(day))
+      .flatMap((day) => getVisibleTimedItemsForDate(day))
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
     return weekTimedItems[0] ? itemStartMinutes(weekTimedItems[0]) : 9 * 60;
@@ -1100,7 +1240,7 @@ function CalendarView({
 
       timeGridScrollRef.current.scrollTop = clamp(rawTop, 0, maxTop);
     }, 0);
-  }, [viewMode, currentDate, calendarItems.length]);
+  }, [viewMode, currentDate, calendarItems.length, timetableClasses.length]);
 
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
@@ -1124,10 +1264,7 @@ function CalendarView({
         }}
         title={`${getItemLabel(item)}: ${item.title}`}
       >
-        <span
-          className="shrink-0 font-semibold text-[10px]"
-          style={{ color }}
-        >
+        <span className="shrink-0 text-[10px] font-semibold" style={{ color }}>
           {item.isDeadlineMarker ? "Due" : item.timeLabel}
         </span>
 
@@ -1144,11 +1281,7 @@ function CalendarView({
     const canToggle = Boolean(item.reminder && onToggleReminderCompleted);
 
     return (
-      <div
-        key={item.id}
-        className="absolute left-1.5 right-1.5 z-10"
-        style={{ top, height: 28 }}
-      >
+      <div key={item.id} className="absolute left-1.5 right-1.5 z-20" style={{ top, height: 28 }}>
         <button
           type="button"
           onClick={(event) => {
@@ -1157,7 +1290,7 @@ function CalendarView({
           }}
           className={[
             "group flex h-full w-full items-center gap-2 overflow-hidden rounded-lg border bg-card px-2 text-left",
-            "shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:-translate-y-[1px]",
+            "shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:-translate-y-px",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           ].join(" ")}
           style={{
@@ -1180,7 +1313,9 @@ function CalendarView({
           ) : null}
 
           <div className="min-w-0 flex-1">
-            <div className={["truncate font-medium text-foreground", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}>
+            <div
+              className={["truncate font-medium text-foreground", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}
+            >
               {item.title}
             </div>
           </div>
@@ -1193,7 +1328,50 @@ function CalendarView({
     );
   };
 
+  const renderClassItem = (item: CalendarItem, dayColumn = false) => {
+    const color = getItemColor(item);
+    const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
+    const end = Math.min(itemEndMinutes(item), DAY_END_HOUR * 60);
+    const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const height = Math.max(36, ((end - start) / 60) * HOUR_HEIGHT);
+    const location = item.timetableClass?.location;
+    const teacher = item.timetableClass?.teacher;
+
+    return (
+      <div key={item.id} className="absolute left-1.5 right-1.5 z-[5]" style={{ top, height }}>
+        <div
+          className={[
+            "h-full w-full overflow-hidden rounded-xl border border-dashed px-2.5 py-1.5 text-left",
+            "bg-muted/20 ring-1 ring-black/[0.01]",
+          ].join(" ")}
+          style={{
+            borderLeftWidth: 4,
+            borderLeftColor: color,
+            backgroundColor: `${color}0D`,
+          }}
+          title={`${item.title} · ${item.timeLabel}`}
+        >
+          <div
+            className={[
+              "truncate font-semibold text-foreground/80",
+              dayColumn ? "text-xs" : "text-[11px]",
+            ].join(" ")}
+          >
+            {item.title}
+          </div>
+
+          <div className="truncate text-[10px] text-muted-foreground">
+            Class · {item.timeLabel}
+            {location ? ` · ${location}` : ""}
+            {teacher ? ` · ${teacher}` : ""}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTimedItem = (item: CalendarItem, dayColumn = false) => {
+    if (item.isTimetableClass) return renderClassItem(item, dayColumn);
     if (item.kind === "reminder") return renderReminderMarker(item, dayColumn);
 
     const color = getItemColor(item);
@@ -1209,11 +1387,7 @@ function CalendarView({
       Boolean(item.task && onToggleTaskCompleted);
 
     return (
-      <div
-        key={item.id}
-        className="absolute left-1.5 right-1.5 z-10"
-        style={{ top, height }}
-      >
+      <div key={item.id} className="absolute left-1.5 right-1.5 z-20" style={{ top, height }}>
         <button
           type="button"
           onClick={(event) => {
@@ -1223,7 +1397,7 @@ function CalendarView({
           className={[
             "group h-full w-full overflow-hidden rounded-xl border bg-card px-2.5 py-1.5 text-left",
             "shadow-[0_4px_10px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.02]",
-            "transition hover:-translate-y-[1px] hover:shadow-[0_7px_14px_rgba(0,0,0,0.09)]",
+            "transition hover:-translate-y-px hover:shadow-[0_7px_14px_rgba(0,0,0,0.09)]",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
             item.isDeadlineMarker ? "border-dashed bg-background/80" : "",
           ].join(" ")}
@@ -1301,7 +1475,7 @@ function CalendarView({
 
     return (
       <div
-        className="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
+        className="pointer-events-none absolute left-0 right-0 z-30 flex items-center"
         style={{ top }}
       >
         <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
@@ -1323,7 +1497,10 @@ function CalendarView({
       <div>
         <div className="grid grid-cols-7 border-b border-border bg-muted/20">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div
+              key={day}
+              className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+            >
               {day}
             </div>
           ))}
@@ -1388,7 +1565,10 @@ function CalendarView({
 
   const renderWeekView = () => {
     const days = visibleWeekDays;
-    const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
+    const hours = Array.from(
+      { length: DAY_END_HOUR - DAY_START_HOUR + 1 },
+      (_, i) => DAY_START_HOUR + i
+    );
 
     return (
       <div className="overflow-x-auto">
@@ -1398,6 +1578,10 @@ function CalendarView({
 
             {days.map((date) => {
               const isToday = isSameDay(new Date(), date);
+              const weekLabel =
+                timetableSettings.cycle === "fortnightly"
+                  ? `Week ${getTimetableWeekForDate(date, timetableSettings)}`
+                  : null;
 
               return (
                 <button
@@ -1420,15 +1604,18 @@ function CalendarView({
                   >
                     {date.getDate()}
                   </div>
+
+                  {weekLabel ? (
+                    <div className="mt-1 text-[10px] font-medium text-muted-foreground">
+                      {weekLabel}
+                    </div>
+                  ) : null}
                 </button>
               );
             })}
           </div>
 
-          <div
-            ref={timeGridScrollRef}
-            className="max-h-[760px] overflow-y-auto"
-          >
+          <div ref={timeGridScrollRef} className="max-h-[760px] overflow-y-auto">
             <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
               <div className="border-r border-border bg-card">
                 {hours.slice(0, -1).map((hour) => (
@@ -1443,7 +1630,7 @@ function CalendarView({
               </div>
 
               {days.map((date) => {
-                const timedItems = getItemsForDate(date);
+                const timedItems = getVisibleTimedItemsForDate(date);
                 const isToday = isSameDay(new Date(), date);
 
                 return (
@@ -1472,9 +1659,16 @@ function CalendarView({
   };
 
   const renderDayView = () => {
-    const timedItems = getItemsForDate(currentDate);
-    const hours = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => DAY_START_HOUR + i);
+    const timedItems = getVisibleTimedItemsForDate(currentDate);
+    const hours = Array.from(
+      { length: DAY_END_HOUR - DAY_START_HOUR + 1 },
+      (_, i) => DAY_START_HOUR + i
+    );
     const isToday = isSameDay(new Date(), currentDate);
+    const weekLabel =
+      timetableSettings.cycle === "fortnightly"
+        ? `Week ${getTimetableWeekForDate(currentDate, timetableSettings)}`
+        : null;
 
     return (
       <div>
@@ -1483,6 +1677,7 @@ function CalendarView({
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {currentDate.toLocaleDateString("en-US", { weekday: "long" })}
+                {weekLabel ? ` · ${weekLabel}` : ""}
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <div
@@ -1513,10 +1708,7 @@ function CalendarView({
           </div>
         </div>
 
-        <div
-          ref={timeGridScrollRef}
-          className="max-h-[760px] overflow-y-auto"
-        >
+        <div ref={timeGridScrollRef} className="max-h-[760px] overflow-y-auto">
           <div className="grid grid-cols-[72px_minmax(0,1fr)]">
             <div className="border-r border-border bg-card">
               {hours.slice(0, -1).map((hour) => (
@@ -1658,7 +1850,7 @@ function CalendarView({
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
           <p className="text-sm text-muted-foreground">
-            Plan study blocks, homework, assignments, exams, and reminders by time.
+            Plan study blocks, homework, assignments, exams, reminders, and timetable classes.
           </p>
         </div>
 
@@ -1697,6 +1889,10 @@ function CalendarView({
               <div className="text-lg font-semibold text-foreground">{getHeaderLabel()}</div>
               {termWeekLabel ? (
                 <div className="text-xs text-muted-foreground">{termWeekLabel}</div>
+              ) : timetableSettings.cycle === "fortnightly" ? (
+                <div className="text-xs text-muted-foreground">
+                  Week {getTimetableWeekForDate(currentDate, timetableSettings)}
+                </div>
               ) : null}
             </div>
           </div>
@@ -1763,6 +1959,10 @@ function CalendarView({
                   <Plus className="h-4 w-4 text-muted-foreground" />
                 </button>
               ))}
+
+              <div className="rounded-xl border border-border bg-muted/[0.08] px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                Timetable classes are added from Settings → Timetable.
+              </div>
             </div>
           </div>
         </>
@@ -2134,7 +2334,7 @@ function CalendarView({
                       <RequiredMark required />
                     </label>
                     <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      This is the deadline. Later, when classes are in Calendar, this can connect to the correct subject period.
+                      This is the deadline. If you have a matching class on that day, the due label can attach to that class.
                     </div>
                     <input
                       type="date"

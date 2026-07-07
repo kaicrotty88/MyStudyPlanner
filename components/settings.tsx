@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   Plus,
   Edit2,
@@ -11,25 +10,24 @@ import {
   Sparkles,
   Lock,
   Check,
+  CalendarDays,
 } from "lucide-react";
 import { useSession, useUser } from "@clerk/nextjs";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import { fetchUserPlan, type Plan } from "@/lib/profileSupabase";
 
-interface Subject {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  subjectId: string;
-  dueDate: Date;
-  type: "task" | "assignment" | "exam" | "homework";
-}
+import type {
+  Subject,
+  Task,
+  StudySession,
+  TimetableClass,
+  TimetableCycle,
+  TimetableDayOfWeek,
+  TimetableMode,
+  TimetableSettings,
+  TimetableWeek,
+} from "./models";
 
 interface StudyItem {
   id: string;
@@ -39,14 +37,6 @@ interface StudyItem {
   linkedTaskId?: string;
   notes?: string;
   showOnCalendar: boolean;
-}
-
-interface StudySession {
-  id: string;
-  subjectId: string;
-  date: Date;
-  startTime: string;
-  duration: string;
 }
 
 type AppMode = "demo" | "app";
@@ -66,20 +56,43 @@ type PeriodStored = {
   endDate: string;
 };
 
+type TimetableForm = {
+  title: string;
+  subjectId: string;
+  dayOfWeek: TimetableDayOfWeek;
+  startTime: string;
+  endTime: string;
+  week: TimetableWeek;
+  location: string;
+  teacher: string;
+};
+
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-type SettingsOpenSection = "subjects" | "terms" | "backup";
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup";
 
 interface SettingsProps {
   subjects: Subject[];
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
+
+  timetableSettings: TimetableSettings;
+  timetableClasses: TimetableClass[];
+  onUpdateTimetableSettings: (settings: TimetableSettings) => void;
+  onAddTimetableClass: (timetableClass: Omit<TimetableClass, "id">) => void;
+  onUpdateTimetableClass: (
+    id: string,
+    timetableClass: Omit<TimetableClass, "id">
+  ) => void;
+  onDeleteTimetableClass: (id: string) => void;
+
   onAddSubject: (name: string, color: string) => void;
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
+
   appMode: AppMode;
   onClearAllData: () => void;
   openSection?: SettingsOpenSection | null;
@@ -99,8 +112,10 @@ function parseDateInput(value: string) {
 }
 
 function safeUUID() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const c: any = globalThis as any;
+  const c = globalThis as typeof globalThis & {
+    crypto?: { randomUUID?: () => string };
+  };
+
   if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
   return `p_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
@@ -172,6 +187,16 @@ const PLAN_OPTIONS: Array<{
   },
 ];
 
+const DAY_LABELS: Array<{ value: TimetableDayOfWeek; label: string }> = [
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+  { value: 0, label: "Sunday" },
+];
+
 function normalizeHex(hex: string) {
   return String(hex || "").trim().toLowerCase();
 }
@@ -207,6 +232,7 @@ function downloadJson(filename: string, obj: unknown) {
 
 function safeJsonParse<T>(raw: string | null): T | null {
   if (!raw) return null;
+
   try {
     return JSON.parse(raw) as T;
   } catch {
@@ -214,11 +240,32 @@ function safeJsonParse<T>(raw: string | null): T | null {
   }
 }
 
+function formatTimetableTime(time: string) {
+  if (!time) return "";
+
+  const [hhRaw, mmRaw] = time.split(":");
+  const hh = Number(hhRaw);
+  const mm = Number(mmRaw);
+
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return time;
+
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+
+  return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+}
+
 export function Settings({
   subjects,
   tasks,
   studyItems,
   studySessions,
+  timetableSettings,
+  timetableClasses,
+  onUpdateTimetableSettings,
+  onAddTimetableClass,
+  onUpdateTimetableClass,
+  onDeleteTimetableClass,
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
@@ -241,7 +288,10 @@ export function Settings({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({ name: "", color: pickNextColor([]) });
+  const [formData, setFormData] = useState({
+    name: "",
+    color: pickNextColor([]),
+  });
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -259,6 +309,23 @@ export function Settings({
   });
   const [periodFormError, setPeriodFormError] = useState<string>("");
 
+  const [timetableOpen, setTimetableOpen] = useState(false);
+  const [showAddTimetableForm, setShowAddTimetableForm] = useState(false);
+  const [editingTimetableClassId, setEditingTimetableClassId] = useState<string | null>(null);
+  const [deletingTimetableClassId, setDeletingTimetableClassId] = useState<string | null>(null);
+  const [timetableFormError, setTimetableFormError] = useState("");
+
+  const [timetableForm, setTimetableForm] = useState<TimetableForm>({
+    title: "",
+    subjectId: "",
+    dayOfWeek: 1,
+    startTime: "09:00",
+    endTime: "10:00",
+    week: "both",
+    location: "",
+    teacher: "",
+  });
+
   const [backupOpen, setBackupOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string>("");
@@ -267,21 +334,32 @@ export function Settings({
 
   const subjectsCardRef = useRef<HTMLDivElement>(null);
   const termsCardRef = useRef<HTMLDivElement>(null);
+  const timetableCardRef = useRef<HTMLDivElement>(null);
   const backupCardRef = useRef<HTMLDivElement>(null);
 
   const subjectNameInputRef = useRef<HTMLInputElement>(null);
   const termNameInputRef = useRef<HTMLInputElement>(null);
 
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
-  const [currentPlan, setCurrentPlan] = useState<Plan>(appMode === "demo" ? "premium" : "free");
+
+  const [currentPlan, setCurrentPlan] = useState<Plan>(
+    appMode === "demo" ? "premium" : "free"
+  );
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
   const [selectedInterval, setSelectedInterval] = useState<BillingInterval>("yearly");
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string>("");
+
   const currentPlanLabel =
     appMode === "demo" ? "Preview mode" : currentPlan === "premium" ? "Premium" : "Free";
 
   const normalizeTermName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+  const getSubjectName = (subjectId?: string) =>
+    subjects.find((s) => s.id === subjectId)?.name ?? "No subject";
+
+  const getSubjectColor = (subjectId?: string) =>
+    subjects.find((s) => s.id === subjectId)?.color ?? "#64748b";
 
   useEffect(() => {
     if (appMode === "demo") {
@@ -316,17 +394,21 @@ export function Settings({
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+
       if (!raw) {
         setPeriods([]);
         return;
       }
+
       const parsed = JSON.parse(raw) as PeriodStored[];
+
       const hydrated: Period[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
         id: p.id,
         name: p.name,
         startDate: new Date(p.startDate),
         endDate: new Date(p.endDate),
       }));
+
       hydrated.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       setPeriods(hydrated);
     } catch {
@@ -342,6 +424,7 @@ export function Settings({
         startDate: p.startDate.toISOString(),
         endDate: p.endDate.toISOString(),
       }));
+
       localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
     } catch {}
   }, [periods]);
@@ -353,6 +436,7 @@ export function Settings({
     setPeriodsOpen(true);
 
     const today = new Date();
+
     setPeriodForm({
       name: "",
       startDate: toISODateInputValue(today),
@@ -365,6 +449,7 @@ export function Settings({
     setEditingPeriodId(p.id);
     setShowAddPeriodForm(true);
     setPeriodsOpen(true);
+
     setPeriodForm({
       name: p.name,
       startDate: toISODateInputValue(p.startDate),
@@ -376,12 +461,100 @@ export function Settings({
     setShowAddPeriodForm(false);
     setEditingPeriodId(null);
     setPeriodFormError("");
+
     const today = new Date();
+
     setPeriodForm({
       name: "",
       startDate: toISODateInputValue(today),
       endDate: toISODateInputValue(today),
     });
+  };
+
+  const resetTimetableForm = () => {
+    setTimetableForm({
+      title: "",
+      subjectId: "",
+      dayOfWeek: 1,
+      startTime: "09:00",
+      endTime: "10:00",
+      week: "both",
+      location: "",
+      teacher: "",
+    });
+    setEditingTimetableClassId(null);
+    setTimetableFormError("");
+  };
+
+  const openNewTimetableClass = () => {
+    resetTimetableForm();
+    setShowAddTimetableForm(true);
+    setTimetableOpen(true);
+  };
+
+  const openEditTimetableClass = (item: TimetableClass) => {
+    setEditingTimetableClassId(item.id);
+    setShowAddTimetableForm(true);
+    setTimetableOpen(true);
+    setTimetableFormError("");
+
+    setTimetableForm({
+      title: item.title,
+      subjectId: item.subjectId ?? "",
+      dayOfWeek: item.dayOfWeek,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      week: item.week,
+      location: item.location ?? "",
+      teacher: item.teacher ?? "",
+    });
+  };
+
+  const cancelTimetableForm = () => {
+    setShowAddTimetableForm(false);
+    resetTimetableForm();
+  };
+
+  const saveTimetableClass = () => {
+    const title = timetableForm.title.trim();
+
+    if (!title) {
+      setTimetableFormError("Please enter a class name.");
+      return;
+    }
+
+    if (!timetableForm.startTime || !timetableForm.endTime) {
+      setTimetableFormError("Start and end time are required.");
+      return;
+    }
+
+    if (timetableForm.startTime >= timetableForm.endTime) {
+      setTimetableFormError("End time must be after start time.");
+      return;
+    }
+
+    const payload: Omit<TimetableClass, "id"> = {
+      title,
+      subjectId: timetableForm.subjectId || undefined,
+      dayOfWeek: timetableForm.dayOfWeek,
+      startTime: timetableForm.startTime,
+      endTime: timetableForm.endTime,
+      week: timetableSettings.cycle === "weekly" ? "both" : timetableForm.week,
+      location: timetableForm.location.trim() || undefined,
+      teacher: timetableForm.teacher.trim() || undefined,
+      createdAt: editingTimetableClassId
+        ? timetableClasses.find((c) => c.id === editingTimetableClassId)?.createdAt
+        : new Date(),
+    };
+
+    if (editingTimetableClassId) {
+      onUpdateTimetableClass(editingTimetableClassId, payload);
+    } else {
+      onAddTimetableClass(payload);
+    }
+
+    setShowAddTimetableForm(false);
+    resetTimetableForm();
   };
 
   useEffect(() => {
@@ -390,6 +563,7 @@ export function Settings({
     if (openSection === "subjects") {
       setSubjectsOpen(true);
       setPeriodsOpen(false);
+      setTimetableOpen(false);
       setBackupOpen(false);
 
       setEditingId(null);
@@ -403,6 +577,7 @@ export function Settings({
 
     if (openSection === "terms") {
       setSubjectsOpen(false);
+      setTimetableOpen(false);
       setBackupOpen(false);
       setPeriodsOpen(true);
 
@@ -414,9 +589,21 @@ export function Settings({
       });
     }
 
+    if (openSection === "timetable") {
+      setSubjectsOpen(false);
+      setPeriodsOpen(false);
+      setBackupOpen(false);
+      setTimetableOpen(true);
+
+      requestAnimationFrame(() => {
+        timetableCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
     if (openSection === "backup") {
       setSubjectsOpen(false);
       setPeriodsOpen(false);
+      setTimetableOpen(false);
       setBackupOpen(true);
 
       requestAnimationFrame(() => {
@@ -434,19 +621,35 @@ export function Settings({
   );
 
   const deleteCounts = useMemo(() => {
-    if (!deletingSubjectId) return { tasks: 0, items: 0, sessions: 0 };
+    if (!deletingSubjectId) {
+      return { tasks: 0, items: 0, sessions: 0, timetableClasses: 0 };
+    }
 
     const t = tasks.filter((x) => x.subjectId === deletingSubjectId).length;
     const i = studyItems.filter((x) => x.subjectId === deletingSubjectId).length;
     const s = studySessions.filter((x) => x.subjectId === deletingSubjectId).length;
+    const c = timetableClasses.filter((x) => x.subjectId === deletingSubjectId).length;
 
-    return { tasks: t, items: i, sessions: s };
-  }, [deletingSubjectId, tasks, studyItems, studySessions]);
+    return { tasks: t, items: i, sessions: s, timetableClasses: c };
+  }, [deletingSubjectId, tasks, studyItems, studySessions, timetableClasses]);
 
   const deletingPeriod = useMemo(
     () => periods.find((p) => p.id === deletingPeriodId) || null,
     [periods, deletingPeriodId]
   );
+
+  const deletingTimetableClass = useMemo(
+    () => timetableClasses.find((c) => c.id === deletingTimetableClassId) ?? null,
+    [timetableClasses, deletingTimetableClassId]
+  );
+
+  const sortedTimetableClasses = useMemo(() => {
+    return [...timetableClasses].sort((a, b) => {
+      if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+      if (a.startTime !== b.startTime) return a.startTime.localeCompare(b.startTime);
+      return a.title.localeCompare(b.title);
+    });
+  }, [timetableClasses]);
 
   const ensureNewSubjectDefaults = () => {
     setFormData({ name: "", color: pickNextColor(usedSubjectColors) });
@@ -487,8 +690,9 @@ export function Settings({
 
   const savePeriod = () => {
     const name = periodForm.name.trim();
+
     if (!name) {
-      setPeriodFormError("Please enter a term name (e.g. “Term 1”).");
+      setPeriodFormError("Please enter a term name, e.g. Term 1.");
       return;
     }
 
@@ -506,7 +710,10 @@ export function Settings({
     }
 
     const n = normalizeTermName(name);
-    const nameClash = periods.some((p) => p.id !== editingPeriodId && normalizeTermName(p.name) === n);
+    const nameClash = periods.some(
+      (p) => p.id !== editingPeriodId && normalizeTermName(p.name) === n
+    );
+
     if (nameClash) {
       setPeriodFormError("That term name already exists.");
       return;
@@ -522,11 +729,13 @@ export function Settings({
       });
     } else {
       const newPeriod: Period = { id: safeUUID(), name, startDate: start, endDate: end };
+
       setPeriods((prev) => {
         const next = [...prev, newPeriod];
         next.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
         return next;
       });
+
       setShowAddPeriodForm(false);
     }
 
@@ -553,8 +762,14 @@ export function Settings({
   const clearButtonLabel = appMode === "demo" ? "Reset demo" : "Clear all data";
 
   const formatRange = (p: Period) => {
-    const start = p.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const end = p.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const start = p.startDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    const end = p.endDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
     return `${start} → ${end}`;
   };
 
@@ -562,7 +777,8 @@ export function Settings({
     setImportError("");
 
     const rawAppData = safeJsonParse<any>(localStorage.getItem(storageKey));
-    const rawPeriods = safeJsonParse<PeriodStored[]>(localStorage.getItem(PERIODS_STORAGE_KEY)) ?? undefined;
+    const rawPeriods =
+      safeJsonParse<PeriodStored[]>(localStorage.getItem(PERIODS_STORAGE_KEY)) ?? undefined;
 
     const fallbackData = {
       subjects,
@@ -581,6 +797,8 @@ export function Settings({
         date: s.date instanceof Date ? s.date.toISOString() : s.date,
       })),
       reminders: [],
+      timetableSettings,
+      timetableClasses,
     };
 
     const backup: BackupV1 = {
@@ -615,6 +833,7 @@ export function Settings({
         setImportError("This backup file format isn’t supported.");
         return;
       }
+
       if (!parsed.data || typeof parsed.data !== "object") {
         setImportError("Backup is missing data.");
         return;
@@ -658,11 +877,13 @@ export function Settings({
   const importCounts = useMemo(() => {
     const d = pendingBackup?.data;
     const getLen = (x: any) => (Array.isArray(x) ? x.length : 0);
+
     return {
       subjects: getLen(d?.subjects),
       tasks: getLen(d?.tasks),
       studySessions: getLen(d?.studySessions),
       reminders: getLen(d?.reminders),
+      timetableClasses: getLen(d?.timetableClasses),
       periods: Array.isArray(pendingBackup?.periods) ? pendingBackup.periods.length : 0,
     };
   }, [pendingBackup]);
@@ -726,7 +947,9 @@ export function Settings({
     <div className="mx-auto max-w-6xl space-y-6 px-6 py-8 md:px-10">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage your subjects and preferences.</p>
+        <p className="text-sm text-muted-foreground">
+          Manage your subjects, terms, timetable, and backups.
+        </p>
       </div>
 
       <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
@@ -748,40 +971,28 @@ export function Settings({
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                Marks
+            {["Marks", "Insights", "Custom widgets"].map((name) => (
+              <div key={name} className="rounded-2xl border border-border bg-background/60 p-4">
+                <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                  {name}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {name === "Marks"
+                    ? "Log results across the year and keep all your marks in one place."
+                    : name === "Insights"
+                      ? "Unlock more advanced analytics and stronger study trends."
+                      : "Personalise your dashboard and insights layout later."}
+                </div>
               </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Log results across the year and keep all your marks in one place.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                Insights
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Unlock more advanced analytics and stronger study trends.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                Custom widgets
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Personalise your dashboard and insights layout later.
-              </div>
-            </div>
+            ))}
           </div>
 
           {appMode === "demo" ? (
             <div className="mt-4 rounded-2xl border border-border bg-muted/20 px-4 py-4">
-              <div className="text-sm font-semibold text-foreground">Premium is included in preview mode</div>
+              <div className="text-sm font-semibold text-foreground">
+                Premium is included in preview mode
+              </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 Demo mode includes Premium features so people can try them.
               </div>
@@ -790,7 +1001,9 @@ export function Settings({
             <div className="mt-4 rounded-2xl border border-border bg-muted/20 px-4 py-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground">You are on Premium</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    You are on Premium
+                  </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Manage your subscription and billing details.
                   </div>
@@ -840,19 +1053,27 @@ export function Settings({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-base font-semibold text-foreground">{plan.name}</div>
+                            <div className="text-base font-semibold text-foreground">
+                              {plan.name}
+                            </div>
                             {plan.badge ? (
                               <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
                                 {plan.badge}
                               </span>
                             ) : null}
                           </div>
-                          <div className="mt-1 text-sm text-muted-foreground">{plan.description}</div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {plan.description}
+                          </div>
                         </div>
 
                         <div className="shrink-0 text-right">
-                          <div className="text-2xl font-semibold text-foreground">{plan.price}</div>
-                          <div className="text-xs text-muted-foreground">{plan.periodLabel}</div>
+                          <div className="text-2xl font-semibold text-foreground">
+                            {plan.price}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {plan.periodLabel}
+                          </div>
                         </div>
                       </div>
 
@@ -901,7 +1122,9 @@ export function Settings({
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Subjects</div>
-              <div className="text-xs text-muted-foreground">Add, edit, and organise your subjects.</div>
+              <div className="text-xs text-muted-foreground">
+                Add, edit, and organise your subjects.
+              </div>
             </div>
 
             <ChevronDown
@@ -942,8 +1165,13 @@ export function Settings({
                     <div className="inline-flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">Preview</span>
                       <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: formData.color }} />
-                        <span className="text-foreground/90">{formData.name.trim() || "Subject"}</span>
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: formData.color }}
+                        />
+                        <span className="text-foreground/90">
+                          {formData.name.trim() || "Subject"}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -964,6 +1192,7 @@ export function Settings({
                     <div className="grid grid-cols-8 gap-2 sm:grid-cols-10 md:grid-cols-12">
                       {SUBJECT_COLOR_PALETTE.map((color) => {
                         const selected = normalizeHex(formData.color) === normalizeHex(color);
+
                         return (
                           <button
                             type="button"
@@ -972,7 +1201,9 @@ export function Settings({
                             className={[
                               "h-9 w-9 rounded-xl border transition-transform md:h-10 md:w-10",
                               "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                              selected ? "scale-105 border-border ring-2 ring-primary" : "border-border hover:scale-105",
+                              selected
+                                ? "scale-105 border-border ring-2 ring-primary"
+                                : "border-border hover:scale-105",
                             ].join(" ")}
                             style={{ backgroundColor: color }}
                             aria-label={`Pick ${color}`}
@@ -985,7 +1216,12 @@ export function Settings({
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setFormData((p) => ({ ...p, color: pickNextColor(usedSubjectColors) }))}
+                        onClick={() =>
+                          setFormData((p) => ({
+                            ...p,
+                            color: pickNextColor(usedSubjectColors),
+                          }))
+                        }
                         className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                       >
                         Pick a new colour
@@ -1002,24 +1238,22 @@ export function Settings({
                         />
                       </div>
                     </div>
-
-                    <div className="text-[11px] text-muted-foreground">
-                      Tip: pick colours that look different at a glance (helps the calendar).
-                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
                     <button
-                      type="button"
                       onClick={handleSubmit}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      disabled={!formData.name.trim()}
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="button"
                     >
                       {editingId ? "Save" : "Add"}
                     </button>
+
                     <button
-                      type="button"
                       onClick={handleCancel}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
+                      type="button"
                     >
                       Cancel
                     </button>
@@ -1031,36 +1265,41 @@ export function Settings({
                 {subjects.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No subjects yet</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Create one to start organising your work.</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Add your first subject to start planning.
+                    </div>
                   </div>
                 ) : (
                   subjects.map((subject) => (
                     <div
                       key={subject.id}
-                      className="group flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm transition hover:shadow-md"
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background/50 px-4 py-3 shadow-sm"
+                      style={{ borderLeftWidth: 4, borderLeftColor: subject.color }}
                     >
-                      <div className="min-w-0 flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl border border-border" style={{ backgroundColor: subject.color }} />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-foreground">{subject.name}</div>
-                          <div className="text-xs text-muted-foreground">{subject.color}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-foreground">
+                          {subject.name}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {tasks.filter((t) => t.subjectId === subject.id).length} linked items
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                      <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleEdit(subject)}
                           className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                          aria-label="Edit"
+                          aria-label="Edit subject"
                         >
                           <Edit2 className="h-4 w-4 text-foreground" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => setDeletingSubjectId(subject.id)}
                           className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                          aria-label="Delete"
+                          aria-label="Delete subject"
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
                         </button>
@@ -1082,7 +1321,7 @@ export function Settings({
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Terms</div>
               <div className="text-xs text-muted-foreground">
-                Define your school terms so tasks can be grouped automatically.
+                Add school terms, semesters, or exam periods.
               </div>
             </div>
 
@@ -1107,40 +1346,51 @@ export function Settings({
                 </button>
               </div>
 
-              {showAddPeriodForm && (
+              {showAddPeriodForm ? (
                 <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="text-sm font-semibold text-foreground">{editingPeriodId ? "Edit term" : "New term"}</div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {editingPeriodId ? "Edit term" : "New term"}
+                  </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div className="md:col-span-1">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">Name</label>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Name
+                      </label>
                       <input
                         ref={termNameInputRef}
                         type="text"
-                        placeholder='e.g. "Term 1"'
+                        placeholder="e.g. Term 1"
                         value={periodForm.name}
                         onChange={(e) => setPeriodForm((p) => ({ ...p, name: e.target.value }))}
                         className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        autoFocus
                       />
                     </div>
 
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">Start date</label>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Start date
+                      </label>
                       <input
                         type="date"
                         value={periodForm.startDate}
-                        onChange={(e) => setPeriodForm((p) => ({ ...p, startDate: e.target.value }))}
+                        onChange={(e) =>
+                          setPeriodForm((p) => ({ ...p, startDate: e.target.value }))
+                        }
                         className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
 
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">End date</label>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        End date
+                      </label>
                       <input
                         type="date"
                         value={periodForm.endDate}
-                        onChange={(e) => setPeriodForm((p) => ({ ...p, endDate: e.target.value }))}
+                        onChange={(e) =>
+                          setPeriodForm((p) => ({ ...p, endDate: e.target.value }))
+                        }
                         className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
@@ -1156,76 +1406,454 @@ export function Settings({
                     <button
                       type="button"
                       onClick={savePeriod}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                     >
                       {editingPeriodId ? "Save" : "Add"}
                     </button>
+
                     <button
                       type="button"
                       onClick={cancelPeriodForm}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
                     >
                       Cancel
                     </button>
                   </div>
-
-                  <div className="text-[11px] text-muted-foreground">
-                    Tip: keep term dates fixed — tasks can be assigned automatically based on due date.
-                  </div>
                 </div>
-              )}
+              ) : null}
 
               <div className="space-y-2">
                 {periods.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No terms yet</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Add Term 1, Term 2, Prelims, HSC — whatever matches your year.
+                      Add term dates so tasks can be grouped automatically.
                     </div>
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-2xl border border-border bg-card">
-                    <div className="hidden grid-cols-[1.2fr_1fr_0.4fr] gap-4 border-b border-border bg-muted/20 px-4 py-3 text-xs font-medium text-muted-foreground md:grid">
-                      <div>Term</div>
-                      <div>Date range</div>
-                      <div className="text-right">Actions</div>
+                  periods.map((period) => (
+                    <div
+                      key={period.id}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background/50 px-4 py-3 shadow-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-foreground">
+                          {period.name}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {formatRange(period)}
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditPeriod(period)}
+                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          aria-label="Edit term"
+                        >
+                          <Edit2 className="h-4 w-4 text-foreground" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeletingPeriodId(period.id)}
+                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          aria-label="Delete term"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div ref={timetableCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <button
+            type="button"
+            onClick={() => setTimetableOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            <div className="text-left">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                Timetable
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Add recurring classes, lectures, tutorials, labs, or school periods.
+              </div>
+            </div>
+
+            <ChevronDown
+              className={[
+                "h-5 w-5 text-muted-foreground transition-transform",
+                timetableOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
+            />
+          </button>
+
+          {timetableOpen && (
+            <div className="space-y-4 px-5 pb-5">
+              <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Timetable type
+                    </label>
+                    <select
+                      value={timetableSettings.mode}
+                      onChange={(e) =>
+                        onUpdateTimetableSettings({
+                          ...timetableSettings,
+                          mode: e.target.value as TimetableMode,
+                        })
+                      }
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="school">School</option>
+                      <option value="university">University</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Repeat cycle
+                    </label>
+                    <select
+                      value={timetableSettings.cycle}
+                      onChange={(e) => {
+                        const nextCycle = e.target.value as TimetableCycle;
+
+                        onUpdateTimetableSettings({
+                          ...timetableSettings,
+                          cycle: nextCycle,
+                          cycleStartDate:
+                            nextCycle === "fortnightly"
+                              ? timetableSettings.cycleStartDate ?? new Date()
+                              : undefined,
+                        });
+                      }}
+                      className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="weekly">Every week</option>
+                      <option value="fortnightly">Week A / Week B</option>
+                    </select>
+                  </div>
+
+                  {timetableSettings.cycle === "fortnightly" ? (
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Week A start date
+                      </label>
+                      <input
+                        type="date"
+                        value={
+                          timetableSettings.cycleStartDate
+                            ? toISODateInputValue(timetableSettings.cycleStartDate)
+                            : ""
+                        }
+                        onChange={(e) =>
+                          onUpdateTimetableSettings({
+                            ...timetableSettings,
+                            cycleStartDate: e.target.value
+                              ? parseDateInput(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 text-[11px] leading-5 text-muted-foreground">
+                  Month view will stay clean and will not show normal timetable classes.
+                  Week and day view will show them in the hourly calendar.
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={openNewTimetableClass}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add class
+                </button>
+              </div>
+
+              {showAddTimetableForm ? (
+                <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="text-sm font-semibold text-foreground">
+                    {editingTimetableClassId ? "Edit class" : "New class"}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Class name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={
+                          timetableSettings.mode === "university"
+                            ? "e.g. Economics Tutorial"
+                            : "e.g. Maths"
+                        }
+                        value={timetableForm.title}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({ ...p, title: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        autoFocus
+                      />
                     </div>
 
-                    <div className="divide-y divide-border">
-                      {periods.map((p) => (
-                        <div
-                          key={p.id}
-                          className="grid grid-cols-1 items-center gap-3 px-4 py-3 transition hover:bg-muted/10 md:grid-cols-[1.2fr_1fr_0.4fr] md:gap-4"
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Subject
+                      </label>
+                      <select
+                        value={timetableForm.subjectId}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({ ...p, subjectId: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
+                        <option value="">No subject / custom</option>
+                        {subjects.map((subject) => (
+                          <option key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Day
+                      </label>
+                      <select
+                        value={String(timetableForm.dayOfWeek)}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({
+                            ...p,
+                            dayOfWeek: Number(e.target.value) as TimetableDayOfWeek,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
+                        {DAY_LABELS.map((day) => (
+                          <option key={day.value} value={day.value}>
+                            {day.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {timetableSettings.cycle === "fortnightly" ? (
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Week
+                        </label>
+                        <select
+                          value={timetableForm.week}
+                          onChange={(e) =>
+                            setTimetableForm((p) => ({
+                              ...p,
+                              week: e.target.value as TimetableWeek,
+                            }))
+                          }
+                          className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         >
+                          <option value="both">Both weeks</option>
+                          <option value="A">Week A only</option>
+                          <option value="B">Week B only</option>
+                        </select>
+                      </div>
+                    ) : null}
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Start time
+                      </label>
+                      <input
+                        type="time"
+                        value={timetableForm.startTime}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({ ...p, startTime: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        End time
+                      </label>
+                      <input
+                        type="time"
+                        value={timetableForm.endTime}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({ ...p, endTime: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Room, campus, building, field"
+                        value={timetableForm.location}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({ ...p, location: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Teacher / tutor
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Optional"
+                        value={timetableForm.teacher}
+                        onChange={(e) =>
+                          setTimetableForm((p) => ({ ...p, teacher: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                  </div>
+
+                  {timetableFormError ? (
+                    <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                      {timetableFormError}
+                    </div>
+                  ) : null}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={saveTimetableClass}
+                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    >
+                      {editingTimetableClassId ? "Save" : "Add"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={cancelTimetableForm}
+                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                {sortedTimetableClasses.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+                    <div className="text-sm font-medium text-foreground">
+                      No timetable classes yet
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Add your normal weekly classes, lectures, labs, tutorials, or school periods.
+                    </div>
+                  </div>
+                ) : (
+                  sortedTimetableClasses.map((item) => {
+                    const subjectColor = getSubjectColor(item.subjectId);
+                    const dayName =
+                      DAY_LABELS.find((d) => d.value === item.dayOfWeek)?.label ?? "Day";
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl border border-border bg-background/50 px-4 py-3 shadow-sm"
+                        style={{ borderLeftWidth: 4, borderLeftColor: subjectColor }}
+                      >
+                        <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-foreground">{p.name}</div>
-                            <div className="mt-0.5 text-xs text-muted-foreground md:hidden">{formatRange(p)}</div>
+                            <div className="truncate text-sm font-semibold text-foreground">
+                              {item.title}
+                            </div>
+
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span>{dayName}</span>
+                              <span>•</span>
+                              <span>
+                                {formatTimetableTime(item.startTime)} –{" "}
+                                {formatTimetableTime(item.endTime)}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {timetableSettings.cycle === "weekly"
+                                  ? "Every week"
+                                  : item.week === "both"
+                                    ? "Both weeks"
+                                    : `Week ${item.week}`}
+                              </span>
+
+                              {item.subjectId ? (
+                                <>
+                                  <span>•</span>
+                                  <span>{getSubjectName(item.subjectId)}</span>
+                                </>
+                              ) : null}
+
+                              {item.location ? (
+                                <>
+                                  <span>•</span>
+                                  <span>{item.location}</span>
+                                </>
+                              ) : null}
+
+                              {item.teacher ? (
+                                <>
+                                  <span>•</span>
+                                  <span>{item.teacher}</span>
+                                </>
+                              ) : null}
+                            </div>
                           </div>
 
-                          <div className="hidden text-sm text-foreground/90 md:block">{formatRange(p)}</div>
-
-                          <div className="flex items-center gap-1 md:justify-end">
+                          <div className="flex shrink-0 items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => openEditPeriod(p)}
+                              onClick={() => openEditTimetableClass(item)}
                               className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                              aria-label="Edit term"
+                              aria-label="Edit class"
                             >
                               <Edit2 className="h-4 w-4 text-foreground" />
                             </button>
+
                             <button
                               type="button"
-                              onClick={() => setDeletingPeriodId(p.id)}
+                              onClick={() => setDeletingTimetableClassId(item.id)}
                               className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                              aria-label="Delete term"
+                              aria-label="Delete class"
                             >
                               <Trash2 className="h-4 w-4 text-muted-foreground" />
                             </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -1239,8 +1867,10 @@ export function Settings({
             className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
             <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Backup</div>
-              <div className="text-xs text-muted-foreground">Export a copy or restore from a backup file.</div>
+              <div className="text-sm font-semibold text-foreground">Backup & data</div>
+              <div className="text-xs text-muted-foreground">
+                Export, import, reset, or clear your planner data.
+              </div>
             </div>
 
             <ChevronDown
@@ -1252,176 +1882,130 @@ export function Settings({
           </button>
 
           {backupOpen && (
-            <div className="space-y-3 px-5 pb-5">
-              <div className="text-xs leading-5 text-muted-foreground">
-                Use this to <span className="font-medium text-foreground/90">save a copy</span> of your planner data,
-                move to another device/browser, or recover if your browser storage is cleared.
-                <span className="mt-1 block">
-                  Restoring a backup will <span className="font-medium text-foreground/90">replace</span> data on this
-                  device.
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-4 px-5 pb-5">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <button
                   type="button"
                   onClick={handleExportBackup}
-                  className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  className="rounded-2xl border border-border bg-background/50 px-4 py-4 text-left transition hover:bg-muted/40"
                 >
-                  Download backup
+                  <div className="text-sm font-semibold text-foreground">Export backup</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Download your planner as a JSON file.
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={openImportPicker}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  className="rounded-2xl border border-border bg-background/50 px-4 py-4 text-left transition hover:bg-muted/40"
                 >
-                  Restore backup
+                  <div className="text-sm font-semibold text-foreground">Import backup</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Restore from a previous backup.
+                  </div>
                 </button>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/json"
-                  className="hidden"
-                  onChange={(e) => handleFileChosen(e.target.files?.[0] ?? null)}
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowClearConfirm(true)}
+                  className="rounded-2xl border border-border bg-background/50 px-4 py-4 text-left transition hover:bg-muted/40"
+                >
+                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-destructive">
+                    <Trash className="h-4 w-4" />
+                    {clearButtonLabel}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {appMode === "demo"
+                      ? "Reset the demo back to sample data."
+                      : "Remove all saved planner data."}
+                  </div>
+                </button>
               </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => handleFileChosen(e.target.files?.[0] ?? null)}
+              />
 
               {importError ? (
                 <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
                   {importError}
                 </div>
               ) : null}
-
-              <div className="text-[11px] text-muted-foreground">Tip: store your backup in iCloud Drive / Google Drive.</div>
             </div>
           )}
         </div>
-
-        <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-foreground">Clear all data</div>
-            <div className="text-xs text-muted-foreground">
-              {appMode === "demo" ? "Start over with the sample data." : "Clear everything and start fresh."}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowClearConfirm(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
-          >
-            <Trash className="h-4 w-4" />
-            {clearButtonLabel}
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-          <div className="text-sm font-semibold text-foreground">Learn</div>
-          <div className="mt-1 text-xs text-muted-foreground">Learn more about MyStudyPlanner and how it works.</div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <Link href="/about" className="text-muted-foreground transition hover:text-foreground">
-              About
-            </Link>
-            <Link href="/how-it-works" className="text-muted-foreground transition hover:text-foreground">
-              How it works
-            </Link>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-          <div className="text-sm font-semibold text-foreground">Legal</div>
-          <div className="mt-1 text-xs text-muted-foreground">Privacy and terms.</div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <Link href="/privacy" className="text-muted-foreground transition hover:text-foreground">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="text-muted-foreground transition hover:text-foreground">
-              Terms of Use
-            </Link>
-          </div>
-        </div>
       </div>
 
-      <div className="pt-2 text-center text-xs text-muted-foreground">
-        Need help? Contact us at{" "}
-        <a href="mailto:mystudyplanner.studio@gmail.com" className="underline transition-colors hover:text-foreground">
-          mystudyplanner.studio@gmail.com
-        </a>
-      </div>
-
-      {deletingSubject && (
+      {deletingSubject ? (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingSubjectId(null)} />
+
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
-              <div className="text-sm font-semibold text-foreground">Delete “{deletingSubject.name}”?</div>
-              <div className="mt-1 text-xs text-muted-foreground">This will remove the subject and any linked data.</div>
-            </div>
-
-            <div className="space-y-2 px-5 py-4">
-              <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between">
-                  <span>Tasks</span>
-                  <span className="font-medium text-foreground">{deleteCounts.tasks}</span>
-                </div>
-                <div className="mt-1 flex items-center justify-between">
-                  <span>Study items</span>
-                  <span className="font-medium text-foreground">{deleteCounts.items}</span>
-                </div>
-                <div className="mt-1 flex items-center justify-between">
-                  <span>Study sessions</span>
-                  <span className="font-medium text-foreground">{deleteCounts.sessions}</span>
-                </div>
+              <div className="text-sm font-semibold text-foreground">
+                Delete “{deletingSubject.name}”?
               </div>
-
-              <div className="text-[11px] text-muted-foreground">This action cannot be undone.</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                This also removes linked tasks, study sessions, and timetable classes.
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 p-5">
+            <div className="space-y-2 p-5 text-sm text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Tasks</span>
+                <span>{deleteCounts.tasks}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Study items</span>
+                <span>{deleteCounts.items}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Study sessions</span>
+                <span>{deleteCounts.sessions}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Timetable classes</span>
+                <span>{deleteCounts.timetableClasses}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border p-5">
               <button
                 type="button"
                 onClick={() => setDeletingSubjectId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
               >
                 Delete
               </button>
             </div>
           </div>
         </>
-      )}
+      ) : null}
 
-      {deletingPeriod && (
+      {deletingPeriod ? (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingPeriodId(null)} />
+
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
-              <div className="text-sm font-semibold text-foreground">Delete “{deletingPeriod.name}”?</div>
+              <div className="text-sm font-semibold text-foreground">
+                Delete “{deletingPeriod.name}”?
+              </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                This removes the term definition from this device.
-              </div>
-            </div>
-
-            <div className="space-y-2 px-5 py-4">
-              <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between">
-                  <span>Date range</span>
-                  <span className="font-medium text-foreground">{formatRange(deletingPeriod)}</span>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-muted-foreground">
-                Tasks won’t be deleted — later we’ll decide how term reassignment should behave.
+                This removes the term from Settings.
               </div>
             </div>
 
@@ -1429,90 +2013,72 @@ export function Settings({
               <button
                 type="button"
                 onClick={() => setDeletingPeriodId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={confirmDeletePeriod}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
               >
                 Delete
               </button>
             </div>
           </div>
         </>
-      )}
+      ) : null}
 
-      {showImportConfirm && pendingBackup ? (
+      {deletingTimetableClass ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowImportConfirm(false)} />
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingTimetableClassId(null)} />
+
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
-              <div className="text-sm font-semibold text-foreground">Restore this backup?</div>
-              <div className="mt-1 text-xs text-muted-foreground">This will replace data on this device.</div>
-            </div>
-
-            <div className="space-y-2 px-5 py-4">
-              <div className="space-y-1 rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between">
-                  <span>Subjects</span>
-                  <span className="font-medium text-foreground">{importCounts.subjects}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Tasks</span>
-                  <span className="font-medium text-foreground">{importCounts.tasks}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Study sessions</span>
-                  <span className="font-medium text-foreground">{importCounts.studySessions}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Reminders</span>
-                  <span className="font-medium text-foreground">{importCounts.reminders}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Terms</span>
-                  <span className="font-medium text-foreground">{importCounts.periods}</span>
-                </div>
+              <div className="text-sm font-semibold text-foreground">
+                Delete “{deletingTimetableClass.title}”?
               </div>
-
-              <div className="text-[11px] text-muted-foreground">After restoring, the page will reload automatically.</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                This will remove the recurring class from your timetable.
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 p-5">
               <button
                 type="button"
-                onClick={() => setShowImportConfirm(false)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                onClick={() => setDeletingTimetableClassId(null)}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
-                onClick={confirmImport}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                onClick={() => {
+                  onDeleteTimetableClass(deletingTimetableClass.id);
+                  setDeletingTimetableClassId(null);
+                }}
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
               >
-                Restore
+                Delete
               </button>
             </div>
           </div>
         </>
       ) : null}
 
-      {showClearConfirm && (
+      {showClearConfirm ? (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowClearConfirm(false)} />
+
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
-              <div className="text-sm font-semibold text-foreground">
-                {appMode === "demo" ? "Reset demo data?" : "Clear all data?"}
-              </div>
+              <div className="text-sm font-semibold text-foreground">{clearButtonLabel}?</div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {appMode === "demo"
-                  ? "This will reset the demo back to the original sample subjects, tasks, and sessions."
-                  : "This will permanently delete all your subjects, tasks, and study sessions from this device."}
+                  ? "This resets the demo back to sample data."
+                  : "This removes your planner data from this account/device."}
               </div>
             </div>
 
@@ -1520,21 +2086,85 @@ export function Settings({
               <button
                 type="button"
                 onClick={() => setShowClearConfirm(false)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={handleConfirmClear}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
               >
-                {appMode === "demo" ? "Reset demo" : "Clear all data"}
+                {clearButtonLabel}
               </button>
             </div>
           </div>
         </>
-      )}
+      ) : null}
+
+      {showImportConfirm && pendingBackup ? (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowImportConfirm(false)} />
+
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+            <div className="border-b border-border px-5 py-4">
+              <div className="text-sm font-semibold text-foreground">Import backup?</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                This will replace your current planner data and reload the app.
+              </div>
+            </div>
+
+            <div className="space-y-2 p-5 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span>Subjects</span>
+                <span className="font-medium text-foreground">{importCounts.subjects}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Tasks</span>
+                <span className="font-medium text-foreground">{importCounts.tasks}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Study sessions</span>
+                <span className="font-medium text-foreground">{importCounts.studySessions}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Reminders</span>
+                <span className="font-medium text-foreground">{importCounts.reminders}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Terms</span>
+                <span className="font-medium text-foreground">{importCounts.periods}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Timetable classes</span>
+                <span className="font-medium text-foreground">{importCounts.timetableClasses}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border p-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportConfirm(false);
+                  setPendingBackup(null);
+                }}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmImport}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

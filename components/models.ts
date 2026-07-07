@@ -30,6 +30,118 @@ export interface PeriodStored {
   endDate: string; // ISO string
 }
 
+/* -------------------- Timetable -------------------- */
+
+export type TimetableMode = "school" | "university" | "custom";
+
+export type TimetableCycle = "weekly" | "fortnightly";
+
+export type TimetableWeek = "A" | "B" | "both";
+
+export type TimetableDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
+ * Main timetable settings.
+ *
+ * weekly:
+ * - the same timetable repeats every week.
+ *
+ * fortnightly:
+ * - Week A / Week B cycle.
+ * - cycleStartDate should be the Monday of Week A.
+ */
+export interface TimetableSettings {
+  mode: TimetableMode;
+  cycle: TimetableCycle;
+  cycleStartDate?: Date;
+}
+
+/**
+ * LocalStorage-safe TimetableSettings shape.
+ */
+export interface TimetableSettingsStored {
+  mode: TimetableMode;
+  cycle: TimetableCycle;
+  cycleStartDate?: string; // ISO
+}
+
+/**
+ * A recurring class / lesson / lecture / tutorial / lab.
+ *
+ * Works for:
+ * - school classes
+ * - uni lectures/tutorials/labs
+ * - custom repeating timetable items
+ *
+ * Month view should usually hide these to avoid clutter.
+ * Week/day view should display them in the hourly grid.
+ */
+export interface TimetableClass {
+  id: string;
+
+  /**
+   * Optional subject link.
+   * Most timetable classes should have this, but it is optional so users can add
+   * things like Assembly, Chapel, Sport, Free Period, Lunch, Work, etc.
+   */
+  subjectId?: string;
+
+  /**
+   * Display title.
+   * Examples:
+   * - "Maths"
+   * - "English"
+   * - "Economics Tutorial"
+   * - "Chemistry Lab"
+   * - "Free Period"
+   */
+  title: string;
+
+  dayOfWeek: TimetableDayOfWeek; // 0 Sun, 1 Mon, 2 Tue, etc.
+
+  startTime: string; // "HH:MM" 24h
+  endTime: string; // "HH:MM" 24h
+
+  /**
+   * For weekly timetables, this can just be "both".
+   * For fortnightly timetables:
+   * - "A" = Week A only
+   * - "B" = Week B only
+   * - "both" = every week
+   */
+  week: TimetableWeek;
+
+  location?: string; // room, building, campus, field, etc.
+  teacher?: string; // teacher, tutor, lecturer, coach, etc.
+
+  notes?: string;
+
+  createdAt?: Date;
+}
+
+/**
+ * LocalStorage-safe TimetableClass shape.
+ */
+export interface TimetableClassStored {
+  id: string;
+  subjectId?: string;
+  title: string;
+
+  dayOfWeek: TimetableDayOfWeek;
+
+  startTime: string;
+  endTime: string;
+
+  week: TimetableWeek;
+
+  location?: string;
+  teacher?: string;
+
+  notes?: string;
+
+  createdAt?: string; // ISO
+}
+
 /* -------------------- Tasks / Assessments -------------------- */
 
 export interface TaskResult {
@@ -163,7 +275,9 @@ export interface ReminderStored {
 
 /**
  * General calendar events.
- * Future use: classes, school periods, excursions, sport, tutoring.
+ * Future use: excursions, sport, tutoring, school events.
+ *
+ * Timetable classes should use TimetableClass instead.
  */
 export interface CalendarEvent {
   id: string;

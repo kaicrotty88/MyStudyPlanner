@@ -12,7 +12,15 @@ import { Insights } from "./insights";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
 
-import type { Subject, Task, StudySession, Period, Reminder } from "./models";
+import type {
+  Subject,
+  Task,
+  StudySession,
+  Period,
+  Reminder,
+  TimetableSettings,
+  TimetableClass,
+} from "./models";
 
 import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
 import { User, X, Lock, Sparkles } from "lucide-react";
@@ -56,7 +64,7 @@ type Tab =
 
 type AppMode = "demo" | "app";
 type Plan = "free" | "premium";
-type SettingsOpenSection = "subjects" | "terms" | "backup" | null;
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | null;
 
 const defaultSubjects: Subject[] = [
   { id: "1", name: "Mathematics", color: "#6B9BC3" },
@@ -65,6 +73,12 @@ const defaultSubjects: Subject[] = [
   { id: "4", name: "English", color: "#8B73A0" },
   { id: "5", name: "History", color: "#B87B7B" },
 ];
+
+const DEFAULT_TIMETABLE_SETTINGS: TimetableSettings = {
+  mode: "school",
+  cycle: "weekly",
+  cycleStartDate: undefined,
+};
 
 const DEMO_PERIODS: Period[] = [
   {
@@ -78,6 +92,75 @@ const DEMO_PERIODS: Period[] = [
     name: "Term 2",
     startDate: new Date(2026, 3, 28),
     endDate: new Date(2026, 6, 3),
+  },
+];
+
+const DEMO_TIMETABLE_SETTINGS: TimetableSettings = {
+  mode: "school",
+  cycle: "fortnightly",
+  cycleStartDate: new Date(2026, 0, 26),
+};
+
+const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
+  {
+    id: "tc1",
+    subjectId: "1",
+    title: "Maths",
+    dayOfWeek: 1,
+    startTime: "09:00",
+    endTime: "09:50",
+    week: "both",
+    location: "Room M2",
+    teacher: "Mr Anderson",
+    createdAt: new Date(2026, 0, 26),
+  },
+  {
+    id: "tc2",
+    subjectId: "4",
+    title: "English",
+    dayOfWeek: 1,
+    startTime: "10:10",
+    endTime: "11:00",
+    week: "both",
+    location: "Room E4",
+    teacher: "Ms Taylor",
+    createdAt: new Date(2026, 0, 26),
+  },
+  {
+    id: "tc3",
+    subjectId: "2",
+    title: "Physics",
+    dayOfWeek: 2,
+    startTime: "11:20",
+    endTime: "12:10",
+    week: "A",
+    location: "Lab 1",
+    teacher: "Dr Harris",
+    createdAt: new Date(2026, 0, 26),
+  },
+  {
+    id: "tc4",
+    subjectId: "3",
+    title: "Chemistry",
+    dayOfWeek: 2,
+    startTime: "11:20",
+    endTime: "12:10",
+    week: "B",
+    location: "Lab 2",
+    teacher: "Ms Chen",
+    createdAt: new Date(2026, 0, 26),
+  },
+  {
+    id: "tc5",
+    subjectId: "5",
+    title: "History",
+    dayOfWeek: 3,
+    startTime: "13:20",
+    endTime: "14:10",
+    week: "both",
+    location: "Room H1",
+    teacher: "Mr Lewis",
+    createdAt: new Date(2026, 0, 26),
   },
 ];
 
@@ -407,6 +490,8 @@ const makeDefaultData = () => {
     tasks: demoTasks,
     studySessions: demoStudySessions,
     reminders: demoReminders,
+    timetableSettings: DEMO_TIMETABLE_SETTINGS,
+    timetableClasses: DEMO_TIMETABLE_CLASSES,
   };
 };
 
@@ -563,6 +648,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
+  const [timetableSettings, setTimetableSettings] = useState<TimetableSettings>(
+    mode === "demo" ? DEMO_TIMETABLE_SETTINGS : DEFAULT_TIMETABLE_SETTINGS
+  );
+  const [timetableClasses, setTimetableClasses] = useState<TimetableClass[]>(
+    mode === "demo" ? DEMO_TIMETABLE_CLASSES : []
+  );
+
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
   const [settingsOpenSection, setSettingsOpenSection] =
     useState<SettingsOpenSection>(null);
@@ -680,6 +772,57 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         };
       })
     );
+
+    const parsedTimetableSettings = parsed.timetableSettings;
+
+    setTimetableSettings({
+      mode:
+        parsedTimetableSettings?.mode === "school" ||
+        parsedTimetableSettings?.mode === "university" ||
+        parsedTimetableSettings?.mode === "custom"
+          ? parsedTimetableSettings.mode
+          : DEFAULT_TIMETABLE_SETTINGS.mode,
+      cycle:
+        parsedTimetableSettings?.cycle === "weekly" ||
+        parsedTimetableSettings?.cycle === "fortnightly"
+          ? parsedTimetableSettings.cycle
+          : DEFAULT_TIMETABLE_SETTINGS.cycle,
+      cycleStartDate: parsedTimetableSettings?.cycleStartDate
+        ? new Date(parsedTimetableSettings.cycleStartDate)
+        : undefined,
+    });
+
+    setTimetableClasses(
+      Array.isArray(parsed.timetableClasses)
+        ? parsed.timetableClasses.map((c: any) => ({
+            id: String(c.id),
+            subjectId: c?.subjectId ? String(c.subjectId) : undefined,
+            title: String(c?.title ?? "Class"),
+            dayOfWeek:
+              c?.dayOfWeek === 0 ||
+              c?.dayOfWeek === 1 ||
+              c?.dayOfWeek === 2 ||
+              c?.dayOfWeek === 3 ||
+              c?.dayOfWeek === 4 ||
+              c?.dayOfWeek === 5 ||
+              c?.dayOfWeek === 6
+                ? c.dayOfWeek
+                : 1,
+            startTime: String(c?.startTime ?? "09:00"),
+            endTime: String(c?.endTime ?? "10:00"),
+            week:
+              c?.week === "A" || c?.week === "B" || c?.week === "both"
+                ? c.week
+                : "both",
+            location: c?.location ? String(c.location) : undefined,
+            teacher: c?.teacher ? String(c.teacher) : undefined,
+            notes: c?.notes ? String(c.notes) : undefined,
+            createdAt: c?.createdAt ? new Date(c.createdAt) : undefined,
+          }))
+        : mode === "demo"
+          ? DEMO_TIMETABLE_CLASSES
+          : []
+    );
   };
 
   const makeStateSnapshot = () => ({
@@ -688,6 +831,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     tasks,
     studySessions,
     reminders,
+    timetableSettings,
+    timetableClasses,
   });
 
   useEffect(() => {
@@ -780,6 +925,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
       setReminders(seeded.reminders);
+      setTimetableSettings(seeded.timetableSettings);
+      setTimetableClasses(seeded.timetableClasses);
 
       finishLoading();
       return () => {
@@ -818,7 +965,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             Array.isArray((remote as any).subjects) ||
             Array.isArray((remote as any).periods) ||
             Array.isArray((remote as any).studySessions) ||
-            Array.isArray((remote as any).reminders));
+            Array.isArray((remote as any).reminders) ||
+            Array.isArray((remote as any).timetableClasses) ||
+            Boolean((remote as any).timetableSettings));
 
         if (remoteHasPlannerData) {
           applyParsedState(remote);
@@ -845,6 +994,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         setTasks([]);
         setStudySessions([]);
         setReminders([]);
+        setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
+        setTimetableClasses([]);
 
         finishLoading();
       } catch (e) {
@@ -893,6 +1044,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     tasks,
     studySessions,
     reminders,
+    timetableSettings,
+    timetableClasses,
     storageKey,
     mode,
     isSignedIn,
@@ -916,6 +1069,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTasks(seeded.tasks);
       setStudySessions(seeded.studySessions);
       setReminders(seeded.reminders);
+      setTimetableSettings(seeded.timetableSettings);
+      setTimetableClasses(seeded.timetableClasses);
       setActiveTab("dashboard");
       return;
     }
@@ -925,6 +1080,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setTasks([]);
     setStudySessions([]);
     setReminders([]);
+    setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
+    setTimetableClasses([]);
     setActiveTab("dashboard");
 
     if (Boolean(isSignedIn) && supabase) {
@@ -948,6 +1105,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setSubjects((p) => p.filter((s) => s.id !== id));
     setTasks((p) => p.filter((t) => t.subjectId !== id));
     setStudySessions((p) => p.filter((s) => s.subjectId !== id));
+    setTimetableClasses((p) => p.filter((c) => c.subjectId !== id));
   };
 
   const handleAddTask = (t: Omit<Task, "id">) => {
@@ -987,9 +1145,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const toggleTaskCompleted = (id: string) =>
     setTasks((p) =>
-      p.map((t) =>
-        t.id === id ? { ...t, completed: !t.completed, completedAt: new Date() } : t
-      )
+      p.map((t) => {
+        if (t.id !== id) return t;
+        const nextCompleted = !t.completed;
+        return {
+          ...t,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? new Date() : undefined,
+        };
+      })
     );
 
   const handleAddStudySession = (s: Omit<StudySession, "id">) =>
@@ -1006,9 +1170,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const handleToggleSessionCompleted = (id: string) =>
     setStudySessions((p) =>
-      p.map((s) =>
-        s.id === id ? { ...s, completed: !s.completed, completedAt: new Date() } : s
-      )
+      p.map((s) => {
+        if (s.id !== id) return s;
+        const nextCompleted = !s.completed;
+        return {
+          ...s,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? new Date() : undefined,
+        };
+      })
     );
 
   const handleAddReminder = (r: Omit<Reminder, "id">) =>
@@ -1040,6 +1210,34 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         };
       })
     );
+
+  const handleUpdateTimetableSettings = (settings: TimetableSettings) => {
+    setTimetableSettings(settings);
+  };
+
+  const handleAddTimetableClass = (timetableClass: Omit<TimetableClass, "id">) => {
+    setTimetableClasses((p) => [
+      ...p,
+      {
+        ...timetableClass,
+        id: Date.now().toString(),
+        createdAt: timetableClass.createdAt ?? new Date(),
+      },
+    ]);
+  };
+
+  const handleUpdateTimetableClass = (
+    id: string,
+    timetableClass: Omit<TimetableClass, "id">
+  ) => {
+    setTimetableClasses((p) =>
+      p.map((x) => (x.id === id ? { ...timetableClass, id } : x))
+    );
+  };
+
+  const handleDeleteTimetableClass = (id: string) => {
+    setTimetableClasses((p) => p.filter((x) => x.id !== id));
+  };
 
   const openTab = (tab: Tab) => {
     setActiveTab(tab);
@@ -1269,6 +1467,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             tasks={tasks}
             reminders={reminders}
             subjects={subjects}
+            timetableSettings={timetableSettings}
+            timetableClasses={timetableClasses}
             onAddTask={handleAddTask}
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
@@ -1343,9 +1543,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             tasks={tasks}
             studyItems={[]}
             studySessions={studySessions}
+            timetableSettings={timetableSettings}
+            timetableClasses={timetableClasses}
             onAddSubject={handleAddSubject}
             onUpdateSubject={handleUpdateSubject}
             onDeleteSubject={handleDeleteSubject}
+            onUpdateTimetableSettings={handleUpdateTimetableSettings}
+            onAddTimetableClass={handleAddTimetableClass}
+            onUpdateTimetableClass={handleUpdateTimetableClass}
+            onDeleteTimetableClass={handleDeleteTimetableClass}
             onClearAllData={handleClearAllData}
             openSection={settingsOpenSection}
             onOpenSectionHandled={() => setSettingsOpenSection(null)}
