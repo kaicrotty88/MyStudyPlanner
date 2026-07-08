@@ -7,7 +7,6 @@ import {
   Trash2,
   Trash,
   ChevronDown,
-  CalendarDays,
 } from "lucide-react";
 
 import type {
@@ -50,7 +49,7 @@ type PeriodStored = {
   endDate: string;
 };
 
-type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup";
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | "premium";
 
 type ManualTimetableForm = {
   title: string;
@@ -257,6 +256,7 @@ export function Settings({
   const [periodsOpen, setPeriodsOpen] = useState(false);
   const [timetableOpen, setTimetableOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
 
   const [showAddSubjectForm, setShowAddSubjectForm] = useState(false);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
@@ -306,6 +306,7 @@ export function Settings({
   const termsCardRef = useRef<HTMLDivElement>(null);
   const timetableCardRef = useRef<HTMLDivElement>(null);
   const backupCardRef = useRef<HTMLDivElement>(null);
+  const premiumCardRef = useRef<HTMLDivElement>(null);
   const subjectNameInputRef = useRef<HTMLInputElement>(null);
   const termNameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -317,10 +318,6 @@ export function Settings({
     [timetablePeriods]
   );
 
-  const classPeriods = useMemo(
-    () => sortedTimetablePeriods.filter((p) => p.type === "class"),
-    [sortedTimetablePeriods]
-  );
 
   const getSubjectName = (subjectId?: string) =>
     subjects.find((s) => s.id === subjectId)?.name ?? "";
@@ -432,6 +429,7 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(false);
       setBackupOpen(false);
+      setPremiumOpen(false);
       setShowAddSubjectForm(true);
       setEditingSubjectId(null);
 
@@ -446,6 +444,7 @@ export function Settings({
       setPeriodsOpen(true);
       setTimetableOpen(false);
       setBackupOpen(false);
+      setPremiumOpen(false);
       openNewTerm();
 
       requestAnimationFrame(() => {
@@ -459,6 +458,7 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(true);
       setBackupOpen(false);
+      setPremiumOpen(false);
 
       requestAnimationFrame(() => {
         timetableCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -470,9 +470,22 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(false);
       setBackupOpen(true);
+      setPremiumOpen(false);
 
       requestAnimationFrame(() => {
         backupCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    if (openSection === "premium") {
+      setSubjectsOpen(false);
+      setPeriodsOpen(false);
+      setTimetableOpen(false);
+      setBackupOpen(false);
+      setPremiumOpen(true);
+
+      requestAnimationFrame(() => {
+        premiumCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
 
@@ -876,7 +889,12 @@ export function Settings({
       version: 1,
       exportedAt: new Date().toISOString(),
       appMode,
-      data: rawAppData ?? fallbackData,
+      data: {
+        ...(rawAppData ?? fallbackData),
+        timetableSettings,
+        timetablePeriods,
+        timetableClasses,
+      },
       periods: rawPeriods,
     };
 
@@ -1283,10 +1301,7 @@ export function Settings({
             className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
           >
             <div className="text-left">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                Timetable
-              </div>
+              <div className="text-sm font-semibold text-foreground">Timetable</div>
               <div className="text-xs text-muted-foreground">
                 School grid builder, Week A/B, period times, and custom classes.
               </div>
@@ -2090,6 +2105,83 @@ export function Settings({
                   {importError}
                 </div>
               ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div ref={premiumCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <button
+            type="button"
+            onClick={() => setPremiumOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
+          >
+            <div className="text-left">
+              <div className="text-sm font-semibold text-foreground">Premium</div>
+              <div className="text-xs text-muted-foreground">
+                See what is included in Free and what Premium unlocks.
+              </div>
+            </div>
+
+            <ChevronDown
+              className={[
+                "h-5 w-5 text-muted-foreground transition-transform",
+                premiumOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
+            />
+          </button>
+
+          {premiumOpen ? (
+            <div className="space-y-4 px-5 pb-5">
+              <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">Current plan</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {appMode === "demo"
+                        ? "Preview mode shows Premium features so visitors can test the full product."
+                        : "You are currently on the Free plan unless billing is connected in your account."}
+                    </div>
+                  </div>
+
+                  <span className="inline-flex w-fit rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                    {appMode === "demo" ? "Preview Premium" : "Free plan"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-background/50 p-4">
+                  <div className="text-sm font-semibold text-foreground">Free plan</div>
+                  <ul className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
+                    <li>• Subjects, tasks, study sessions, reminders, and calendar.</li>
+                    <li>• Timetable setup with school, university, or custom modes.</li>
+                    <li>• Backup and data export/import.</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background/50 p-4">
+                  <div className="text-sm font-semibold text-foreground">Premium features</div>
+                  <ul className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
+                    <li>• Insights for trends, workload, and study analytics.</li>
+                    <li>• Marks tracking for assessment results and performance.</li>
+                    <li>• More advanced progress tools as the app grows.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="text-sm font-semibold text-foreground">Insights and Marks are locked on Free</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                  The buttons are already shown in the top navigation so users can see what exists, but free accounts get a locked screen until Premium is enabled. Billing does not need to work yet — this section just makes the feature feel intentional.
+                </div>
+
+                <button
+                  type="button"
+                  className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                >
+                  Upgrade to Premium
+                </button>
+              </div>
             </div>
           ) : null}
         </div>

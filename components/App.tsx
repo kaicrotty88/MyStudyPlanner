@@ -21,10 +21,12 @@ import type {
   TimetableSettings,
   TimetableClass,
   TimetablePeriod,
+  TimetableDayOfWeek,
+  TimetableWeek,
 } from "./models";
 
-import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
 import { User, X, Lock, Sparkles } from "lucide-react";
+import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
 import LoadingScreen from "@/components/LoadingScreen";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
@@ -73,6 +75,10 @@ const defaultSubjects: Subject[] = [
   { id: "3", name: "Chemistry", color: "#C4956E" },
   { id: "4", name: "English", color: "#8B73A0" },
   { id: "5", name: "History", color: "#B87B7B" },
+  { id: "6", name: "Economics", color: "#7FA88F" },
+  { id: "7", name: "Legal Studies", color: "#A88F7F" },
+  { id: "8", name: "Business Studies", color: "#7F8FA8" },
+  { id: "9", name: "Engineering", color: "#A87F93" },
 ];
 
 const DEFAULT_TIMETABLE_SETTINGS: TimetableSettings = {
@@ -169,73 +175,537 @@ const DEMO_TIMETABLE_SETTINGS: TimetableSettings = {
   cycleStartDate: new Date(2026, 0, 26),
 };
 
-const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
-  {
-    id: "tc1",
-    subjectId: "1",
-    title: "Mathematics",
-    dayOfWeek: 1,
-    periodId: "tp1",
-    startTime: "08:40",
-    endTime: "09:35",
-    week: "both",
-    location: "Room M2",
-    teacher: "Mr Anderson",
-    createdAt: new Date(2026, 0, 26),
-  },
-  {
-    id: "tc2",
-    subjectId: "4",
-    title: "English",
-    dayOfWeek: 1,
-    periodId: "tp3",
-    startTime: "10:50",
-    endTime: "11:45",
-    week: "both",
-    location: "Room E4",
-    teacher: "Ms Taylor",
-    createdAt: new Date(2026, 0, 26),
-  },
-  {
-    id: "tc3",
-    subjectId: "2",
-    title: "Physics",
-    dayOfWeek: 2,
-    periodId: "tp4",
-    startTime: "11:45",
-    endTime: "12:40",
-    week: "A",
-    location: "Lab 1",
-    teacher: "Dr Harris",
-    createdAt: new Date(2026, 0, 26),
-  },
-  {
-    id: "tc4",
-    subjectId: "3",
-    title: "Chemistry",
-    dayOfWeek: 2,
-    periodId: "tp4",
-    startTime: "11:45",
-    endTime: "12:40",
-    week: "B",
-    location: "Lab 2",
-    teacher: "Ms Chen",
-    createdAt: new Date(2026, 0, 26),
-  },
-  {
-    id: "tc5",
-    subjectId: "5",
-    title: "History",
-    dayOfWeek: 3,
-    periodId: "tp5",
-    startTime: "13:20",
-    endTime: "14:15",
-    week: "both",
-    location: "Room H1",
-    teacher: "Mr Lewis",
-    createdAt: new Date(2026, 0, 26),
-  },
-];
+type DemoTimetableSlot = {
+  week: Exclude<TimetableWeek, "both">;
+  dayOfWeek: TimetableDayOfWeek;
+  periodId: string;
+  subjectId: string;
+  location: string;
+  teacher: string;
+};
+
+const subjectNameById = (subjectId: string) =>
+  defaultSubjects.find((subject) => subject.id === subjectId)?.name ?? "Class";
+
+const makeDemoTimetableClasses = (): TimetableClass[] => {
+  const createdAt = new Date(2026, 0, 26);
+
+  const slots: DemoTimetableSlot[] = [
+    // Week A — Monday
+    {
+      week: "A",
+      dayOfWeek: 1,
+      periodId: "tp1",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "A",
+      dayOfWeek: 1,
+      periodId: "tp2",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "A",
+      dayOfWeek: 1,
+      periodId: "tp3",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "A",
+      dayOfWeek: 1,
+      periodId: "tp4",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+    {
+      week: "A",
+      dayOfWeek: 1,
+      periodId: "tp5",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+    {
+      week: "A",
+      dayOfWeek: 1,
+      periodId: "tp6",
+      subjectId: "8",
+      location: "Room B1",
+      teacher: "Mrs Patel",
+    },
+
+    // Week A — Tuesday
+    {
+      week: "A",
+      dayOfWeek: 2,
+      periodId: "tp1",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "A",
+      dayOfWeek: 2,
+      periodId: "tp2",
+      subjectId: "7",
+      location: "Room L2",
+      teacher: "Ms Wright",
+    },
+    {
+      week: "A",
+      dayOfWeek: 2,
+      periodId: "tp3",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "A",
+      dayOfWeek: 2,
+      periodId: "tp4",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+    {
+      week: "A",
+      dayOfWeek: 2,
+      periodId: "tp5",
+      subjectId: "5",
+      location: "Room H1",
+      teacher: "Mr Lewis",
+    },
+    {
+      week: "A",
+      dayOfWeek: 2,
+      periodId: "tp6",
+      subjectId: "9",
+      location: "Workshop",
+      teacher: "Mr Foster",
+    },
+
+    // Week A — Wednesday
+    {
+      week: "A",
+      dayOfWeek: 3,
+      periodId: "tp1",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "A",
+      dayOfWeek: 3,
+      periodId: "tp2",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "A",
+      dayOfWeek: 3,
+      periodId: "tp3",
+      subjectId: "8",
+      location: "Room B1",
+      teacher: "Mrs Patel",
+    },
+    {
+      week: "A",
+      dayOfWeek: 3,
+      periodId: "tp4",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "A",
+      dayOfWeek: 3,
+      periodId: "tp5",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+    {
+      week: "A",
+      dayOfWeek: 3,
+      periodId: "tp6",
+      subjectId: "7",
+      location: "Room L2",
+      teacher: "Ms Wright",
+    },
+
+    // Week A — Thursday
+    {
+      week: "A",
+      dayOfWeek: 4,
+      periodId: "tp1",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+    {
+      week: "A",
+      dayOfWeek: 4,
+      periodId: "tp2",
+      subjectId: "5",
+      location: "Room H1",
+      teacher: "Mr Lewis",
+    },
+    {
+      week: "A",
+      dayOfWeek: 4,
+      periodId: "tp3",
+      subjectId: "9",
+      location: "Workshop",
+      teacher: "Mr Foster",
+    },
+    {
+      week: "A",
+      dayOfWeek: 4,
+      periodId: "tp4",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "A",
+      dayOfWeek: 4,
+      periodId: "tp5",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "A",
+      dayOfWeek: 4,
+      periodId: "tp6",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+
+    // Week A — Friday
+    {
+      week: "A",
+      dayOfWeek: 5,
+      periodId: "tp1",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+    {
+      week: "A",
+      dayOfWeek: 5,
+      periodId: "tp2",
+      subjectId: "8",
+      location: "Room B1",
+      teacher: "Mrs Patel",
+    },
+    {
+      week: "A",
+      dayOfWeek: 5,
+      periodId: "tp3",
+      subjectId: "7",
+      location: "Room L2",
+      teacher: "Ms Wright",
+    },
+    {
+      week: "A",
+      dayOfWeek: 5,
+      periodId: "tp4",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "A",
+      dayOfWeek: 5,
+      periodId: "tp5",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "A",
+      dayOfWeek: 5,
+      periodId: "tp6",
+      subjectId: "5",
+      location: "Room H1",
+      teacher: "Mr Lewis",
+    },
+
+    // Week B — Monday
+    {
+      week: "B",
+      dayOfWeek: 1,
+      periodId: "tp1",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "B",
+      dayOfWeek: 1,
+      periodId: "tp2",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "B",
+      dayOfWeek: 1,
+      periodId: "tp3",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+    {
+      week: "B",
+      dayOfWeek: 1,
+      periodId: "tp4",
+      subjectId: "7",
+      location: "Room L2",
+      teacher: "Ms Wright",
+    },
+    {
+      week: "B",
+      dayOfWeek: 1,
+      periodId: "tp5",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "B",
+      dayOfWeek: 1,
+      periodId: "tp6",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+
+    // Week B — Tuesday
+    {
+      week: "B",
+      dayOfWeek: 2,
+      periodId: "tp1",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "B",
+      dayOfWeek: 2,
+      periodId: "tp2",
+      subjectId: "8",
+      location: "Room B1",
+      teacher: "Mrs Patel",
+    },
+    {
+      week: "B",
+      dayOfWeek: 2,
+      periodId: "tp3",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "B",
+      dayOfWeek: 2,
+      periodId: "tp4",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "B",
+      dayOfWeek: 2,
+      periodId: "tp5",
+      subjectId: "9",
+      location: "Workshop",
+      teacher: "Mr Foster",
+    },
+    {
+      week: "B",
+      dayOfWeek: 2,
+      periodId: "tp6",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+
+    // Week B — Wednesday
+    {
+      week: "B",
+      dayOfWeek: 3,
+      periodId: "tp1",
+      subjectId: "5",
+      location: "Room H1",
+      teacher: "Mr Lewis",
+    },
+    {
+      week: "B",
+      dayOfWeek: 3,
+      periodId: "tp2",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+    {
+      week: "B",
+      dayOfWeek: 3,
+      periodId: "tp3",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "B",
+      dayOfWeek: 3,
+      periodId: "tp4",
+      subjectId: "8",
+      location: "Room B1",
+      teacher: "Mrs Patel",
+    },
+    {
+      week: "B",
+      dayOfWeek: 3,
+      periodId: "tp5",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "B",
+      dayOfWeek: 3,
+      periodId: "tp6",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+
+    // Week B — Thursday
+    {
+      week: "B",
+      dayOfWeek: 4,
+      periodId: "tp1",
+      subjectId: "7",
+      location: "Room L2",
+      teacher: "Ms Wright",
+    },
+    {
+      week: "B",
+      dayOfWeek: 4,
+      periodId: "tp2",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+    {
+      week: "B",
+      dayOfWeek: 4,
+      periodId: "tp3",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+    {
+      week: "B",
+      dayOfWeek: 4,
+      periodId: "tp4",
+      subjectId: "5",
+      location: "Room H1",
+      teacher: "Mr Lewis",
+    },
+    {
+      week: "B",
+      dayOfWeek: 4,
+      periodId: "tp5",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+    {
+      week: "B",
+      dayOfWeek: 4,
+      periodId: "tp6",
+      subjectId: "9",
+      location: "Workshop",
+      teacher: "Mr Foster",
+    },
+
+    // Week B — Friday
+    {
+      week: "B",
+      dayOfWeek: 5,
+      periodId: "tp1",
+      subjectId: "2",
+      location: "Lab 1",
+      teacher: "Dr Harris",
+    },
+    {
+      week: "B",
+      dayOfWeek: 5,
+      periodId: "tp2",
+      subjectId: "4",
+      location: "Room E4",
+      teacher: "Ms Taylor",
+    },
+    {
+      week: "B",
+      dayOfWeek: 5,
+      periodId: "tp3",
+      subjectId: "3",
+      location: "Lab 2",
+      teacher: "Ms Chen",
+    },
+    {
+      week: "B",
+      dayOfWeek: 5,
+      periodId: "tp4",
+      subjectId: "8",
+      location: "Room B1",
+      teacher: "Mrs Patel",
+    },
+    {
+      week: "B",
+      dayOfWeek: 5,
+      periodId: "tp5",
+      subjectId: "6",
+      location: "Room C3",
+      teacher: "Mr O'Brien",
+    },
+    {
+      week: "B",
+      dayOfWeek: 5,
+      periodId: "tp6",
+      subjectId: "1",
+      location: "Room M2",
+      teacher: "Mr Anderson",
+    },
+  ];
+
+  return slots.map((slot, index) => ({
+    id: `demo-timetable-${index + 1}`,
+    subjectId: slot.subjectId,
+    title: subjectNameById(slot.subjectId),
+    dayOfWeek: slot.dayOfWeek,
+    periodId: slot.periodId,
+    week: slot.week,
+    location: slot.location,
+    teacher: slot.teacher,
+    createdAt,
+  }));
+};
+
+const DEMO_TIMETABLE_CLASSES: TimetableClass[] = makeDemoTimetableClasses();
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay = 600) {
   let timer: number | null = null;
@@ -263,11 +733,18 @@ const makeDemoData = () => {
 
   const today = addDays(now, 0);
   const tomorrow = addDays(now, 1);
+  const in2 = addDays(now, 2);
   const in3 = addDays(now, 3);
+  const in5 = addDays(now, 5);
   const in7 = addDays(now, 7);
   const in10 = addDays(now, 10);
   const yesterday = addDays(now, -1);
   const twoDaysAgo = addDays(now, -2);
+  const lastWeek = addDays(now, -7);
+  const twoWeeksAgo = addDays(now, -14);
+  const threeWeeksAgo = addDays(now, -21);
+  const fourWeeksAgo = addDays(now, -28);
+  const fiveWeeksAgo = addDays(now, -35);
 
   const tasks: Task[] = [
     {
@@ -314,6 +791,118 @@ const makeDemoData = () => {
       type: "homework",
       scheduledDate: twoDaysAgo,
       startTime: "18:00",
+      duration: "45 min",
+      periodId: "p1",
+      completed: false,
+    },
+    {
+      id: "t5",
+      title: "Maths quiz",
+      subjectId: "1",
+      dueDate: fiveWeeksAgo,
+      type: "exam",
+      scheduledDate: fiveWeeksAgo,
+      startTime: "09:20",
+      duration: "45 min",
+      periodId: "p1",
+      completed: true,
+      completedAt: fiveWeeksAgo,
+      result: {
+        score: 18,
+        outOf: 20,
+        dateRecorded: fourWeeksAgo,
+        weighting: 10,
+        notes: "Strong calculus and algebra result.",
+      },
+    },
+    {
+      id: "t6",
+      title: "Chemistry practical",
+      subjectId: "3",
+      dueDate: fourWeeksAgo,
+      type: "assignment",
+      scheduledDate: fourWeeksAgo,
+      startTime: "11:45",
+      duration: "1h",
+      periodId: "p1",
+      completed: true,
+      completedAt: fourWeeksAgo,
+      result: {
+        score: 23,
+        outOf: 25,
+        dateRecorded: threeWeeksAgo,
+        weighting: 15,
+        notes: "Excellent method and conclusion.",
+      },
+    },
+    {
+      id: "t7",
+      title: "English essay",
+      subjectId: "4",
+      dueDate: threeWeeksAgo,
+      type: "assignment",
+      scheduledDate: threeWeeksAgo,
+      startTime: "14:15",
+      duration: "1h",
+      periodId: "p1",
+      completed: true,
+      completedAt: threeWeeksAgo,
+      result: {
+        score: 17,
+        outOf: 20,
+        dateRecorded: twoWeeksAgo,
+        weighting: 20,
+        notes: "Clear thesis and strong evidence.",
+      },
+    },
+    {
+      id: "t8",
+      title: "Physics topic test",
+      subjectId: "2",
+      dueDate: twoWeeksAgo,
+      type: "exam",
+      scheduledDate: twoWeeksAgo,
+      startTime: "10:50",
+      duration: "55 min",
+      periodId: "p1",
+      completed: true,
+      completedAt: twoWeeksAgo,
+      result: {
+        score: 41,
+        outOf: 50,
+        dateRecorded: lastWeek,
+        weighting: 15,
+        notes: "Good mechanics result. Revise projectile questions.",
+      },
+    },
+    {
+      id: "t9",
+      title: "Economics essay",
+      subjectId: "6",
+      dueDate: lastWeek,
+      type: "assignment",
+      scheduledDate: lastWeek,
+      startTime: "17:00",
+      duration: "1h 30m",
+      periodId: "p1",
+      completed: true,
+      completedAt: lastWeek,
+      result: {
+        score: 18,
+        outOf: 20,
+        dateRecorded: yesterday,
+        weighting: 20,
+        notes: "Strong use of budget examples and diagrams.",
+      },
+    },
+    {
+      id: "t10",
+      title: "Legal Studies case notes",
+      subjectId: "7",
+      dueDate: in5,
+      type: "homework",
+      scheduledDate: in2,
+      startTime: "17:30",
       duration: "45 min",
       periodId: "p1",
       completed: false,
@@ -498,6 +1087,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const hasPremium = plan === "premium";
   const isPremiumTab = (tab: Tab | string) => tab === "insights" || tab === "marks";
+  const shouldShowTimetableSetupBanner =
+    mode === "app" &&
+    timetableClasses.length === 0 &&
+    (activeTab === "dashboard" || activeTab === "calendar");
 
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
@@ -900,6 +1493,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     } catch {}
   };
 
+  const openSettingsSection = (section: SettingsOpenSection) => {
+    setActiveTab("settings");
+    setSettingsOpenSection(section);
+  };
+
   const handleClearAllData = async () => {
     try {
       localStorage.removeItem(storageKey);
@@ -1099,12 +1697,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             href={mode === "demo" ? "/preview" : "/dashboard"}
             className="flex items-center gap-3"
           >
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-              <span className="text-sm font-semibold">MSP</span>
-            </div>
-
             <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight">MyStudyPlanner</div>
+              <div className="text-base font-semibold tracking-tight">MyStudyPlanner</div>
               <div className="text-[11px] text-muted-foreground">
                 {mode === "demo" ? "Preview Mode" : "Student dashboard"}
               </div>
@@ -1137,14 +1731,20 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
 
           <div className="flex items-center gap-2">
+            {mode === "demo" ? (
+              <span className="hidden rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+                Preview Mode
+              </span>
+            ) : null}
+
             <ThemeToggle />
 
             {mode === "demo" ? (
               <Link
-                href="/dashboard"
-                className="hidden rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted sm:inline-flex"
+                href="/sign-up"
+                className="hidden rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:inline-flex"
               >
-                Go to app
+                Create account
               </Link>
             ) : isSignedIn ? (
               <UserButton afterSignOutUrl="/" />
@@ -1249,6 +1849,51 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               type="button"
             >
               <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {mode === "demo" ? (
+        <div className="border-b border-border bg-primary/10">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <div>
+              <div className="text-sm font-semibold text-foreground">
+                Preview Mode — You&apos;re viewing sample data.
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Explore the timetable, calendar, tasks, study planner and marks before creating your own planner.
+              </div>
+            </div>
+
+            <Link
+              href="/sign-up"
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            >
+              Create your own planner
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {shouldShowTimetableSetupBanner ? (
+        <div className="border-b border-border bg-card/70">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <div>
+              <div className="text-sm font-semibold text-foreground">
+                Set up your timetable so homework due dates can match your classes.
+              </div>
+              <div className="text-xs text-muted-foreground">
+                This is a new feature, so existing planners may not have timetable classes filled out yet.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openSettingsSection("timetable")}
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            >
+              Set up timetable
             </button>
           </div>
         </div>

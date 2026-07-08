@@ -85,6 +85,7 @@ interface CalendarProps {
   timetableSettings: TimetableSettings;
   timetablePeriods: TimetablePeriod[];
   timetableClasses: TimetableClass[];
+  onOpenTimetableSettings?: () => void;
 
   onAddTask: (task: Omit<Task, "id">) => void;
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
@@ -400,6 +401,7 @@ function CalendarView({
   timetableSettings,
   timetablePeriods,
   timetableClasses,
+  onOpenTimetableSettings,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -463,6 +465,7 @@ function CalendarView({
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
   const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
   const canEditDeleteReminders = Boolean(onUpdateReminder && onDeleteReminder);
+  const shouldShowTimetableSetupBanner = timetableClasses.length === 0;
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 60 * 1000);
@@ -1894,6 +1897,31 @@ function CalendarView({
           Add item
         </button>
       </div>
+
+      {shouldShowTimetableSetupBanner ? (
+        <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-foreground">
+                Set up your timetable so classes and due dates work properly.
+              </div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                Once your classes are added, homework due labels can match the right subject and class time.
+              </div>
+            </div>
+
+            {onOpenTimetableSettings ? (
+              <button
+                type="button"
+                onClick={onOpenTimetableSettings}
+                className="inline-flex h-9 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              >
+                Set up timetable
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <CalendarShell>
         <div className="flex flex-col gap-3 border-b border-border bg-card px-4 py-3 md:flex-row md:items-center md:justify-between">
