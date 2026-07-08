@@ -999,11 +999,11 @@ function LockedPremiumView({
       : "Upgrade to track assessment results, marks, and performance over time.";
 
   return (
-    <div className="min-h-[calc(100vh-68px)] bg-[#F7F5EF]">
+    <div className="min-h-[calc(100vh-68px)] bg-background">
       <div className="mx-auto flex min-h-[calc(100vh-68px)] max-w-4xl items-center justify-center px-6 py-12">
-        <div className="w-full rounded-3xl border border-border bg-card p-8 shadow-sm">
+        <div className="app-card w-full p-8">
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-            <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-muted">
+            <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft">
               <Lock className="h-6 w-6 text-muted-foreground" />
             </div>
 
@@ -1017,7 +1017,7 @@ function LockedPremiumView({
               <button
                 type="button"
                 onClick={onGoToSettings}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                className="app-btn-primary"
               >
                 <Sparkles className="h-4 w-4" />
                 View Premium
@@ -1026,7 +1026,7 @@ function LockedPremiumView({
               <button
                 type="button"
                 onClick={onGoToSettings}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground transition hover:bg-muted"
+                className="app-btn-secondary"
               >
                 Go to Settings
               </button>
@@ -1683,7 +1683,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   if (!isReady) return <LoadingScreen />;
 
   return (
-    <div className="min-h-screen bg-[#F7F5EF] text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <WhatsNewModal
         open={mode === "app" && Boolean(isSignedIn) && showWhatsNew}
         onClose={markWhatsNewSeen}
@@ -1691,14 +1691,14 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         updates={WHATS_NEW_UPDATES}
       />
 
-      <nav className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-xl">
+      <nav className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-xl">
         <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link
             href={mode === "demo" ? "/preview" : "/dashboard"}
             className="flex items-center gap-3"
           >
             <div className="leading-tight">
-              <div className="text-base font-semibold tracking-tight">MyStudyPlanner</div>
+              <div className="text-base font-semibold tracking-tight text-foreground">MyStudyPlanner</div>
               <div className="text-[11px] text-muted-foreground">
                 {mode === "demo" ? "Preview Mode" : "Student dashboard"}
               </div>
@@ -1715,10 +1715,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                   type="button"
                   onClick={() => openTab(tab.id)}
                   className={[
-                    "relative rounded-xl px-3 py-2 text-sm font-medium transition",
-                    activeTab === tab.id
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    "app-nav-tab",
+                    activeTab === tab.id ? "app-nav-tab-active" : "",
                   ].join(" ")}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -1732,7 +1730,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
           <div className="flex items-center gap-2">
             {mode === "demo" ? (
-              <span className="hidden rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+              <span className="app-pill hidden sm:inline-flex">
                 Preview Mode
               </span>
             ) : null}
@@ -1742,7 +1740,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             {mode === "demo" ? (
               <Link
                 href="/sign-up"
-                className="hidden rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:inline-flex"
+                className="app-btn-primary hidden sm:inline-flex"
               >
                 Create account
               </Link>
@@ -1753,7 +1751,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                 <SignInButton mode="modal">
                   <button
                     type="button"
-                    className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+                    className="app-btn-secondary"
                   >
                     Sign in
                   </button>
@@ -1761,7 +1759,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
                 <Link
                   href="/sign-up"
-                  className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                  className="app-btn-primary"
                 >
                   Create account
                 </Link>
@@ -1772,7 +1770,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               <button
                 type="button"
                 onClick={() => setActiveTab("dashboard")}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card"
+                className="app-iconbtn h-10 w-10 border border-border bg-card"
                 aria-label="Open dashboard"
               >
                 <User className="h-4 w-4 text-muted-foreground" />
@@ -1792,10 +1790,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                   type="button"
                   onClick={() => openTab(tab.id)}
                   className={[
-                    "shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition",
-                    activeTab === tab.id
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    "app-nav-tab shrink-0",
+                    activeTab === tab.id ? "app-nav-tab-active" : "",
                   ].join(" ")}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -1818,14 +1814,14 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               <div className="flex items-center gap-2">
                 <Link
                   href="/sign-in"
-                  className="rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/60"
+                  className="app-btn-ghost h-9 px-3"
                 >
                   Sign in
                 </Link>
 
                 <Link
                   href="/sign-up"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95"
+                  className="app-btn-primary h-9 px-3"
                 >
                   Create account
                 </Link>
@@ -1836,15 +1832,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       </nav>
 
       {showMobileDesktopHint ? (
-        <div className="border-b border-border bg-card/80 backdrop-blur md:hidden">
-          <div className="mx-auto flex max-w-7xl items-start justify-between gap-3 px-4 py-2">
+        <div className="app-banner md:hidden">
+          <div className="mx-auto flex max-w-7xl items-start justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
             <div className="text-[12px] leading-5 text-muted-foreground">
               Best on desktop. Mobile is great for quick check-ins.
             </div>
 
             <button
               onClick={dismissMobileDesktopHint}
-              className="shrink-0 rounded-lg p-2 text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+              className="app-iconbtn shrink-0"
               aria-label="Dismiss"
               type="button"
             >
@@ -1855,8 +1851,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       ) : null}
 
       {mode === "demo" ? (
-        <div className="border-b border-border bg-primary/10">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="app-banner bg-primary-softer">
+          <div className="app-banner-inner">
             <div>
               <div className="text-sm font-semibold text-foreground">
                 Preview Mode — You&apos;re viewing sample data.
@@ -1868,7 +1864,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
             <Link
               href="/sign-up"
-              className="inline-flex h-9 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              className="app-btn-primary h-9"
             >
               Create your own planner
             </Link>
@@ -1877,8 +1873,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       ) : null}
 
       {shouldShowTimetableSetupBanner ? (
-        <div className="border-b border-border bg-card/70">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="app-banner">
+          <div className="app-banner-inner">
             <div>
               <div className="text-sm font-semibold text-foreground">
                 Set up your timetable so homework due dates can match your classes.
@@ -1891,7 +1887,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             <button
               type="button"
               onClick={() => openSettingsSection("timetable")}
-              className="inline-flex h-9 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              className="app-btn-primary h-9"
             >
               Set up timetable
             </button>
@@ -1935,6 +1931,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateReminder={handleUpdateReminder}
             onDeleteReminder={handleDeleteReminder}
             onToggleReminderCompleted={handleToggleReminderCompleted}
+            onOpenSettingsTimetable={() => openSettingsSection("timetable")}
           />
         ) : null}
 

@@ -2,45 +2,101 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   Design tokens
+   MyStudyPlanner design system
+
+   Rule:
+   - App UI chrome uses the sage accent below.
+   - Subject colours stay separate and are still controlled per subject.
+   - Do not use subject colours for nav, buttons, today states, or active UI.
    ============================================================ */
 
 :root {
   --font-size: 16px;
 
-  --background: #FAFAF9;
-  --foreground: #2D2D2D;
+  /* -------------------- App surfaces -------------------- */
 
-  --card: #FFFFFF;
-  --card-foreground: #2D2D2D;
+  --background: #fafaf7;
+  --foreground: #252824;
 
-  --popover: #FFFFFF;
-  --popover-foreground: #2D2D2D;
+  --card: #ffffff;
+  --card-foreground: #252824;
 
-  --primary: #7A9B7F;
-  --primary-foreground: #FFFFFF;
+  --popover: #ffffff;
+  --popover-foreground: #252824;
 
-  --secondary: #F5F5F4;
-  --secondary-foreground: #2D2D2D;
+  /* -------------------- One app accent -------------------- */
 
-  --muted: #F5F5F4;
-  --muted-foreground: #6B7280;
+  --primary: #5f7f68;
+  --primary-hover: #526f5b;
+  --primary-soft: #edf4ef;
+  --primary-softer: #f4f8f5;
+  --primary-ring: rgba(95, 127, 104, 0.28);
+  --primary-foreground: #ffffff;
 
-  --accent: #E8F0E9;
-  --accent-foreground: #2D2D2D;
+  /* -------------------- Neutral system -------------------- */
 
-  --destructive: #9B6B6B;
-  --destructive-foreground: #FFFFFF;
+  --secondary: #f4f4ef;
+  --secondary-foreground: #252824;
 
-  --border: rgba(0, 0, 0, 0.06);
+  --muted: #f1f2ed;
+  --muted-foreground: #6d746d;
+
+  --accent: #edf4ef;
+  --accent-foreground: #252824;
+
+  --destructive: #a75f5f;
+  --destructive-hover: #934f4f;
+  --destructive-soft: #fbefef;
+  --destructive-foreground: #ffffff;
+
+  --border: rgba(37, 40, 36, 0.075);
+  --border-strong: rgba(37, 40, 36, 0.12);
+  --grid-line: rgba(37, 40, 36, 0.055);
 
   --input: transparent;
-  --input-background: #F7F7F5;
+  --input-background: #f7f7f3;
 
-  --switch-background: #D1D5DB;
-  --ring: #7A9B7F;
+  --switch-background: #d8ddd6;
+  --ring: #5f7f68;
 
-  --radius: 0.75rem;
+  /* -------------------- Shape system -------------------- */
+
+  --radius: 0.875rem;
+  --radius-control: 0.75rem;
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
+  --radius-pill: 999px;
+
+  /* -------------------- Spacing scale -------------------- */
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* -------------------- Typography scale -------------------- */
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  --weight-normal: 500;
+  --weight-strong: 600;
+
+  /* -------------------- Elevation -------------------- */
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.035), 0 8px 24px rgba(15, 23, 42, 0.035);
+  --shadow-card-hover: 0 2px 4px rgba(15, 23, 42, 0.045), 0 12px 30px rgba(15, 23, 42, 0.055);
+  --shadow-popover: 0 18px 50px rgba(15, 23, 42, 0.14);
+
+  /* -------------------- Charts -------------------- */
 
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -50,33 +106,47 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --background: #111411;
+  --foreground: #f5f7f2;
 
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
+  --card: #171b17;
+  --card-foreground: #f5f7f2;
 
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --popover: #171b17;
+  --popover-foreground: #f5f7f2;
 
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: #9eb8a4;
+  --primary-hover: #adc5b2;
+  --primary-soft: rgba(158, 184, 164, 0.14);
+  --primary-softer: rgba(158, 184, 164, 0.08);
+  --primary-ring: rgba(158, 184, 164, 0.34);
+  --primary-foreground: #101510;
 
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
+  --secondary: #20261f;
+  --secondary-foreground: #f5f7f2;
 
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted: #20261f;
+  --muted-foreground: #a6ada3;
 
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --accent: rgba(158, 184, 164, 0.14);
+  --accent-foreground: #f5f7f2;
 
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --destructive: #d08383;
+  --destructive-hover: #e09a9a;
+  --destructive-soft: rgba(208, 131, 131, 0.14);
+  --destructive-foreground: #1b1010;
 
-  --border: oklch(0.269 0 0);
-  --input-background: oklch(0.205 0 0);
-  --ring: oklch(0.439 0 0);
+  --border: rgba(245, 247, 242, 0.09);
+  --border-strong: rgba(245, 247, 242, 0.14);
+  --grid-line: rgba(245, 247, 242, 0.07);
+
+  --input-background: #1d231d;
+  --switch-background: #343c34;
+  --ring: #9eb8a4;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 26px rgba(0, 0, 0, 0.22);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.24), 0 14px 34px rgba(0, 0, 0, 0.28);
+  --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.42);
 }
 
 /* ============================================================
@@ -86,29 +156,50 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-softer: var(--primary-softer);
   --color-primary-foreground: var(--primary-foreground);
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
   --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-soft: var(--destructive-soft);
   --color-destructive-foreground: var(--destructive-foreground);
+
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-grid-line: var(--grid-line);
+
   --color-input: var(--input);
   --color-input-background: var(--input-background);
   --color-ring: var(--ring);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-panel);
+
+  --shadow-app-card: var(--shadow-card);
+  --shadow-app-card-hover: var(--shadow-card-hover);
+  --shadow-app-popover: var(--shadow-popover);
 }
 
 /* ============================================================
@@ -122,46 +213,69 @@
 
   html {
     font-size: var(--font-size);
+    text-rendering: optimizeLegibility;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-weight: var(--weight-normal);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: var(--weight-strong);
+    letter-spacing: -0.018em;
+    color: var(--foreground);
+  }
+
   h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.01em;
+    font-size: var(--text-2xl);
+    line-height: 1.22;
   }
 
   h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
+    font-size: var(--text-xl);
+    line-height: 1.28;
   }
 
   h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    line-height: 1.35;
+    font-size: var(--text-lg);
+    line-height: 1.34;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    line-height: 1.4;
   }
 
   p {
     line-height: 1.6;
   }
 
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
   button {
-    font-weight: 500;
+    font-weight: var(--weight-strong);
   }
 
   input,
   select,
   textarea {
-    font-weight: 400;
+    font-weight: var(--weight-normal);
+  }
+
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--foreground);
   }
 }
 
@@ -170,12 +284,32 @@
    ============================================================ */
 
 @layer components {
+  .app-page {
+    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 md:px-8;
+  }
+
+  .app-page-wide {
+    @apply mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 md:px-8;
+  }
+
+  .app-page-title {
+    @apply text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .app-page-subtitle {
+    @apply mt-1 text-sm leading-6 text-muted-foreground;
+  }
+
   .app-card {
-    @apply rounded-2xl border border-border bg-card shadow-sm;
+    @apply rounded-2xl border border-border bg-card shadow-app-card;
+  }
+
+  .app-card-hover {
+    @apply rounded-2xl border border-border bg-card shadow-app-card transition hover:-translate-y-0.5 hover:shadow-app-card-hover;
   }
 
   .app-card-header {
-    @apply px-5 py-4 border-b border-border;
+    @apply border-b border-border px-5 py-4;
   }
 
   .app-card-body {
@@ -186,24 +320,155 @@
     @apply rounded-2xl border border-border bg-muted/20 p-4 md:p-5;
   }
 
+  .app-divider {
+    @apply border-border;
+  }
+
+  .app-hairline {
+    border-color: var(--grid-line);
+  }
+
   .app-input {
-    @apply w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/30;
+    @apply h-11 w-full rounded-xl border border-border bg-input-background px-4 text-sm text-foreground;
+    @apply placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/25;
   }
 
   .app-select {
-    @apply w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/30;
+    @apply h-11 w-full rounded-xl border border-border bg-input-background px-4 text-sm text-foreground;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/25;
+  }
+
+  .app-textarea {
+    @apply min-h-28 w-full rounded-xl border border-border bg-input-background px-4 py-3 text-sm text-foreground;
+    @apply placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/25;
+  }
+
+  .app-btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .app-btn-primary {
+    @apply app-btn bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+
+  .app-btn-secondary {
+    @apply app-btn border border-border bg-card text-foreground hover:bg-muted/70;
+  }
+
+  .app-btn-ghost {
+    @apply app-btn text-muted-foreground hover:bg-muted/70 hover:text-foreground;
+  }
+
+  .app-btn-danger {
+    @apply app-btn bg-destructive text-destructive-foreground hover:bg-destructive-hover;
   }
 
   .app-iconbtn {
-    @apply h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition;
-    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30;
+    @apply grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted/70 hover:text-foreground;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
   }
 
   .app-pill {
-    @apply px-3 py-1.5 rounded-full text-sm transition border border-border bg-card;
-    @apply hover:bg-muted;
+    @apply inline-flex h-8 items-center justify-center rounded-full border border-border bg-card px-3 text-xs font-semibold text-muted-foreground transition;
+    @apply hover:bg-muted/70 hover:text-foreground;
+  }
+
+  .app-pill-active {
+    @apply border-primary/20 bg-primary-soft text-primary;
+  }
+
+  .app-nav-tab {
+    @apply inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-muted-foreground transition;
+    @apply hover:bg-muted/70 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
+  }
+
+  .app-nav-tab-active {
+    @apply bg-primary-soft text-primary;
+  }
+
+  .app-switch {
+    @apply inline-flex rounded-xl border border-border bg-muted/30 p-1;
+  }
+
+  .app-switch-item {
+    @apply inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-semibold text-muted-foreground transition;
+    @apply hover:bg-card hover:text-foreground;
+  }
+
+  .app-switch-item-active {
+    @apply bg-card text-foreground shadow-sm;
+  }
+
+  .app-banner {
+    @apply border-b border-border bg-card/75 backdrop-blur;
+  }
+
+  .app-banner-inner {
+    @apply mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8;
+  }
+
+  .app-label {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .app-meta {
+    @apply text-xs leading-5 text-muted-foreground;
+  }
+
+  .app-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  /* -------------------- Calendar primitives -------------------- */
+
+  .calendar-shell {
+    @apply overflow-hidden rounded-2xl border border-border bg-card shadow-app-card;
+  }
+
+  .calendar-toolbar {
+    @apply flex flex-col gap-3 border-b border-border bg-card px-4 py-3 md:flex-row md:items-center md:justify-between;
+  }
+
+  .calendar-grid-line {
+    border-color: var(--grid-line);
+  }
+
+  .calendar-event {
+    @apply h-full w-full overflow-hidden rounded-xl border bg-card px-2.5 py-1.5 text-left shadow-sm ring-1 ring-black/[0.015] transition;
+  }
+
+  .calendar-event-action {
+    @apply hover:-translate-y-px hover:shadow-app-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
+  }
+
+  .calendar-event-title {
+    @apply truncate text-[11px] font-semibold leading-4 text-foreground;
+  }
+
+  .calendar-event-meta {
+    @apply truncate text-[10px] font-medium leading-4 text-muted-foreground;
+  }
+
+  .calendar-event-class {
+    @apply border-dashed bg-muted/20 shadow-none;
+  }
+
+  .calendar-month-chip {
+    @apply flex h-6 min-w-0 items-center gap-1.5 rounded-lg px-1.5 text-left text-[11px] leading-none transition;
+    @apply hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
+  }
+
+  .calendar-month-more {
+    @apply px-1.5 pt-0.5 text-[11px] font-semibold text-muted-foreground;
+  }
+
+  .today-dot {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
   }
 }
 
@@ -234,5 +499,5 @@
 }
 
 .cl-userButtonAvatarBox svg {
-  background-color: hsl(var(--primary)) !important;
+  background-color: var(--primary) !important;
 }
