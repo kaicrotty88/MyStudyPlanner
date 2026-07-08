@@ -1931,7 +1931,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateReminder={handleUpdateReminder}
             onDeleteReminder={handleDeleteReminder}
             onToggleReminderCompleted={handleToggleReminderCompleted}
-            onOpenSettingsTimetable={() => openSettingsSection("timetable")}
+            onOpenTimetableSettings={() => openSettingsSection("timetable")}
           />
         ) : null}
 
