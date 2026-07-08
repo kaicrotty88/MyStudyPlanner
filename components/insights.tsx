@@ -329,14 +329,14 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
   const upcomingAssessments = useMemo(() => {
     return tasks
-      .filter((t) => t.type === "exam" || t.type === "assignment")
+      .filter((t) => (t.type === "exam" || t.type === "assignment") && Boolean(t.subjectId))
       .filter((t) => t.dueDate.getTime() >= now.getTime())
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
       .slice(0, 5);
   }, [tasks, now]);
 
   const assessableTasks = useMemo(
-    () => tasks.filter((t) => t.type === "exam" || t.type === "assignment"),
+    () => tasks.filter((t) => (t.type === "exam" || t.type === "assignment") && Boolean(t.subjectId)),
     [tasks]
   );
 
@@ -378,10 +378,11 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
 
     recordedAssessments.forEach((task) => {
       const result = task.result;
-      if (!result || result.outOf <= 0) return;
+      const subjectId = task.subjectId;
+      if (!subjectId || !result || result.outOf <= 0) return;
 
-      const current = map.get(task.subjectId) ?? { score: 0, outOf: 0, count: 0 };
-      map.set(task.subjectId, {
+      const current = map.get(subjectId) ?? { score: 0, outOf: 0, count: 0 };
+      map.set(subjectId, {
         score: current.score + result.score,
         outOf: current.outOf + result.outOf,
         count: current.count + 1,
@@ -721,7 +722,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                 {upcomingAssessments.length ? (
                   <div className="space-y-2">
                     {upcomingAssessments.map((task) => {
-                      const subject = subjectById[task.subjectId];
+                      const subject = task.subjectId ? task.subjectId ? task.subjectId ? subjectById[task.subjectId] : undefined : undefined : undefined;
                       const color = subject?.color ?? "#94A3B8";
 
                       return (
@@ -773,7 +774,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             />
             <StatCard
               title="Top subject"
-              value={topMarkSubject?.subject?.name ?? "—"}
+              value={(topMarkSubject as MarkSubjectRow | null)?.subject?.name ?? "—"}
               hint={
                 topMarkSubject
                   ? `${topMarkSubject.percent}% average`
@@ -783,7 +784,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
             />
             <StatCard
               title="Current focus"
-              value={weakestMarkSubject?.subject?.name ?? "—"}
+              value={(weakestMarkSubject as MarkSubjectRow | null)?.subject?.name ?? "—"}
               hint={
                 weakestMarkSubject
                   ? `${weakestMarkSubject.percent}% average`
@@ -871,7 +872,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               {recentResults.length ? (
                 <div className="space-y-2">
                   {recentResults.slice(0, 5).map(({ task, result, date }) => {
-                    const subject = subjectById[task.subjectId];
+                    const subject = task.subjectId ? task.subjectId ? task.subjectId ? subjectById[task.subjectId] : undefined : undefined : undefined;
                     const color = subject?.color ?? "#94A3B8";
                     const percent = safePercent(result.score, result.outOf);
 
@@ -921,7 +922,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
                   <div className="text-sm font-semibold text-foreground">{bestAssessment.task.title}</div>
                   <div className="mt-2 text-2xl font-semibold text-foreground">{bestAssessment.percent}%</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {bestAssessment.task.type.toUpperCase()} • {subjectById[bestAssessment.task.subjectId]?.name ?? "Unassigned"}
+                    {bestAssessment.task.type.toUpperCase()} • {bestAssessment.task.subjectId ? subjectById[bestAssessment.task.subjectId]?.name ?? "Unassigned" : "Unassigned"}
                   </div>
                 </div>
               ) : (
@@ -937,7 +938,7 @@ export function Insights({ subjects, tasks, studySessions }: InsightsProps) {
               {weakestMarkSubject ? (
                 <div className="rounded-2xl border border-border bg-background/50 p-4">
                   <div className="text-sm font-semibold text-foreground">
-                    {weakestMarkSubject.subject?.name ?? "Unassigned"}
+                    {(weakestMarkSubject as MarkSubjectRow).subject?.name ?? "Unassigned"}
                   </div>
                   <div className="mt-2 text-2xl font-semibold text-foreground">{weakestMarkSubject.percent}%</div>
                   <div className="mt-1 text-xs text-muted-foreground">

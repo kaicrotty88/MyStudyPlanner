@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
-import { Dashboard } from "./dashboard";
 import { Calendar } from "./calendar";
 import { Tasks } from "./tasks";
 import { StudyPlanner } from "./studyplanner";
@@ -13,11 +12,11 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
 
 import type {
+  Reminder,
   Subject,
   Task,
   StudySession,
   Period,
-  Reminder,
   TimetableSettings,
   TimetableClass,
   TimetablePeriod,
@@ -57,7 +56,6 @@ const WHATS_NEW_UPDATES = [
 ];
 
 type Tab =
-  | "dashboard"
   | "calendar"
   | "tasks"
   | "study"
@@ -932,34 +930,39 @@ const makeDemoData = () => {
     },
   ];
 
-  const reminders: Reminder[] = [
+  tasks.push(
     {
-      id: "r1",
+      id: "personal-1",
       title: "Pack bag tonight",
-      notes: "Laptop charger, workbook, sport kit",
+      type: "personal",
       dueDate: today,
-      time: "20:30",
+      scheduledDate: today,
+      startTime: "20:30",
+      duration: "15 min",
+      notes: "Laptop charger, workbook, sport kit",
       repeat: "none",
       completed: false,
       createdAt: today,
     },
     {
-      id: "r2",
+      id: "personal-2",
       title: "Email teacher",
+      type: "personal",
       dueDate: tomorrow,
-      time: "16:15",
+      scheduledDate: tomorrow,
+      startTime: "16:15",
+      duration: "15 min",
       repeat: "none",
       completed: false,
       createdAt: today,
-    },
-  ];
+    }
+  );
 
   return {
     subjects: defaultSubjects,
     periods: DEMO_PERIODS,
     tasks,
     studySessions,
-    reminders,
     timetableSettings: DEMO_TIMETABLE_SETTINGS,
     timetablePeriods: DEFAULT_SCHOOL_TIMETABLE_PERIODS,
     timetableClasses: DEMO_TIMETABLE_CLASSES,
@@ -983,6 +986,50 @@ const hydrateDate = (value: any, fallback = new Date()) => {
   if (!value) return fallback;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
+};
+
+const normaliseTaskType = (value: any): Task["type"] => {
+  if (
+    value === "assignment" ||
+    value === "exam" ||
+    value === "homework" ||
+    value === "personal" ||
+    value === "task"
+  ) {
+    return value;
+  }
+
+  return "homework";
+};
+
+const migrateReminderToPersonalTask = (reminder: any): Task => {
+  const dueDate = reminder?.dueDate
+    ? hydrateDate(reminder.dueDate)
+    : reminder?.createdAt
+      ? hydrateDate(reminder.createdAt)
+      : new Date();
+
+  const time = reminder?.time ? String(reminder.time) : "09:00";
+
+  return {
+    id: `reminder-${String(reminder?.id ?? Date.now())}`,
+    title: String(reminder?.title ?? "Personal task"),
+    type: "personal",
+    dueDate,
+    scheduledDate: dueDate,
+    startTime: time,
+    duration: "15 min",
+    notes: reminder?.notes ? String(reminder.notes) : undefined,
+    repeat:
+      reminder?.repeat === "daily" || reminder?.repeat === "weekly"
+        ? reminder.repeat
+        : "none",
+    completed: Boolean(reminder?.completed),
+    completedAt: reminder?.completedAt ? hydrateDate(reminder.completedAt) : undefined,
+    createdAt: reminder?.createdAt ? hydrateDate(reminder.createdAt) : undefined,
+    source: "reminder-migration",
+    migratedFromReminderId: String(reminder?.id ?? ""),
+  };
 };
 
 function LockedPremiumView({
@@ -1054,7 +1101,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
   }, [session]);
 
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>("calendar");
 
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []
@@ -1064,7 +1111,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+
+  // Legacy bridge only. Reminders are now migrated into Tasks as personal tasks.
+  // This stays temporarily so older Calendar props do not break before Calendar is updated.
+  const reminders: Reminder[] = [];
 
   const [timetableSettings, setTimetableSettings] = useState<TimetableSettings>(
     mode === "demo" ? DEMO_TIMETABLE_SETTINGS : DEFAULT_TIMETABLE_SETTINGS
@@ -1090,10 +1140,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const shouldShowTimetableSetupBanner =
     mode === "app" &&
     timetableClasses.length === 0 &&
-    (activeTab === "dashboard" || activeTab === "calendar");
+    activeTab === "calendar";
 
   const tabs = [
-    { id: "dashboard", label: "Dashboard" },
     { id: "calendar", label: "Calendar" },
     { id: "tasks", label: "Tasks" },
     { id: "study", label: "Study Planner" },
@@ -1107,7 +1156,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     periods,
     tasks,
     studySessions,
-    reminders,
     timetableSettings,
     timetablePeriods,
     timetableClasses,
@@ -1127,33 +1175,48 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         : []
     );
 
-    setTasks(
-      Array.isArray(parsed?.tasks)
-        ? parsed.tasks.map((t: any) => ({
-            ...t,
-            id: String(t?.id ?? Date.now()),
-            title: String(t?.title ?? ""),
-            subjectId: String(t?.subjectId ?? ""),
-            dueDate: hydrateDate(t?.dueDate),
-            type:
-              t?.type === "assignment" || t?.type === "exam" || t?.type === "homework"
-                ? t.type
-                : "homework",
-            scheduledDate: t?.scheduledDate ? hydrateDate(t.scheduledDate) : undefined,
-            completedAt: t?.completedAt ? hydrateDate(t.completedAt) : undefined,
-            repeatUntil: t?.repeatUntil ? hydrateDate(t.repeatUntil) : undefined,
-            result:
-              t?.result && typeof t.result === "object"
-                ? {
-                    ...t.result,
-                    score: Number(t.result.score ?? 0),
-                    outOf: Number(t.result.outOf ?? 100) || 100,
-                    dateRecorded: hydrateDate(t.result.dateRecorded),
-                  }
-                : undefined,
-          }))
-        : []
+    const parsedTasks: Task[] = Array.isArray(parsed?.tasks)
+      ? parsed.tasks.map((t: any) => ({
+          ...t,
+          id: String(t?.id ?? Date.now()),
+          title: String(t?.title ?? ""),
+          subjectId: t?.subjectId ? String(t.subjectId) : undefined,
+          dueDate: hydrateDate(t?.dueDate),
+          type: normaliseTaskType(t?.type),
+          scheduledDate: t?.scheduledDate ? hydrateDate(t.scheduledDate) : undefined,
+          completedAt: t?.completedAt ? hydrateDate(t.completedAt) : undefined,
+          repeatUntil: t?.repeatUntil ? hydrateDate(t.repeatUntil) : undefined,
+          notes: t?.notes ? String(t.notes) : undefined,
+          source: t?.source === "reminder-migration" ? "reminder-migration" : t?.source === "manual" ? "manual" : undefined,
+          migratedFromReminderId: t?.migratedFromReminderId
+            ? String(t.migratedFromReminderId)
+            : undefined,
+          createdAt: t?.createdAt ? hydrateDate(t.createdAt) : undefined,
+          result:
+            t?.result && typeof t.result === "object"
+              ? {
+                  ...t.result,
+                  score: Number(t.result.score ?? 0),
+                  outOf: Number(t.result.outOf ?? 100) || 100,
+                  dateRecorded: hydrateDate(t.result.dateRecorded),
+                }
+              : undefined,
+        }))
+      : [];
+
+    const alreadyMigratedReminderIds = new Set(
+      parsedTasks
+        .map((task) => task.migratedFromReminderId)
+        .filter((id): id is string => Boolean(id))
     );
+
+    const migratedReminderTasks: Task[] = Array.isArray(parsed?.reminders)
+      ? parsed.reminders
+          .filter((reminder: any) => !alreadyMigratedReminderIds.has(String(reminder?.id ?? "")))
+          .map(migrateReminderToPersonalTask)
+      : [];
+
+    setTasks([...parsedTasks, ...migratedReminderTasks]);
 
     setStudySessions(
       Array.isArray(parsed?.studySessions)
@@ -1170,19 +1233,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         : []
     );
 
-    setReminders(
-      Array.isArray(parsed?.reminders)
-        ? parsed.reminders.map((r: any) => ({
-            ...r,
-            id: String(r?.id ?? Date.now()),
-            title: String(r?.title ?? ""),
-            dueDate: r?.dueDate ? hydrateDate(r.dueDate) : hydrateDate(r?.createdAt),
-            time: String(r?.time ?? "09:00"),
-            completedAt: r?.completedAt ? hydrateDate(r.completedAt) : undefined,
-            createdAt: r?.createdAt ? hydrateDate(r.createdAt) : undefined,
-          }))
-        : []
-    );
+
 
     const incomingSettings = parsed?.timetableSettings;
 
@@ -1324,7 +1375,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setPeriods(demo.periods);
       setTasks(demo.tasks);
       setStudySessions(demo.studySessions);
-      setReminders(demo.reminders);
       setTimetableSettings(demo.timetableSettings);
       setTimetablePeriods(demo.timetablePeriods);
       setTimetableClasses(demo.timetableClasses);
@@ -1388,7 +1438,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           setPeriods([]);
           setTasks([]);
           setStudySessions([]);
-          setReminders([]);
           setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
           setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
           setTimetableClasses([]);
@@ -1439,7 +1488,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     periods,
     tasks,
     studySessions,
-    reminders,
     timetableSettings,
     timetablePeriods,
     timetableClasses,
@@ -1467,15 +1515,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         return session.completedAt.getTime() >= completedCutoff;
       })
     );
-
-    setReminders((prev) =>
-      prev.filter((reminder) => {
-        if (!reminder.completed || !reminder.completedAt) return true;
-        return reminder.completedAt.getTime() >= completedCutoff;
-      })
-    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks.length, studySessions.length, reminders.length]);
+  }, [tasks.length, studySessions.length]);
 
   const dismissMobileDesktopHint = () => {
     setShowMobileDesktopHint(false);
@@ -1511,12 +1552,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setPeriods(demo.periods);
       setTasks(demo.tasks);
       setStudySessions(demo.studySessions);
-      setReminders(demo.reminders);
       setTimetableSettings(demo.timetableSettings);
       setTimetablePeriods(demo.timetablePeriods);
       setTimetableClasses(demo.timetableClasses);
       seedPeriodsStorage(demo.periods);
-      setActiveTab("dashboard");
+      setActiveTab("calendar");
       return;
     }
 
@@ -1524,11 +1564,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setPeriods([]);
     setTasks([]);
     setStudySessions([]);
-    setReminders([]);
     setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
     setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
     setTimetableClasses([]);
-    setActiveTab("dashboard");
+    setActiveTab("calendar");
 
     if (Boolean(isSignedIn) && supabase) {
       try {
@@ -1610,39 +1649,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
-  const handleAddReminder = (reminder: Omit<Reminder, "id">) =>
-    setReminders((prev) => [
-      ...prev,
-      {
-        ...reminder,
-        id: Date.now().toString(),
-        createdAt: reminder.createdAt ?? new Date(),
-        completed: reminder.completed ?? false,
-      },
-    ]);
-
-  const handleUpdateReminder = (id: string, reminder: Omit<Reminder, "id">) =>
-    setReminders((prev) =>
-      prev.map((item) => (item.id === id ? { ...reminder, id } : item))
-    );
-
-  const handleDeleteReminder = (id: string) =>
-    setReminders((prev) => prev.filter((reminder) => reminder.id !== id));
-
-  const handleToggleReminderCompleted = (id: string) =>
-    setReminders((prev) =>
-      prev.map((reminder) => {
-        if (reminder.id !== id) return reminder;
-
-        const nextCompleted = !reminder.completed;
-
-        return {
-          ...reminder,
-          completed: nextCompleted,
-          completedAt: nextCompleted ? new Date() : undefined,
-        };
-      })
-    );
 
   const handleUpdateTimetableSettings = (settings: TimetableSettings) => {
     setTimetableSettings(settings);
@@ -1694,13 +1700,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       <nav className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-xl">
         <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link
-            href={mode === "demo" ? "/preview" : "/dashboard"}
+            href={mode === "demo" ? "/preview" : "/app"}
             className="flex items-center gap-3"
           >
             <div className="leading-tight">
               <div className="text-base font-semibold tracking-tight text-foreground">MyStudyPlanner</div>
               <div className="text-[11px] text-muted-foreground">
-                {mode === "demo" ? "Sample data preview" : "Student dashboard"}
+                {mode === "demo" ? "Sample data preview" : "Calendar workspace"}
               </div>
             </div>
           </Link>
@@ -1769,7 +1775,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             <div className="lg:hidden">
               <button
                 type="button"
-                onClick={() => setActiveTab("dashboard")}
+                onClick={() => setActiveTab("calendar")}
                 className="app-iconbtn h-10 w-10 border border-border bg-card"
                 aria-label="Open dashboard"
               >
@@ -1874,25 +1880,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       ) : null}
 
       <main>
-        {activeTab === "dashboard" ? (
-          <Dashboard
-            tasks={tasks}
-            subjects={subjects}
-            studySessions={studySessions}
-            onOpenStudyPlanner={() => setActiveTab("study")}
-            onOpenTasks={() => setActiveTab("tasks")}
-            onOpenSettings={(section) => {
-              setActiveTab("settings");
-              setSettingsOpenSection(section ?? null);
-            }}
-          />
-        ) : null}
-
         {activeTab === "calendar" ? (
           <Calendar
             studySessions={studySessions}
             tasks={tasks}
-            reminders={reminders}
             subjects={subjects}
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
@@ -1905,10 +1896,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateStudySession={handleUpdateStudySession}
             onDeleteStudySession={handleDeleteStudySession}
             onToggleStudySessionCompleted={handleToggleSessionCompleted}
-            onAddReminder={handleAddReminder}
-            onUpdateReminder={handleUpdateReminder}
-            onDeleteReminder={handleDeleteReminder}
-            onToggleReminderCompleted={handleToggleReminderCompleted}
             onOpenTimetableSettings={() => openSettingsSection("timetable")}
           />
         ) : null}

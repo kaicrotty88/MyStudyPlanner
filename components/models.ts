@@ -203,7 +203,11 @@ export interface TimetableClassStored {
   createdAt?: string; // ISO
 }
 
-/* -------------------- Tasks / Assessments -------------------- */
+/* -------------------- Tasks / Assessments / Personal items -------------------- */
+
+export type TaskType = "task" | "assignment" | "exam" | "homework" | "personal";
+
+export type TaskSource = "manual" | "reminder-migration";
 
 export interface TaskResult {
   score: number; // e.g. 78
@@ -216,27 +220,46 @@ export interface TaskResult {
 export interface Task {
   id: string;
   title: string;
-  subjectId: string;
+
+  /**
+   * Optional subject link.
+   *
+   * School/uni tasks usually have this:
+   * - homework
+   * - assignments
+   * - exams
+   *
+   * Personal tasks usually do not:
+   * - pack bag
+   * - buy pens
+   * - email someone
+   */
+  subjectId?: string;
 
   /**
    * Deadline date.
    *
-   * For homework/assignments:
+   * For school tasks:
    * - dueDate = when it is due.
    * - scheduledDate/startTime/duration = when the student plans to do it.
    *
-   * Timetable logic can use:
-   * - subjectId
-   * - dueDate
-   * to infer the actual class/period where the homework is due.
+   * For personal tasks:
+   * - dueDate = when it should happen / be completed.
+   * - scheduledDate/startTime/duration = when it appears on the calendar.
+   *
+   * Timetable logic should only try to match class due times when subjectId exists.
    */
   dueDate: Date;
 
   /**
    * "task" is kept only for old saved data.
-   * New UI should create only: homework, assignment, exam.
+   * New UI should create:
+   * - homework
+   * - assignment
+   * - exam
+   * - personal
    */
-  type: "task" | "assignment" | "exam" | "homework";
+  type: TaskType;
 
   /**
    * Optional scheduled calendar block.
@@ -248,11 +271,12 @@ export interface Task {
    */
   scheduledDate?: Date;
   startTime?: string; // "HH:MM" 24h preferred
-  duration?: string; // e.g. "30 min", "1h", "1h 30m"
+  duration?: string; // e.g. "15 min", "30 min", "1h", "1h 30m"
 
   /**
    * Term grouping.
    * Auto-assigned based on dueDate once Terms exist.
+   * Usually only applies to school/uni tasks.
    */
   periodId?: string;
 
@@ -262,11 +286,64 @@ export interface Task {
    */
   result?: TaskResult;
 
+  /**
+   * General notes for any task.
+   * Used to preserve old Reminder.notes during migration.
+   */
+  notes?: string;
+
   completed?: boolean;
   completedAt?: Date;
 
   repeat?: "none" | "daily" | "weekly";
   repeatUntil?: Date;
+
+  /**
+   * Helps migration logic avoid converting the same old reminder repeatedly.
+   */
+  source?: TaskSource;
+  migratedFromReminderId?: string;
+
+  createdAt?: Date;
+}
+
+/**
+ * LocalStorage-safe Task shape.
+ */
+export interface TaskStored {
+  id: string;
+  title: string;
+  subjectId?: string;
+
+  dueDate: string; // ISO
+  type: TaskType;
+
+  scheduledDate?: string; // ISO
+  startTime?: string;
+  duration?: string;
+
+  periodId?: string;
+
+  result?: {
+    score: number;
+    outOf: number;
+    dateRecorded: string; // ISO
+    weighting?: number;
+    notes?: string;
+  };
+
+  notes?: string;
+
+  completed?: boolean;
+  completedAt?: string; // ISO
+
+  repeat?: "none" | "daily" | "weekly";
+  repeatUntil?: string; // ISO
+
+  source?: TaskSource;
+  migratedFromReminderId?: string;
+
+  createdAt?: string; // ISO
 }
 
 /* -------------------- Study Sessions -------------------- */
@@ -283,20 +360,14 @@ export interface StudySession {
   completedAt?: Date;
 }
 
-/* -------------------- Reminders -------------------- */
+/* -------------------- Legacy Reminders -------------------- */
 
 /**
- * Calendar reminder.
+ * Legacy calendar reminder.
  *
- * Reminders are instant/timed markers, not duration blocks.
- * They should appear at a specific time in Calendar.
- *
- * New reminders should always have:
- * - dueDate
- * - time
- *
- * These are kept technically optional only so old saved reminders without
- * date/time can still load and be normalised in App.tsx.
+ * Reminders are being merged into Task as personal/non-subject tasks.
+ * Keep this type temporarily so old saved data can be loaded and migrated
+ * in App.tsx without losing anything.
  */
 export interface Reminder {
   id: string;
@@ -315,7 +386,7 @@ export interface Reminder {
 }
 
 /**
- * LocalStorage-safe Reminder shape.
+ * LocalStorage-safe legacy Reminder shape.
  */
 export interface ReminderStored {
   id: string;

@@ -109,7 +109,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   }, [periods]);
 
   const assessableTasks = useMemo(() => {
-    return tasks.filter((t) => t.type === "assignment" || t.type === "exam");
+    return tasks.filter((t) => (t.type === "assignment" || t.type === "exam") && Boolean(t.subjectId));
   }, [tasks]);
 
   const filteredTasks = useMemo(() => {
@@ -130,7 +130,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
     });
   }, [assessableTasks, selectedSubject, selectedPeriod]);
 
-  const subjectById = (id: string) => subjects.find((s) => s.id === id);
+  const subjectById = (id?: string) => (id ? subjects.find((s) => s.id === id) : undefined);
 
   const percentage = (score: number, outOf: number) => (outOf > 0 ? (score / outOf) * 100 : 0);
 
@@ -208,11 +208,12 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
     const map = new Map<string, { total: number; count: number; latestDate: Date | null }>();
 
     recordedTasks.forEach((task) => {
-      if (!task.result) return;
-      const current = map.get(task.subjectId) ?? { total: 0, count: 0, latestDate: null };
+      if (!task.result || !task.subjectId) return;
+      const subjectId = task.subjectId;
+      const current = map.get(subjectId) ?? { total: 0, count: 0, latestDate: null };
       const nextDate = task.result.dateRecorded ? new Date(task.result.dateRecorded) : current.latestDate;
 
-      map.set(task.subjectId, {
+      map.set(subjectId, {
         total: current.total + percentage(task.result.score, task.result.outOf),
         count: current.count + 1,
         latestDate:

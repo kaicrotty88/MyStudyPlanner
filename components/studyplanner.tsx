@@ -158,7 +158,7 @@ export function StudyPlanner({
 
   const [formErrors, setFormErrors] = useState<SessionFormErrors>({});
 
-  const getSubjectById = (id: string) => subjects.find((s) => s.id === id);
+  const getSubjectById = (id?: string) => (id ? subjects.find((s) => s.id === id) : undefined);
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
 
   const inputBase =
@@ -203,7 +203,7 @@ export function StudyPlanner({
   // ✅ Only ACTIVE tasks are linkable (not completed)
   const linkableTasks = useMemo(() => {
     return tasks
-      .filter((t) => !t.completed)
+      .filter((t) => !t.completed && t.type !== "personal" && Boolean(t.subjectId))
       .filter((t) => (sessionForm.subjectId ? t.subjectId === sessionForm.subjectId : true))
       .slice()
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
@@ -578,7 +578,7 @@ export function StudyPlanner({
                     setSessionForm((p) => ({
                       ...p,
                       linkedTaskId: nextId,
-                      subjectId: linked.subjectId,
+                      subjectId: linked.subjectId ?? sessionForm.subjectId,
                     }));
                     clearError("subjectId");
                   }}

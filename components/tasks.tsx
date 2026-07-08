@@ -33,7 +33,7 @@ type PeriodHydrated = {
   endDate: Date;
 };
 
-type TaskSectionType = "homework" | "assignment" | "exam";
+type TaskSectionType = "homework" | "assignment" | "exam" | "personal";
 
 type TaskFormErrors = Partial<
   Record<
@@ -194,12 +194,14 @@ const findMatchingPeriodId = (
 const typeLabel = (type: TaskSectionType) => {
   if (type === "assignment") return "Assignment";
   if (type === "exam") return "Exam";
+  if (type === "personal") return "Personal";
   return "Homework";
 };
 
 const sectionLabel = (type: TaskSectionType) => {
   if (type === "assignment") return "Assignments";
   if (type === "exam") return "Exams";
+  if (type === "personal") return "Personal tasks";
   return "Homework";
 };
 
@@ -228,6 +230,7 @@ export function Tasks({
     homework: false,
     assignment: false,
     exam: false,
+    personal: false,
   });
 
   const [showAddForm, setShowAddForm] = useState<TaskSectionType | null>(null);
@@ -294,7 +297,11 @@ export function Tasks({
   const filteredTasksBase =
     selectedSubject === "all"
       ? tasks
-      : tasks.filter((task) => task.subjectId === selectedSubject);
+      : selectedSubject === "school"
+        ? tasks.filter((task) => task.type !== "personal" && Boolean(task.subjectId))
+        : selectedSubject === "personal"
+          ? tasks.filter((task) => task.type === "personal" || !task.subjectId)
+          : tasks.filter((task) => task.subjectId === selectedSubject);
 
   const filteredTasks = showCompleted
     ? filteredTasksBase
@@ -305,6 +312,7 @@ export function Tasks({
       homework: filteredTasks.filter((t) => t.type === "homework" || t.type === "task"),
       assignment: filteredTasks.filter((t) => t.type === "assignment"),
       exam: filteredTasks.filter((t) => t.type === "exam"),
+      personal: filteredTasks.filter((t) => t.type === "personal" || !t.subjectId),
     }),
     [filteredTasks]
   );
@@ -335,7 +343,9 @@ export function Tasks({
     const next: TaskFormErrors = {};
 
     if (!formData.title.trim()) next.title = "Title is required";
-    if (!formData.subjectId) next.subjectId = "Subject is required";
+    if (showAddForm !== "personal" && !formData.subjectId) {
+      next.subjectId = "Subject is required";
+    }
     if (!formData.dueDate) next.dueDate = "Due date is required";
 
     const hasScheduledDate = Boolean(formData.scheduledDate);
@@ -382,12 +392,14 @@ export function Tasks({
         existing?.dueDate &&
         startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
-      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
-      const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
+      const computedPeriodId =
+        type === "personal" ? undefined : findMatchingPeriodId(newDueDate, periods);
+      const nextPeriodId =
+        type === "personal" ? undefined : dueChanged ? computedPeriodId : existing?.periodId;
 
       onUpdateTask(editingId, {
         title: formData.title.trim(),
-        subjectId: formData.subjectId,
+        subjectId: type === "personal" ? undefined : formData.subjectId,
         dueDate: newDueDate,
         type,
         scheduledDate: nextScheduledDate,
@@ -399,21 +411,28 @@ export function Tasks({
         result: existing?.result,
         repeat: existing?.repeat,
         repeatUntil: existing?.repeatUntil,
+        notes: existing?.notes,
+        source: existing?.source,
+        migratedFromReminderId: existing?.migratedFromReminderId,
+        createdAt: existing?.createdAt,
       });
 
       setEditingId(null);
     } else {
-      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+      const computedPeriodId =
+        type === "personal" ? undefined : findMatchingPeriodId(newDueDate, periods);
 
       onAddTask({
         title: formData.title.trim(),
-        subjectId: formData.subjectId,
+        subjectId: type === "personal" ? undefined : formData.subjectId,
         dueDate: newDueDate,
         type,
         scheduledDate: nextScheduledDate,
         startTime: nextStartTime,
         duration: nextDuration,
         periodId: computedPeriodId,
+        createdAt: new Date(),
+        source: "manual",
       });
     }
 
@@ -422,13 +441,14 @@ export function Tasks({
   };
 
   const handleEdit = (task: Task) => {
-    const safeType: TaskSectionType = task.type === "task" ? "homework" : task.type;
+    const safeType: TaskSectionType =
+      task.type === "task" ? "homework" : task.type === "personal" || !task.subjectId ? "personal" : task.type;
 
     setEditingId(task.id);
     setFormErrors({});
     setFormData({
       title: task.title,
-      subjectId: task.subjectId,
+      subjectId: task.subjectId ?? "",
       dueDate: toLocalDateInputValue(task.dueDate),
       scheduledDate: task.scheduledDate ? toLocalDateInputValue(task.scheduledDate) : "",
       startTime: task.startTime ? time12To24(task.startTime) || task.startTime : "",
@@ -456,9 +476,16 @@ export function Tasks({
   const inputErr = "border-red-500/50 focus-visible:ring-red-500/20";
 
   const renderAddForm = (type: TaskSectionType) => (
-    <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <div className="text-sm font-semibold text-foreground">
-        {editingId ? "Edit" : "New"} {typeLabel(type)}
+    <div className="app-card space-y-4 p-4">
+      <div>
+        <div className="text-sm font-semibold text-foreground">
+          {editingId ? "Edit" : "New"} {typeLabel(type)}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {type === "personal"
+            ? "Personal tasks do not need a subject."
+            : "School tasks use subject colours across Calendar and Tasks."}
+        </div>
       </div>
 
       <div>
@@ -485,7 +512,7 @@ export function Tasks({
       <div>
         <label className={labelClass} htmlFor={`task-subject-${type}`}>
           Subject
-          <RequiredMark required />
+          <RequiredMark required={type !== "personal"} />
         </label>
         <select
           id={`task-subject-${type}`}
@@ -497,7 +524,7 @@ export function Tasks({
           className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
           aria-invalid={!!formErrors.subjectId}
         >
-          <option value="">Select subject</option>
+          {type === "personal" ? <option value="">No subject / personal</option> : <option value="">Select subject</option>}
           {subjects.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -509,7 +536,7 @@ export function Tasks({
 
       <div>
         <label className={labelClass} htmlFor={`task-date-${type}`}>
-          Due date
+          {type === "personal" ? "Date" : "Due date"}
           <RequiredMark required />
         </label>
         <input
@@ -535,7 +562,9 @@ export function Tasks({
           <div>
             <div className="text-sm font-medium text-foreground">Schedule on calendar</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid.
+              {type === "personal"
+                ? "Optional. Add a time if this personal task should appear on the Calendar."
+                : "Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid."}
             </div>
           </div>
         </div>
@@ -640,7 +669,7 @@ export function Tasks({
                   return copy;
                 });
               }}
-              className="w-fit rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="app-btn-secondary h-9 px-3"
             >
               Clear scheduled time
             </button>
@@ -652,7 +681,7 @@ export function Tasks({
         <button
           type="button"
           onClick={() => handleSubmit(type)}
-          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="app-btn-primary flex-1"
         >
           {editingId ? "Save" : "Add"}
         </button>
@@ -660,7 +689,7 @@ export function Tasks({
         <button
           type="button"
           onClick={handleCancel}
-          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="app-btn-secondary flex-1"
         >
           Cancel
         </button>
@@ -684,11 +713,11 @@ export function Tasks({
     count: number;
   }) => {
     const isExpanded = expandedSections[type];
-    const accent = getSectionAccentColor();
+    const accent = type === "personal" ? "#64748b" : getSectionAccentColor();
 
     return (
       <div
-        className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
+        className="app-card flex items-center justify-between px-4 py-3"
         style={{ borderLeftWidth: 4, borderLeftColor: accent }}
       >
         <button
@@ -718,7 +747,7 @@ export function Tasks({
             setEditingId(null);
             resetForm();
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="app-btn-primary h-9 px-3"
         >
           <Plus className="h-4 w-4" />
           Add
@@ -728,13 +757,20 @@ export function Tasks({
   };
 
   const TaskRow = ({ task }: { task: Task }) => {
-    const subject = getSubjectById(task.subjectId);
+    const subject = task.subjectId ? getSubjectById(task.subjectId) : undefined;
     const studiedMins = getMinutesStudiedForTask(task.id);
     const tone = dueTone(task);
     const hasScheduledBlock = Boolean(task.scheduledDate && task.startTime);
 
+    const isPersonal = task.type === "personal" || !task.subjectId;
     const safeTypeLabel =
-      task.type === "assignment" ? "Assignment" : task.type === "exam" ? "Exam" : "Homework";
+      isPersonal
+        ? "Personal"
+        : task.type === "assignment"
+          ? "Assignment"
+          : task.type === "exam"
+            ? "Exam"
+            : "Homework";
 
     const toneBorder =
       tone === "overdue"
@@ -766,12 +802,12 @@ export function Tasks({
     return (
       <div
         className={[
-          "group rounded-2xl border px-4 py-3 shadow-sm transition hover:bg-background/40 hover:shadow-md",
+          "group rounded-2xl border px-4 py-3 shadow-app-card transition hover:bg-background/40 hover:shadow-app-card-hover",
           toneBorder,
           toneWash,
           task.completed ? "opacity-75" : "",
         ].join(" ")}
-        style={{ borderLeftWidth: 4, borderLeftColor: subject?.color ?? ALL_ACCENT }}
+        style={{ borderLeftWidth: 4, borderLeftColor: subject?.color ?? "#64748b" }}
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -808,7 +844,7 @@ export function Tasks({
                 ) : (
                   <>
                     <span className="text-muted-foreground/50">•</span>
-                    <span>Unassigned</span>
+                    <span>{isPersonal ? "Personal" : "Unassigned"}</span>
                   </>
                 )}
 
@@ -853,7 +889,7 @@ export function Tasks({
               <button
                 type="button"
                 onClick={() => handleEdit(task)}
-                className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="app-iconbtn"
                 aria-label="Edit"
               >
                 <Edit2 className="h-4 w-4 text-foreground" />
@@ -862,7 +898,7 @@ export function Tasks({
               <button
                 type="button"
                 onClick={() => setDeletingId(task.id)}
-                className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="app-iconbtn"
                 aria-label="Delete"
               >
                 <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -906,27 +942,46 @@ export function Tasks({
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-6 py-7 md:px-10">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tasks</h1>
-        <p className="text-sm text-muted-foreground">
-          Organise homework, assignments, exams, and deadlines.
+    <div className="app-page space-y-5">
+      <div>
+        <h1 className="app-page-title">Tasks</h1>
+        <p className="app-page-subtitle">
+          Organise homework, assignments, exams, and personal tasks.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-card p-2">
+      <div className="app-card flex flex-wrap gap-2 p-2">
         <button
           type="button"
           onClick={() => setSelectedSubject("all")}
           className={[
-            "rounded-full border px-4 py-2 text-sm font-medium transition",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-            selectedSubject === "all"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-card text-foreground hover:bg-muted",
+            "app-pill",
+            selectedSubject === "all" ? "app-pill-active" : "",
           ].join(" ")}
         >
           All
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedSubject("school")}
+          className={[
+            "app-pill",
+            selectedSubject === "school" ? "app-pill-active" : "",
+          ].join(" ")}
+        >
+          School
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedSubject("personal")}
+          className={[
+            "app-pill",
+            selectedSubject === "personal" ? "app-pill-active" : "",
+          ].join(" ")}
+        >
+          Personal
         </button>
 
         {subjects.map((s) => {
@@ -938,9 +993,8 @@ export function Tasks({
               key={s.id}
               onClick={() => setSelectedSubject(s.id)}
               className={[
-                "rounded-full border px-4 py-2 text-sm font-medium transition",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                active ? "border-border bg-muted/50" : "border-border bg-card hover:bg-muted",
+                "app-pill",
+                active ? "app-pill-active" : "",
               ].join(" ")}
               style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
             >
@@ -961,13 +1015,13 @@ export function Tasks({
         <button
           type="button"
           onClick={() => setShowCompleted((v) => !v)}
-          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="app-btn-secondary h-9 px-3"
         >
           {showCompleted ? "Hide completed" : "Show completed"}
         </button>
       </div>
 
-      <div className="rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
+      <div className="app-section">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-xs font-medium text-muted-foreground">Workboard</div>
         </div>
@@ -976,6 +1030,7 @@ export function Tasks({
           {renderSection(tasksByType.homework, "homework")}
           {renderSection(tasksByType.assignment, "assignment")}
           {renderSection(tasksByType.exam, "exam")}
+          {renderSection(tasksByType.personal, "personal")}
         </div>
       </div>
 
@@ -993,7 +1048,7 @@ export function Tasks({
               <button
                 type="button"
                 onClick={() => setDeletingId(null)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="app-btn-secondary"
               >
                 Cancel
               </button>
@@ -1001,7 +1056,7 @@ export function Tasks({
               <button
                 type="button"
                 onClick={() => handleDelete(deletingId)}
-                className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                className="app-btn-danger"
               >
                 Delete
               </button>

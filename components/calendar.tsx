@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import type {
-  Reminder,
   StudySession,
   Subject,
   Task,
@@ -21,13 +20,12 @@ import type {
 } from "./models";
 
 type ViewMode = "day" | "week" | "month";
-type AddFormType = "study" | "assignment" | "exam" | "homework" | "reminder" | null;
+type AddFormType = "study" | "assignment" | "exam" | "homework" | "personal" | null;
 
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 const DAY_START_HOUR = 7;
 const DAY_END_HOUR = 22;
 const HOUR_HEIGHT = 64;
-const REMINDER_MARKER_MINUTES = 18;
 const DEADLINE_MARKER_MINUTES = 22;
 const DEADLINE_MARKER_TIME = "08:00";
 
@@ -50,8 +48,8 @@ type CalendarItemKind =
   | "assignment"
   | "exam"
   | "homework"
+  | "personal"
   | "study"
-  | "reminder"
   | "class";
 
 type CalendarItemPlacement = "timed";
@@ -72,7 +70,6 @@ type CalendarItem = {
   isTimetableClass?: boolean;
   task?: Task;
   session?: StudySession;
-  reminder?: Reminder;
   timetableClass?: TimetableClass;
 };
 
@@ -84,7 +81,7 @@ type TimedItemLayout = {
 interface CalendarProps {
   studySessions: StudySession[];
   tasks: Task[];
-  reminders: Reminder[];
+
   subjects: Subject[];
 
   timetableSettings: TimetableSettings;
@@ -98,15 +95,11 @@ interface CalendarProps {
 
   onToggleTaskCompleted?: (taskId: string) => void;
   onToggleStudySessionCompleted?: (sessionId: string) => void;
-  onToggleReminderCompleted?: (reminderId: string) => void;
-
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession?: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession?: (id: string) => void;
 
-  onAddReminder: (reminder: Omit<Reminder, "id">) => void;
-  onUpdateReminder?: (id: string, reminder: Omit<Reminder, "id">) => void;
-  onDeleteReminder?: (id: string) => void;
+
 }
 
 type TaskFormErrors = Partial<
@@ -117,7 +110,6 @@ type SessionFormErrors = Partial<
   Record<"title" | "subjectId" | "date" | "startTime" | "duration", string>
 >;
 
-type ReminderFormErrors = Partial<Record<"title" | "dueDate" | "time", string>>;
 
 const RequiredMark = ({ required }: { required?: boolean }) =>
   required ? <span className="ml-1 text-red-500" aria-hidden="true">*</span> : null;
@@ -204,6 +196,7 @@ function typeLabel(t: Task["type"]) {
   if (t === "assignment") return "Assignment";
   if (t === "exam") return "Exam";
   if (t === "homework") return "Homework";
+  if (t === "personal") return "Personal";
   return "Homework";
 }
 
@@ -357,7 +350,7 @@ const getMutedTextColor = (background: string) =>
   relativeLuminance(background) > 0.58 ? "rgba(37, 40, 36, 0.72)" : "rgba(255, 255, 255, 0.78)";
 
 const isCompactMarkerItem = (item: CalendarItem) =>
-  item.isDeadlineMarker || item.kind === "reminder";
+  item.isDeadlineMarker;
 
 const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?: boolean) => {
   const normalizedBase = `#${normalizeHex(baseColor)}`;
@@ -368,18 +361,6 @@ const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?:
     return {
       background,
       border: mixHex(normalizedBase, "#ffffff", 0.25),
-      stripe: normalizedBase,
-      text: "#252824",
-      mutedText: "rgba(37, 40, 36, 0.68)",
-    };
-  }
-
-  if (kind === "reminder") {
-    const background = "#eef1ef";
-
-    return {
-      background,
-      border: "#cbd4cc",
       stripe: normalizedBase,
       text: "#252824",
       mutedText: "rgba(37, 40, 36, 0.68)",
@@ -485,7 +466,7 @@ const layoutCompactMarkers = (items: CalendarItem[]): TimedItemLayout[] => {
     style: {
       left: "0px",
       width: "100%",
-      zIndex: item.kind === "reminder" ? 60 + index : 45 + index,
+      zIndex: 45 + index,
     },
   }));
 };
@@ -581,7 +562,6 @@ const SwitchPill = ({
 function CalendarView({
   studySessions,
   tasks,
-  reminders,
   subjects,
   timetableSettings,
   timetablePeriods,
@@ -592,13 +572,9 @@ function CalendarView({
   onDeleteTask,
   onToggleTaskCompleted,
   onToggleStudySessionCompleted,
-  onToggleReminderCompleted,
   onAddStudySession,
   onUpdateStudySession,
   onDeleteStudySession,
-  onAddReminder,
-  onUpdateReminder,
-  onDeleteReminder,
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -607,6 +583,7 @@ function CalendarView({
   const timeGridScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [monthOverflowDate, setMonthOverflowDate] = useState<Date | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddForm, setShowAddForm] = useState<AddFormType>(null);
 
@@ -614,15 +591,14 @@ function CalendarView({
 
   const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
 
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingtaskId] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     subjectId: "",
     dueDate: "",
-    type: "homework" as "assignment" | "exam" | "homework",
+    type: "homework" as "assignment" | "exam" | "homework" | "personal",
     scheduledDate: "",
     startTime: "",
     duration: "60 min",
@@ -637,19 +613,11 @@ function CalendarView({
     linkedTaskId: "",
   });
 
-  const [reminderFormData, setReminderFormData] = useState({
-    title: "",
-    dueDate: "",
-    time: "",
-  });
-
   const [taskErrors, setTaskErrors] = useState<TaskFormErrors>({});
   const [sessionErrors, setSessionErrors] = useState<SessionFormErrors>({});
-  const [reminderErrors, setReminderErrors] = useState<ReminderFormErrors>({});
 
   const canEditDeleteTasks = Boolean(onUpdateTask && onDeleteTask);
   const canEditDeleteSessions = Boolean(onUpdateStudySession && onDeleteStudySession);
-  const canEditDeleteReminders = Boolean(onUpdateReminder && onDeleteReminder);
   const shouldShowTimetableSetupBanner = timetableClasses.length === 0;
 
   useEffect(() => {
@@ -690,13 +658,11 @@ function CalendarView({
     setShowAddMenu(false);
     setSelectedDate(null);
 
-    setEditingTaskId(null);
+    setEditingtaskId(null);
     setEditingSessionId(null);
-    setEditingReminderId(null);
 
     setTaskErrors({});
     setSessionErrors({});
-    setReminderErrors({});
 
     setTaskFormData({
       title: "",
@@ -717,7 +683,6 @@ function CalendarView({
       linkedTaskId: "",
     });
 
-    setReminderFormData({ title: "", dueDate: "", time: "" });
   };
 
   useEffect(() => {
@@ -777,12 +742,9 @@ function CalendarView({
     () => studySessions.filter((s: any) => !s.completed),
     [studySessions]
   );
-  const activeReminders = useMemo(
-    () => reminders.filter((r: any) => !r.completed),
-    [reminders]
-  );
-
   const findMatchingTimetableClassForTask = (task: Task) => {
+    if (!task.subjectId || task.type === "personal") return undefined;
+
     return timetableClasses
       .filter((item) => item.subjectId === task.subjectId)
       .filter((item) => isTimetableClassOnDate(task.dueDate, item, timetableSettings))
@@ -817,20 +779,24 @@ function CalendarView({
 
       if (scheduledDate && startMins !== null) {
         const start = dateWithMinutes(scheduledDate, startMins);
-        const end = dateWithMinutes(scheduledDate, startMins + durationMins);
+        const end = dateWithMinutes(
+          scheduledDate,
+          startMins + (task.type === "personal" ? Math.min(durationMins, 20) : durationMins)
+        );
 
         items.push({
           id: `task-scheduled-${task.id}`,
           sourceId: task.id,
-          kind: task.type,
+          kind: task.type === "personal" ? "task" : task.type,
           placement: "timed",
           title: task.title,
-          subjectId: task.subjectId,
+          subjectId: task.subjectId ?? "",
           start,
           end,
           timeLabel: displayTime(task.startTime),
-          durationLabel: task.duration || "60 min",
+          durationLabel: task.duration || (task.type === "personal" ? "15 min" : "60 min"),
           dueLabel,
+          isDeadlineMarker: task.type === "personal",
           task,
         });
       } else {
@@ -841,20 +807,26 @@ function CalendarView({
         items.push({
           id: `task-unscheduled-deadline-${task.id}`,
           sourceId: task.id,
-          kind: task.type,
+          kind: task.type === "personal" ? "task" : task.type,
           placement: "timed",
           title: task.title,
-          subjectId: task.subjectId,
+          subjectId: task.subjectId ?? "",
           start,
           end,
-          timeLabel: "Due",
+          timeLabel: task.type === "personal" ? displayTime(task.startTime) || "Task" : "Due",
           dueLabel,
           isDeadlineMarker: true,
           task,
         });
       }
 
-      if (scheduledDate && !isSameDay(startOfDay(task.dueDate), startOfDay(scheduledDate))) {
+      const shouldCreateSeparateDueMarker =
+        task.type !== "personal" &&
+        Boolean(scheduledDate) &&
+        scheduledDate !== undefined &&
+        !isSameDay(startOfDay(task.dueDate), startOfDay(scheduledDate));
+
+      if (shouldCreateSeparateDueMarker) {
         const fallbackStartMins = parseTimeToMinutes(DEADLINE_MARKER_TIME) ?? 8 * 60;
         const start = dateWithMinutes(task.dueDate, fallbackStartMins);
         const end = dateWithMinutes(task.dueDate, fallbackStartMins + DEADLINE_MARKER_MINUTES);
@@ -865,7 +837,7 @@ function CalendarView({
           kind: task.type,
           placement: "timed",
           title: task.title,
-          subjectId: task.subjectId,
+          subjectId: task.subjectId ?? "",
           start,
           end,
           timeLabel: "Due",
@@ -899,27 +871,7 @@ function CalendarView({
       };
     });
 
-    const reminderItems: CalendarItem[] = activeReminders
-      .filter((reminder) => reminder.dueDate && reminder.time)
-      .map((reminder) => {
-        const startMins = parseTimeToMinutes(reminder.time) ?? 9 * 60;
-        const start = dateWithMinutes(reminder.dueDate as Date, startMins);
-        const end = dateWithMinutes(reminder.dueDate as Date, startMins + REMINDER_MARKER_MINUTES);
-
-        return {
-          id: `reminder-${reminder.id}`,
-          sourceId: reminder.id,
-          kind: "reminder",
-          placement: "timed",
-          title: reminder.title || "Reminder",
-          start,
-          end,
-          timeLabel: reminder.time ? time24To12(reminder.time) : undefined,
-          reminder,
-        };
-      });
-
-    return [...taskItems, ...sessionItems, ...reminderItems].sort((a, b) => {
+    return [...taskItems, ...sessionItems].sort((a, b) => {
       const dayDiff = startOfDay(a.start).getTime() - startOfDay(b.start).getTime();
       if (dayDiff !== 0) return dayDiff;
 
@@ -928,7 +880,7 @@ function CalendarView({
 
       return a.start.getTime() - b.start.getTime();
     });
-  }, [activeTasks, activeSessions, activeReminders, timetableClasses, timetableSettings, timetablePeriodById]);
+  }, [activeTasks, activeSessions, timetableClasses, timetableSettings, timetablePeriodById]);
 
   const getTimetableItemsForDate = (date: Date): CalendarItem[] => {
     return timetableClasses
@@ -969,7 +921,7 @@ function CalendarView({
 
   const linkableTasks = useMemo(() => {
     return activeTasks
-      .filter((t) => t.type !== "task")
+      .filter((t) => t.type !== "task" && t.type !== "personal" && Boolean(t.subjectId))
       .filter((t) => (sessionFormData.subjectId ? t.subjectId === sessionFormData.subjectId : true))
       .slice()
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
@@ -1090,13 +1042,11 @@ function CalendarView({
 
     const dateStr = toLocalDateInputValue(selectedDate);
 
-    setEditingTaskId(null);
+    setEditingtaskId(null);
     setEditingSessionId(null);
-    setEditingReminderId(null);
 
     setTaskErrors({});
     setSessionErrors({});
-    setReminderErrors({});
 
     if (type === "study") {
       setSessionFormData({
@@ -1107,11 +1057,15 @@ function CalendarView({
         duration: "60 min",
         linkedTaskId: "",
       });
-    } else if (type === "reminder") {
-      setReminderFormData({
+    } else if (type === "personal") {
+      setTaskFormData({
         title: "",
+        subjectId: "",
         dueDate: dateStr,
-        time: "09:00",
+        type: "personal",
+        scheduledDate: dateStr,
+        startTime: "09:00",
+        duration: "15 min",
       });
     } else if (type) {
       setTaskFormData({
@@ -1132,15 +1086,15 @@ function CalendarView({
   const openEditTask = (task: Task) => {
     if (!canEditDeleteTasks) return;
 
-    const safeType = task.type === "task" ? "homework" : task.type;
+    const safeType = task.type === "task" ? "homework" : task.type === "personal" || !task.subjectId ? "personal" : task.type;
 
-    setEditingTaskId(task.id);
+    setEditingtaskId(task.id);
     setSelectedDate(task.scheduledDate ?? task.dueDate);
     setTaskErrors({});
 
     setTaskFormData({
       title: task.title,
-      subjectId: task.subjectId,
+      subjectId: task.subjectId ?? "",
       dueDate: toLocalDateInputValue(task.dueDate),
       type: safeType,
       scheduledDate: task.scheduledDate
@@ -1174,36 +1128,20 @@ function CalendarView({
     setShowAddMenu(false);
   };
 
-  const openEditReminder = (reminder: Reminder) => {
-    if (!canEditDeleteReminders) return;
-    if (!reminder.dueDate) return;
-
-    setEditingReminderId(reminder.id);
-    setSelectedDate(reminder.dueDate);
-    setReminderErrors({});
-
-    setReminderFormData({
-      title: reminder.title ?? "",
-      dueDate: toLocalDateInputValue(reminder.dueDate),
-      time: reminder.time ?? "09:00",
-    });
-
-    setShowAddForm("reminder");
-    setShowAddMenu(false);
-  };
 
   const openCalendarItem = (item: CalendarItem) => {
     if (item.isTimetableClass) return;
     if (item.task) openEditTask(item.task);
     else if (item.session) openEditSession(item.session);
-    else if (item.reminder) openEditReminder(item.reminder);
   };
 
   const validateTaskForm = () => {
     const next: TaskFormErrors = {};
 
     if (!taskFormData.title.trim()) next.title = "Title is required";
-    if (!taskFormData.subjectId) next.subjectId = "Subject is required";
+    if (taskFormData.type !== "personal" && !taskFormData.subjectId) {
+      next.subjectId = "Subject is required";
+    }
     if (!taskFormData.scheduledDate) next.scheduledDate = "Scheduled date is required";
     if (!taskFormData.startTime) next.startTime = "Start time is required";
     if (!taskFormData.duration) next.duration = "Duration is required";
@@ -1228,17 +1166,6 @@ function CalendarView({
     return Object.keys(next).length === 0;
   };
 
-  const validateReminderForm = () => {
-    const next: ReminderFormErrors = {};
-
-    if (!reminderFormData.title.trim()) next.title = "Title is required";
-    if (!reminderFormData.dueDate) next.dueDate = "Date is required";
-    if (!reminderFormData.time) next.time = "Time is required";
-
-    setReminderErrors(next);
-
-    return Object.keys(next).length === 0;
-  };
 
   const handleTaskSubmit = () => {
     if (!validateTaskForm()) return;
@@ -1255,12 +1182,12 @@ function CalendarView({
         existing?.dueDate &&
         startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
-      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+      const computedPeriodId = taskFormData.type === "personal" ? undefined : findMatchingPeriodId(newDueDate, periods);
       const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
 
       const payload: Omit<Task, "id"> = {
         title: taskFormData.title.trim(),
-        subjectId: taskFormData.subjectId,
+        subjectId: taskFormData.type === "personal" ? undefined : taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
         scheduledDate: nextScheduledDate,
@@ -1272,15 +1199,19 @@ function CalendarView({
         result: existing?.result,
         repeat: existing?.repeat,
         repeatUntil: existing?.repeatUntil,
+        notes: existing?.notes,
+        source: existing?.source,
+        migratedFromReminderId: existing?.migratedFromReminderId,
+        createdAt: existing?.createdAt,
       };
 
       onUpdateTask(editingTaskId, payload);
     } else {
-      const computedPeriodId = findMatchingPeriodId(newDueDate, periods);
+      const computedPeriodId = taskFormData.type === "personal" ? undefined : findMatchingPeriodId(newDueDate, periods);
 
       const payload: Omit<Task, "id"> = {
         title: taskFormData.title.trim(),
-        subjectId: taskFormData.subjectId,
+        subjectId: taskFormData.type === "personal" ? undefined : taskFormData.subjectId,
         dueDate: newDueDate,
         type: taskFormData.type,
         scheduledDate: nextScheduledDate,
@@ -1292,7 +1223,7 @@ function CalendarView({
       onAddTask(payload);
     }
 
-    setEditingTaskId(null);
+    setEditingtaskId(null);
     setTaskFormData({
       title: "",
       subjectId: "",
@@ -1346,44 +1277,6 @@ function CalendarView({
     closeForm();
   };
 
-  const handleReminderSubmit = () => {
-    if (!validateReminderForm()) return;
-
-    const newDueDate = new Date(reminderFormData.dueDate);
-    const trimmedTitle = reminderFormData.title.trim();
-
-    if (!trimmedTitle) return;
-
-    const existing = editingReminderId
-      ? reminders.find((r) => r.id === editingReminderId)
-      : undefined;
-
-    const payload: Omit<Reminder, "id"> = {
-      title: trimmedTitle,
-      dueDate: newDueDate,
-      time: reminderFormData.time.trim(),
-      ...(editingReminderId
-        ? {
-            notes: existing?.notes,
-            repeat: existing?.repeat,
-            completed: existing?.completed,
-            completedAt: existing?.completedAt,
-            createdAt: existing?.createdAt,
-          }
-        : {}),
-    };
-
-    if (editingReminderId && onUpdateReminder) {
-      onUpdateReminder(editingReminderId, payload);
-    } else {
-      onAddReminder(payload);
-    }
-
-    setEditingReminderId(null);
-    setReminderFormData({ title: "", dueDate: "", time: "" });
-    setShowAddForm(null);
-    closeForm();
-  };
 
   const handleToggleItem = (event: React.MouseEvent, item: CalendarItem) => {
     event.stopPropagation();
@@ -1391,17 +1284,15 @@ function CalendarView({
     if (item.task && onToggleTaskCompleted) onToggleTaskCompleted(item.task.id);
     else if (item.session && onToggleStudySessionCompleted)
       onToggleStudySessionCompleted(item.session.id);
-    else if (item.reminder && onToggleReminderCompleted)
-      onToggleReminderCompleted(item.reminder.id);
   };
 
   const getItemColor = (item: CalendarItem) => {
-    const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
+    const subject = item.subjectId ? item.subjectId ? subjectById.get(item.subjectId) : undefined : undefined;
 
     if (subject?.color) return subject.color;
-    if (item.kind === "reminder") return "#64748b";
     if (item.kind === "exam") return "#ef4444";
     if (item.kind === "assignment") return "#f59e0b";
+    if (item.task?.type === "personal") return "#64748b";
     if (item.kind === "homework" || item.kind === "task") return "#3b82f6";
     if (item.kind === "study") return "#5f7f68";
 
@@ -1412,7 +1303,7 @@ function CalendarView({
     if (item.isTimetableClass) return "Class";
     if (item.isDeadlineMarker) return "Deadline";
     if (item.kind === "study") return "Study";
-    if (item.kind === "reminder") return "Reminder";
+    if (item.task?.type === "personal") return "Personal";
     if (item.task) return typeLabel(item.task.type);
     return "Item";
   };
@@ -1551,71 +1442,6 @@ function CalendarView({
     );
   };
 
-  const renderReminderMarker = (
-    item: CalendarItem,
-    dayColumn = false,
-    layoutStyle?: React.CSSProperties
-  ) => {
-    const color = getItemColor(item);
-    const palette = createEventPalette(color, item.kind, item.isTimetableClass);
-    const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
-    const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
-
-    const canToggle = Boolean(item.reminder && onToggleReminderCompleted);
-
-    return (
-      <div
-        key={item.id}
-        className="absolute z-[60] px-1"
-        style={{ top, height: 26, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
-      >
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            openCalendarItem(item);
-          }}
-          className="group flex h-full w-full items-center gap-2 overflow-hidden rounded-xl border px-2 text-left shadow-sm transition hover:-translate-y-px hover:shadow-app-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
-          style={{
-            borderColor: palette.border,
-            backgroundColor: palette.background,
-            color: palette.text,
-          }}
-          title={`${getItemLabel(item)}: ${item.title}`}
-        >
-          <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: palette.stripe }}
-          />
-
-          {canToggle ? (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(event) => handleToggleItem(event, item)}
-              className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-white/55 bg-white/45 transition hover:bg-white/70"
-              aria-label="Mark complete"
-            >
-              <span className="h-1.5 w-1.5 rounded-full opacity-0 transition group-hover:opacity-70" style={{ backgroundColor: palette.stripe }} />
-            </span>
-          ) : null}
-
-          <div className="min-w-0 flex-1">
-            <div
-              className={["truncate font-semibold", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}
-              style={{ color: palette.text }}
-            >
-              {item.title}
-            </div>
-          </div>
-
-          <span className="shrink-0 text-[10px] font-semibold" style={{ color: palette.mutedText }}>
-            {item.timeLabel}
-          </span>
-        </button>
-      </div>
-    );
-  };
 
   const renderClassItem = (
     item: CalendarItem,
@@ -1672,7 +1498,6 @@ function CalendarView({
   ) => {
     if (item.isTimetableClass) return renderClassItem(item, dayColumn, layoutStyle);
     if (item.isDeadlineMarker) return renderDeadlineMarker(item, dayColumn, layoutStyle);
-    if (item.kind === "reminder") return renderReminderMarker(item, dayColumn, layoutStyle);
 
     const color = getItemColor(item);
     const palette = createEventPalette(color, item.kind, item.isTimetableClass);
@@ -1845,15 +1670,62 @@ function CalendarView({
                   {visible.map(renderMonthItem)}
 
                   {hiddenCount > 0 ? (
-                    <div className="px-1.5 pt-0.5 text-[11px] font-medium text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMonthOverflowDate(date);
+                      }}
+                      className="px-1.5 pt-0.5 text-left text-[11px] font-semibold text-primary hover:underline"
+                    >
                       +{hiddenCount} more
-                    </div>
+                    </button>
                   ) : null}
                 </div>
               </div>
             );
           })}
         </div>
+
+        {monthOverflowDate ? (
+          <div
+            className="fixed inset-0 z-50 bg-black/10 p-4"
+            onClick={() => setMonthOverflowDate(null)}
+          >
+            <div
+              className="mx-auto mt-24 w-full max-w-sm rounded-2xl border border-border bg-card p-4 shadow-app-popover"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {monthOverflowDate.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    All items for this day
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMonthOverflowDate(null)}
+                  className="app-iconbtn h-8 w-8"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                {getItemsForDate(monthOverflowDate).map(renderMonthItem)}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -2280,7 +2152,7 @@ function CalendarView({
             <div className="space-y-2 p-3">
               {([
                 ["study", "Study Session"],
-                ["reminder", "Reminder"],
+                ["personal", "Personal Task"],
                 ["homework", "Homework"],
                 ["assignment", "Assignment"],
                 ["exam", "Exam"],
@@ -2314,9 +2186,7 @@ function CalendarView({
                 <div className="text-sm font-semibold text-foreground">
                   {showAddForm === "study"
                     ? `${editingSessionId ? "Edit" : "Add"} Study Session`
-                    : showAddForm === "reminder"
-                      ? `${editingReminderId ? "Edit" : "Add"} Reminder`
-                      : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
+                    : `${editingTaskId ? "Edit" : "Add"} ${typeLabel(showAddForm as Task["type"])}`}
                 </div>
 
                 <div className="text-xs text-muted-foreground">
@@ -2365,7 +2235,7 @@ function CalendarView({
                   <div>
                     <label className={labelClass}>
                       Subject
-                      <RequiredMark required />
+                      <RequiredMark required={taskFormData.type !== "personal"} />
                     </label>
                     <select
                       value={sessionFormData.subjectId}
@@ -2444,7 +2314,7 @@ function CalendarView({
                         setSessionFormData((p) => ({
                           ...p,
                           linkedTaskId: nextId,
-                          subjectId: linked.subjectId,
+                          subjectId: linked.subjectId ?? p.subjectId,
                         }));
 
                         clearError(setSessionErrors, "subjectId");
@@ -2465,7 +2335,7 @@ function CalendarView({
                         </option>
                       ) : (
                         linkableTasks.map((t) => {
-                          const subj = subjectById.get(t.subjectId);
+                          const subj = t.subjectId ? subjectById.get(t.subjectId) : undefined;
                           const subjName = subj?.name ?? "Unassigned";
                           const due = t.dueDate?.toLocaleDateString("en-US", {
                             month: "short",
@@ -2517,79 +2387,6 @@ function CalendarView({
                     </button>
                   </div>
                 </>
-              ) : showAddForm === "reminder" ? (
-                <>
-                  <div>
-                    <label className={labelClass}>
-                      Title
-                      <RequiredMark required />
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Reminder title"
-                      value={reminderFormData.title}
-                      onChange={(e) => {
-                        setReminderFormData({ ...reminderFormData, title: e.target.value });
-                        clearError(setReminderErrors, "title");
-                      }}
-                      className={[inputBase, reminderErrors.title ? inputErr : inputOk].join(" ")}
-                      aria-invalid={!!reminderErrors.title}
-                    />
-                    <FieldError message={reminderErrors.title} />
-                  </div>
-
-                  {renderSharedTimeFields({
-                    dateLabel: "Date",
-                    dateValue: reminderFormData.dueDate,
-                    onDateChange: (value) => {
-                      setReminderFormData({ ...reminderFormData, dueDate: value });
-                      clearError(setReminderErrors, "dueDate");
-                    },
-                    dateError: reminderErrors.dueDate,
-                    startTimeValue: reminderFormData.time,
-                    onStartTimeChange: (value) => {
-                      setReminderFormData({ ...reminderFormData, time: value });
-                      clearError(setReminderErrors, "time");
-                    },
-                    startTimeError: reminderErrors.time,
-                  })}
-
-                  <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
-                    Reminders appear as small timed markers, not long blocks. Use them for quick things like texting someone,
-                    packing something, or bringing equipment.
-                  </div>
-
-                  <div className="flex gap-2 pt-1">
-                    {editingReminderId && onDeleteReminder ? (
-                      <button
-                        onClick={() => {
-                          onDeleteReminder(editingReminderId);
-                          handleCancel();
-                        }}
-                        className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
-                        type="button"
-                      >
-                        Delete
-                      </button>
-                    ) : null}
-
-                    <button
-                      onClick={handleReminderSubmit}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-                      type="button"
-                    >
-                      {editingReminderId ? "Save" : "Add"}
-                    </button>
-
-                    <button
-                      onClick={handleCancel}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
               ) : (
                 <>
                   <div>
@@ -2614,7 +2411,7 @@ function CalendarView({
                   <div>
                     <label className={labelClass}>
                       Subject
-                      <RequiredMark required />
+                      <RequiredMark required={taskFormData.type !== "personal"} />
                     </label>
                     <select
                       value={taskFormData.subjectId}
