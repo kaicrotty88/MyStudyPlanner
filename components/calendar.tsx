@@ -356,6 +356,9 @@ const getReadableTextColor = (background: string) =>
 const getMutedTextColor = (background: string) =>
   relativeLuminance(background) > 0.58 ? "rgba(37, 40, 36, 0.72)" : "rgba(255, 255, 255, 0.78)";
 
+const isCompactMarkerItem = (item: CalendarItem) =>
+  item.isDeadlineMarker || item.kind === "reminder";
+
 const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?: boolean) => {
   const normalizedBase = `#${normalizeHex(baseColor)}`;
 
@@ -421,7 +424,11 @@ const layoutTimedItems = (items: CalendarItem[]): TimedItemLayout[] => {
     const start = itemStartMinutes(item);
     const end = itemEndMinutes(item);
 
-    if (currentGroup.length === 0 || start < currentGroupEnd) {
+    // Ignore tiny overlaps. This stops a 4:15 reminder ending at 4:33
+    // from crushing a 4:30 assignment into a skinny column.
+    const meaningfulOverlap = start < currentGroupEnd - 8;
+
+    if (currentGroup.length === 0 || meaningfulOverlap) {
       currentGroup.push(item);
       currentGroupEnd = Math.max(currentGroupEnd, end);
       return;
@@ -439,7 +446,7 @@ const layoutTimedItems = (items: CalendarItem[]): TimedItemLayout[] => {
     const positioned = group.map((item) => {
       const start = itemStartMinutes(item);
       const end = itemEndMinutes(item);
-      let columnIndex = columns.findIndex((columnEnd) => columnEnd <= start);
+      let columnIndex = columns.findIndex((columnEnd) => columnEnd <= start + 8);
 
       if (columnIndex === -1) {
         columnIndex = columns.length;
@@ -463,11 +470,24 @@ const layoutTimedItems = (items: CalendarItem[]): TimedItemLayout[] => {
         style: {
           left: `calc(${leftPct}% + ${gapPx / 2}px)`,
           width: `calc(${widthPct}% - ${gapPx}px)`,
-          zIndex: item.isDeadlineMarker ? 35 + columnIndex : item.kind === "reminder" ? 30 + columnIndex : 25 + columnIndex,
+          zIndex: 25 + columnIndex,
         },
       };
     });
   });
+};
+
+const layoutCompactMarkers = (items: CalendarItem[]): TimedItemLayout[] => {
+  const sorted = [...items].sort((a, b) => itemStartMinutes(a) - itemStartMinutes(b));
+
+  return sorted.map((item, index) => ({
+    item,
+    style: {
+      left: item.isDeadlineMarker ? "0px" : "calc(100% - 132px)",
+      width: item.isDeadlineMarker ? "100%" : "132px",
+      zIndex: item.isDeadlineMarker ? 45 + index : 40 + index,
+    },
+  }));
 };
 
 const getTimetableWeekForDate = (
@@ -1483,7 +1503,7 @@ function CalendarView({
       <div
         key={item.id}
         className="absolute z-40 px-1"
-        style={{ top, height: 26, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
+        style={{ top, height: 24, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
       >
         <button
           type="button"
@@ -1547,7 +1567,7 @@ function CalendarView({
       <div
         key={item.id}
         className="absolute z-20 px-1"
-        style={{ top, height: 30, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
+        style={{ top, height: 26, ...(layoutStyle ?? { left: 0, width: "132px" }) }}
       >
         <button
           type="button"
@@ -1925,9 +1945,12 @@ function CalendarView({
                     {timedItems
                       .filter((item) => item.isTimetableClass)
                       .map((item) => renderTimedItem(item))}
-                    {layoutTimedItems(timedItems.filter((item) => !item.isTimetableClass)).map(({ item, style }) =>
-                      renderTimedItem(item, false, style)
-                    )}
+                    {layoutTimedItems(
+                      timedItems.filter((item) => !item.isTimetableClass && !isCompactMarkerItem(item))
+                    ).map(({ item, style }) => renderTimedItem(item, false, style))}
+                    {layoutCompactMarkers(
+                      timedItems.filter((item) => !item.isTimetableClass && isCompactMarkerItem(item))
+                    ).map(({ item, style }) => renderTimedItem(item, false, style))}
                   </div>
                 );
               })}
@@ -2017,9 +2040,12 @@ function CalendarView({
               {timedItems
                 .filter((item) => item.isTimetableClass)
                 .map((item) => renderTimedItem(item, true))}
-              {layoutTimedItems(timedItems.filter((item) => !item.isTimetableClass)).map(({ item, style }) =>
-                renderTimedItem(item, true, style)
-              )}
+              {layoutTimedItems(
+                timedItems.filter((item) => !item.isTimetableClass && !isCompactMarkerItem(item))
+              ).map(({ item, style }) => renderTimedItem(item, true, style))}
+              {layoutCompactMarkers(
+                timedItems.filter((item) => !item.isTimetableClass && isCompactMarkerItem(item))
+              ).map(({ item, style }) => renderTimedItem(item, true, style))}
             </div>
           </div>
         </div>
