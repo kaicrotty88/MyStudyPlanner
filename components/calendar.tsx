@@ -435,34 +435,17 @@ const layoutTimedItems = (items: CalendarItem[]): TimedItemLayout[] => {
   if (currentGroup.length > 0) groups.push(currentGroup);
 
   return groups.flatMap((group) => {
-    const columns: number[] = [];
-    const positioned = group.map((item) => {
-      const start = itemStartMinutes(item);
-      const end = itemEndMinutes(item);
-      let columnIndex = columns.findIndex((columnEnd) => columnEnd <= start);
-
-      if (columnIndex === -1) {
-        columnIndex = columns.length;
-        columns.push(end);
-      } else {
-        columns[columnIndex] = end;
-      }
-
-      return { item, columnIndex };
-    });
-
-    const columnCount = Math.max(1, columns.length);
-
-    return positioned.map(({ item, columnIndex }) => {
-      const gapPx = columnCount > 1 ? 4 : 0;
-      const widthPct = 100 / columnCount;
-      const leftPct = columnIndex * widthPct;
+    return group.map((item, index) => {
+      const overlaps = group.length > 1;
+      const offset = overlaps ? Math.min(index, 3) * 10 : 0;
+      const widthReduction = overlaps ? 8 + Math.min(index, 3) * 5 : 0;
 
       return {
         item,
         style: {
-          left: `calc(${leftPct}% + ${gapPx / 2}px)`,
-          width: `calc(${widthPct}% - ${gapPx}px)`,
+          left: `${offset}px`,
+          width: `calc(100% - ${widthReduction + offset}px)`,
+          zIndex: item.isTimetableClass ? 5 + index : 20 + index,
         },
       };
     });
@@ -822,7 +805,7 @@ function CalendarView({
           sourceId: task.id,
           kind: task.type,
           placement: "timed",
-          title: `Due: ${task.title}`,
+          title: task.title,
           subjectId: task.subjectId,
           start,
           end,
@@ -843,7 +826,7 @@ function CalendarView({
           sourceId: task.id,
           kind: task.type,
           placement: "timed",
-          title: `Due: ${task.title}`,
+          title: task.title,
           subjectId: task.subjectId,
           start,
           end,
@@ -1375,14 +1358,16 @@ function CalendarView({
   };
 
   const getItemColor = (item: CalendarItem) => {
+    const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
+
+    if (subject?.color) return subject.color;
+    if (item.kind === "reminder") return "#64748b";
     if (item.kind === "exam") return "#ef4444";
     if (item.kind === "assignment") return "#f59e0b";
     if (item.kind === "homework" || item.kind === "task") return "#3b82f6";
-    if (item.kind === "reminder") return "#64748b";
+    if (item.kind === "study") return "#5f7f68";
 
-    const subject = item.subjectId ? subjectById.get(item.subjectId) : undefined;
-
-    return subject?.color ?? "#6366f1";
+    return "#6366f1";
   };
 
   const getItemLabel = (item: CalendarItem) => {
@@ -1458,13 +1443,13 @@ function CalendarView({
           borderColor: palette.border,
           color: palette.text,
         }}
-        title={`${getItemLabel(item)}: ${item.title}`}
+        title={item.isDeadlineMarker ? `Due: ${item.title}` : `${getItemLabel(item)}: ${item.title}`}
       >
         <span
           className="shrink-0 text-[10px] font-semibold"
           style={{ color: palette.mutedText }}
         >
-          {item.isDeadlineMarker ? "Due" : item.timeLabel}
+          {item.isDeadlineMarker ? "Due:" : item.timeLabel}
         </span>
 
         <span className="truncate font-semibold" style={{ color: palette.text }}>
@@ -1657,13 +1642,12 @@ function CalendarView({
 
               <div className="truncate text-[10px] font-medium" style={{ color: palette.mutedText }}>
                 {item.isDeadlineMarker ? (
-                  item.dueLabel
+                  "Due"
                 ) : (
                   <>
                     {getItemLabel(item)}
                     {item.timeLabel ? ` · ${item.timeLabel}` : ""}
                     {item.durationLabel ? ` · ${item.durationLabel}` : ""}
-                    {item.dueLabel && item.task ? ` · ${item.dueLabel}` : ""}
                   </>
                 )}
               </div>

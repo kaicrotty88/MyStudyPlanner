@@ -1700,7 +1700,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             <div className="leading-tight">
               <div className="text-base font-semibold tracking-tight text-foreground">MyStudyPlanner</div>
               <div className="text-[11px] text-muted-foreground">
-                {mode === "demo" ? "Preview Mode" : "Student dashboard"}
+                {mode === "demo" ? "Sample data preview" : "Student dashboard"}
               </div>
             </div>
           </Link>
@@ -1846,28 +1846,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             >
               <X className="h-4 w-4" />
             </button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "demo" ? (
-        <div className="app-banner bg-primary-softer">
-          <div className="app-banner-inner">
-            <div>
-              <div className="text-sm font-semibold text-foreground">
-                Preview Mode — You&apos;re viewing sample data.
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Explore the timetable, calendar, tasks, study planner and marks before creating your own planner.
-              </div>
-            </div>
-
-            <Link
-              href="/sign-up"
-              className="app-btn-primary h-9"
-            >
-              Create your own planner
-            </Link>
           </div>
         </div>
       ) : null}
