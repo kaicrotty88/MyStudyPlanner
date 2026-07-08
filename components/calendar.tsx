@@ -483,9 +483,9 @@ const layoutCompactMarkers = (items: CalendarItem[]): TimedItemLayout[] => {
   return sorted.map((item, index) => ({
     item,
     style: {
-      left: item.isDeadlineMarker ? "0px" : "calc(100% - 132px)",
-      width: item.isDeadlineMarker ? "100%" : "132px",
-      zIndex: item.isDeadlineMarker ? 45 + index : 40 + index,
+      left: "0px",
+      width: "100%",
+      zIndex: item.kind === "reminder" ? 60 + index : 45 + index,
     },
   }));
 };
@@ -1566,8 +1566,8 @@ function CalendarView({
     return (
       <div
         key={item.id}
-        className="absolute z-20 px-1"
-        style={{ top, height: 26, ...(layoutStyle ?? { left: 0, width: "132px" }) }}
+        className="absolute z-[60] px-1"
+        style={{ top, height: 26, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
       >
         <button
           type="button"
