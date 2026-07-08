@@ -435,17 +435,35 @@ const layoutTimedItems = (items: CalendarItem[]): TimedItemLayout[] => {
   if (currentGroup.length > 0) groups.push(currentGroup);
 
   return groups.flatMap((group) => {
-    return group.map((item, index) => {
-      const overlaps = group.length > 1;
-      const offset = overlaps ? Math.min(index, 3) * 10 : 0;
-      const widthReduction = overlaps ? 8 + Math.min(index, 3) * 5 : 0;
+    const columns: number[] = [];
+    const positioned = group.map((item) => {
+      const start = itemStartMinutes(item);
+      const end = itemEndMinutes(item);
+      let columnIndex = columns.findIndex((columnEnd) => columnEnd <= start);
+
+      if (columnIndex === -1) {
+        columnIndex = columns.length;
+        columns.push(end);
+      } else {
+        columns[columnIndex] = end;
+      }
+
+      return { item, columnIndex };
+    });
+
+    const columnCount = Math.max(1, columns.length);
+
+    return positioned.map(({ item, columnIndex }) => {
+      const gapPx = columnCount > 1 ? 6 : 0;
+      const widthPct = 100 / columnCount;
+      const leftPct = columnIndex * widthPct;
 
       return {
         item,
         style: {
-          left: `${offset}px`,
-          width: `calc(100% - ${widthReduction + offset}px)`,
-          zIndex: item.isTimetableClass ? 5 + index : 20 + index,
+          left: `calc(${leftPct}% + ${gapPx / 2}px)`,
+          width: `calc(${widthPct}% - ${gapPx}px)`,
+          zIndex: item.isDeadlineMarker ? 35 + columnIndex : item.kind === "reminder" ? 30 + columnIndex : 25 + columnIndex,
         },
       };
     });
@@ -764,7 +782,7 @@ function CalendarView({
 
     const { startTime } = getTimetableClassTimes(matchingClass);
 
-    return `${base} · ${matchingClass.title}${startTime ? ` ${displayTime(startTime)}` : ""}`;
+    return `${base}${startTime ? ` · ${matchingClass.title} ${displayTime(startTime)}` : ` · ${matchingClass.title}`}`;
   };
 
   const calendarItems = useMemo<CalendarItem[]>(() => {
@@ -1412,17 +1430,8 @@ function CalendarView({
   };
 
   useEffect(() => {
-    if (viewMode === "month") return;
-
-    const target = getAutoScrollTargetMinutes();
-    const rawTop = ((target - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT - 160;
-    const maxTop = (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT;
-
-    window.setTimeout(() => {
-      if (!timeGridScrollRef.current) return;
-
-      timeGridScrollRef.current.scrollTop = clamp(rawTop, 0, maxTop);
-    }, 0);
+    // Keep scrolling controlled by the page instead of fighting it with an internal calendar scroller.
+    // This avoids nested-scroll behaviour in week/day views.
   }, [viewMode, currentDate, calendarItems.length, timetableClasses.length, timetablePeriods.length]);
 
   const renderMonthItem = (item: CalendarItem) => {
@@ -1456,6 +1465,69 @@ function CalendarView({
           {item.title}
         </span>
       </button>
+    );
+  };
+
+  const renderDeadlineMarker = (
+    item: CalendarItem,
+    dayColumn = false,
+    layoutStyle?: React.CSSProperties
+  ) => {
+    const color = getItemColor(item);
+    const palette = createEventPalette(color, item.kind, false);
+    const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
+    const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const canToggle = Boolean(item.task && onToggleTaskCompleted);
+
+    return (
+      <div
+        key={item.id}
+        className="absolute z-40 px-1"
+        style={{ top, height: 26, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            openCalendarItem(item);
+          }}
+          className="group flex h-full w-full items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-left shadow-sm transition hover:-translate-y-px hover:shadow-app-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+          style={{
+            borderColor: palette.border,
+            backgroundColor: palette.background,
+            color: palette.text,
+          }}
+          title={`Due: ${item.title}${item.dueLabel ? ` · ${item.dueLabel}` : ""}`}
+        >
+          {canToggle ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => handleToggleItem(event, item)}
+              className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-white/60 bg-white/45 transition hover:bg-white/70"
+              aria-label="Mark complete"
+            >
+              <span className="h-1.5 w-1.5 rounded-full opacity-0 transition group-hover:opacity-70" style={{ backgroundColor: palette.stripe }} />
+            </span>
+          ) : (
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: palette.stripe }}
+            />
+          )}
+
+          <span className="shrink-0 text-[10px] font-semibold" style={{ color: palette.mutedText }}>
+            Due:
+          </span>
+
+          <span
+            className={["min-w-0 truncate font-semibold", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}
+            style={{ color: palette.text }}
+          >
+            {item.title}
+          </span>
+        </button>
+      </div>
     );
   };
 
@@ -1579,6 +1651,7 @@ function CalendarView({
     layoutStyle?: React.CSSProperties
   ) => {
     if (item.isTimetableClass) return renderClassItem(item, dayColumn, layoutStyle);
+    if (item.isDeadlineMarker) return renderDeadlineMarker(item, dayColumn, layoutStyle);
     if (item.kind === "reminder") return renderReminderMarker(item, dayColumn, layoutStyle);
 
     const color = getItemColor(item);
@@ -1645,7 +1718,7 @@ function CalendarView({
                   "Due"
                 ) : (
                   <>
-                    {getItemLabel(item)}
+                    Planned {getItemLabel(item)}
                     {item.timeLabel ? ` · ${item.timeLabel}` : ""}
                     {item.durationLabel ? ` · ${item.durationLabel}` : ""}
                   </>
@@ -1817,7 +1890,7 @@ function CalendarView({
             })}
           </div>
 
-          <div ref={timeGridScrollRef} className="max-h-[760px] overflow-y-auto">
+          <div ref={timeGridScrollRef}>
             <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]">
               <div className="border-r border-border bg-card">
                 {hours.slice(0, -1).map((hour) => (
@@ -1849,7 +1922,12 @@ function CalendarView({
                   >
                     {renderHourGridLines(hours)}
                     {renderCurrentTimeLine(date)}
-                    {layoutTimedItems(timedItems).map(({ item, style }) => renderTimedItem(item, false, style))}
+                    {timedItems
+                      .filter((item) => item.isTimetableClass)
+                      .map((item) => renderTimedItem(item))}
+                    {layoutTimedItems(timedItems.filter((item) => !item.isTimetableClass)).map(({ item, style }) =>
+                      renderTimedItem(item, false, style)
+                    )}
                   </div>
                 );
               })}
@@ -1910,7 +1988,7 @@ function CalendarView({
           </div>
         </div>
 
-        <div ref={timeGridScrollRef} className="max-h-[760px] overflow-y-auto">
+        <div ref={timeGridScrollRef}>
           <div className="grid grid-cols-[72px_minmax(0,1fr)]">
             <div className="border-r border-border bg-card">
               {hours.slice(0, -1).map((hour) => (
@@ -1936,7 +2014,12 @@ function CalendarView({
             >
               {renderHourGridLines(hours)}
               {renderCurrentTimeLine(currentDate, true)}
-              {layoutTimedItems(timedItems).map(({ item, style }) => renderTimedItem(item, true, style))}
+              {timedItems
+                .filter((item) => item.isTimetableClass)
+                .map((item) => renderTimedItem(item, true))}
+              {layoutTimedItems(timedItems.filter((item) => !item.isTimetableClass)).map(({ item, style }) =>
+                renderTimedItem(item, true, style)
+              )}
             </div>
           </div>
         </div>
