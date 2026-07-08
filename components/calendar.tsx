@@ -76,6 +76,11 @@ type CalendarItem = {
   timetableClass?: TimetableClass;
 };
 
+type TimedItemLayout = {
+  item: CalendarItem;
+  style: React.CSSProperties;
+};
+
 interface CalendarProps {
   studySessions: StudySession[];
   tasks: Task[];
@@ -303,6 +308,167 @@ const itemEndMinutes = (item: CalendarItem) => {
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
+const normalizeHex = (value: string) => {
+  const raw = value.trim().replace(/^#/, "");
+  if (raw.length === 3) return raw.split("").map((c) => c + c).join("");
+  if (raw.length === 6) return raw;
+  return "64748b";
+};
+
+const hexToRgb = (value: string) => {
+  const hex = normalizeHex(value);
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16),
+  };
+};
+
+const rgbToHex = (r: number, g: number, b: number) =>
+  `#${[r, g, b]
+    .map((x) => clamp(Math.round(x), 0, 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+
+const mixHex = (from: string, to: string, amount: number) => {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+
+  return rgbToHex(
+    a.r + (b.r - a.r) * amount,
+    a.g + (b.g - a.g) * amount,
+    a.b + (b.b - a.b) * amount
+  );
+};
+
+const relativeLuminance = (hex: string) => {
+  const { r, g, b } = hexToRgb(hex);
+  const channels = [r, g, b].map((value) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+};
+
+const getReadableTextColor = (background: string) =>
+  relativeLuminance(background) > 0.58 ? "#252824" : "#ffffff";
+
+const getMutedTextColor = (background: string) =>
+  relativeLuminance(background) > 0.58 ? "rgba(37, 40, 36, 0.72)" : "rgba(255, 255, 255, 0.78)";
+
+const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?: boolean) => {
+  const normalizedBase = `#${normalizeHex(baseColor)}`;
+
+  if (isClass) {
+    const background = mixHex(normalizedBase, "#ffffff", 0.78);
+
+    return {
+      background,
+      border: mixHex(normalizedBase, "#ffffff", 0.25),
+      stripe: normalizedBase,
+      text: "#252824",
+      mutedText: "rgba(37, 40, 36, 0.68)",
+    };
+  }
+
+  if (kind === "reminder") {
+    const background = "#eef1ef";
+
+    return {
+      background,
+      border: "#cbd4cc",
+      stripe: normalizedBase,
+      text: "#252824",
+      mutedText: "rgba(37, 40, 36, 0.68)",
+    };
+  }
+
+  if (kind === "study") {
+    const background = mixHex(normalizedBase, "#ffffff", 0.72);
+
+    return {
+      background,
+      border: mixHex(normalizedBase, "#ffffff", 0.18),
+      stripe: normalizedBase,
+      text: "#252824",
+      mutedText: "rgba(37, 40, 36, 0.68)",
+    };
+  }
+
+  const background = mixHex(normalizedBase, "#ffffff", 0.65);
+
+  return {
+    background,
+    border: mixHex(normalizedBase, "#ffffff", 0.12),
+    stripe: normalizedBase,
+    text: getReadableTextColor(background),
+    mutedText: getMutedTextColor(background),
+  };
+};
+
+const layoutTimedItems = (items: CalendarItem[]): TimedItemLayout[] => {
+  const sorted = [...items].sort((a, b) => {
+    const startDiff = itemStartMinutes(a) - itemStartMinutes(b);
+    if (startDiff !== 0) return startDiff;
+    return itemEndMinutes(b) - itemEndMinutes(a);
+  });
+
+  const groups: CalendarItem[][] = [];
+  let currentGroup: CalendarItem[] = [];
+  let currentGroupEnd = -Infinity;
+
+  sorted.forEach((item) => {
+    const start = itemStartMinutes(item);
+    const end = itemEndMinutes(item);
+
+    if (currentGroup.length === 0 || start < currentGroupEnd) {
+      currentGroup.push(item);
+      currentGroupEnd = Math.max(currentGroupEnd, end);
+      return;
+    }
+
+    groups.push(currentGroup);
+    currentGroup = [item];
+    currentGroupEnd = end;
+  });
+
+  if (currentGroup.length > 0) groups.push(currentGroup);
+
+  return groups.flatMap((group) => {
+    const columns: number[] = [];
+    const positioned = group.map((item) => {
+      const start = itemStartMinutes(item);
+      const end = itemEndMinutes(item);
+      let columnIndex = columns.findIndex((columnEnd) => columnEnd <= start);
+
+      if (columnIndex === -1) {
+        columnIndex = columns.length;
+        columns.push(end);
+      } else {
+        columns[columnIndex] = end;
+      }
+
+      return { item, columnIndex };
+    });
+
+    const columnCount = Math.max(1, columns.length);
+
+    return positioned.map(({ item, columnIndex }) => {
+      const gapPx = columnCount > 1 ? 4 : 0;
+      const widthPct = 100 / columnCount;
+      const leftPct = columnIndex * widthPct;
+
+      return {
+        item,
+        style: {
+          left: `calc(${leftPct}% + ${gapPx / 2}px)`,
+          width: `calc(${widthPct}% - ${gapPx}px)`,
+        },
+      };
+    });
+  });
+};
+
 const getTimetableWeekForDate = (
   date: Date,
   settings: TimetableSettings
@@ -365,7 +531,7 @@ const DURATION_OPTIONS: { label: string; value: string }[] = [
 ];
 
 const CalendarShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+  <div className="calendar-shell">
     {children}
   </div>
 );
@@ -382,10 +548,8 @@ const SwitchPill = ({
   <button
     onClick={onClick}
     className={[
-      "rounded-lg px-3 py-1.5 text-sm font-medium transition",
-      active
-        ? "bg-primary text-primary-foreground shadow-sm"
-        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      "app-switch-item",
+      active ? "app-switch-item-active" : "",
     ].join(" ")}
     type="button"
   >
@@ -1278,6 +1442,7 @@ function CalendarView({
 
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
+    const palette = createEventPalette(color, item.kind, item.isTimetableClass);
 
     return (
       <button
@@ -1287,74 +1452,87 @@ function CalendarView({
           event.stopPropagation();
           openCalendarItem(item);
         }}
-        className={[
-          "group flex h-[23px] min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-[11px] leading-none",
-          "transition hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-          item.isDeadlineMarker ? "border border-border/60 bg-background/70" : "",
-        ].join(" ")}
+        className="calendar-month-chip border"
         style={{
-          backgroundColor: item.isDeadlineMarker ? undefined : `${color}14`,
-          color,
+          backgroundColor: palette.background,
+          borderColor: palette.border,
+          color: palette.text,
         }}
         title={`${getItemLabel(item)}: ${item.title}`}
       >
-        <span className="shrink-0 text-[10px] font-semibold" style={{ color }}>
+        <span
+          className="shrink-0 text-[10px] font-semibold"
+          style={{ color: palette.mutedText }}
+        >
           {item.isDeadlineMarker ? "Due" : item.timeLabel}
         </span>
 
-        <span className="truncate font-medium text-foreground">{item.title}</span>
+        <span className="truncate font-semibold" style={{ color: palette.text }}>
+          {item.title}
+        </span>
       </button>
     );
   };
 
-  const renderReminderMarker = (item: CalendarItem, dayColumn = false) => {
+  const renderReminderMarker = (
+    item: CalendarItem,
+    dayColumn = false,
+    layoutStyle?: React.CSSProperties
+  ) => {
     const color = getItemColor(item);
+    const palette = createEventPalette(color, item.kind, item.isTimetableClass);
     const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
     const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
 
     const canToggle = Boolean(item.reminder && onToggleReminderCompleted);
 
     return (
-      <div key={item.id} className="absolute left-1.5 right-1.5 z-20" style={{ top, height: 28 }}>
+      <div
+        key={item.id}
+        className="absolute z-20 px-1"
+        style={{ top, height: 30, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
+      >
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
             openCalendarItem(item);
           }}
-          className={[
-            "group flex h-full w-full items-center gap-2 overflow-hidden rounded-lg border bg-card px-2 text-left",
-            "shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:-translate-y-px",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-          ].join(" ")}
+          className="group flex h-full w-full items-center gap-2 overflow-hidden rounded-xl border px-2 text-left shadow-sm transition hover:-translate-y-px hover:shadow-app-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
           style={{
-            borderLeftWidth: 4,
-            borderLeftColor: color,
-            backgroundColor: `${color}10`,
+            borderColor: palette.border,
+            backgroundColor: palette.background,
+            color: palette.text,
           }}
           title={`${getItemLabel(item)}: ${item.title}`}
         >
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: palette.stripe }}
+          />
+
           {canToggle ? (
             <span
               role="button"
               tabIndex={0}
               onClick={(event) => handleToggleItem(event, item)}
-              className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border bg-card/80 transition hover:bg-muted"
+              className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-white/55 bg-white/45 transition hover:bg-white/70"
               aria-label="Mark complete"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-primary opacity-0 transition group-hover:opacity-60" />
+              <span className="h-1.5 w-1.5 rounded-full opacity-0 transition group-hover:opacity-70" style={{ backgroundColor: palette.stripe }} />
             </span>
           ) : null}
 
           <div className="min-w-0 flex-1">
             <div
-              className={["truncate font-medium text-foreground", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}
+              className={["truncate font-semibold", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}
+              style={{ color: palette.text }}
             >
               {item.title}
             </div>
           </div>
 
-          <span className="shrink-0 text-[10px] font-medium text-muted-foreground">
+          <span className="shrink-0 text-[10px] font-semibold" style={{ color: palette.mutedText }}>
             {item.timeLabel}
           </span>
         </button>
@@ -1362,39 +1540,45 @@ function CalendarView({
     );
   };
 
-  const renderClassItem = (item: CalendarItem, dayColumn = false) => {
+  const renderClassItem = (
+    item: CalendarItem,
+    dayColumn = false,
+    layoutStyle?: React.CSSProperties
+  ) => {
     const color = getItemColor(item);
+    const palette = createEventPalette(color, item.kind, true);
     const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
     const end = Math.min(itemEndMinutes(item), DAY_END_HOUR * 60);
     const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
-    const height = Math.max(36, ((end - start) / 60) * HOUR_HEIGHT);
+    const height = Math.max(34, ((end - start) / 60) * HOUR_HEIGHT);
     const location = item.timetableClass?.location;
     const teacher = item.timetableClass?.teacher;
 
     return (
-      <div key={item.id} className="absolute left-1.5 right-1.5 z-[5]" style={{ top, height }}>
+      <div
+        key={item.id}
+        className="absolute z-[5] px-1"
+        style={{ top, height, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
+      >
         <div
-          className={[
-            "h-full w-full overflow-hidden rounded-xl border border-dashed px-2.5 py-1.5 text-left",
-            "bg-muted/20 ring-1 ring-black/[0.01]",
-          ].join(" ")}
+          className="h-full w-full overflow-hidden rounded-xl border px-2.5 py-1.5 text-left shadow-sm"
           style={{
+            borderColor: palette.border,
             borderLeftWidth: 4,
-            borderLeftColor: color,
-            backgroundColor: `${color}0D`,
+            borderLeftColor: palette.stripe,
+            backgroundColor: palette.background,
+            color: palette.text,
           }}
           title={`${item.title} · ${item.timeLabel}`}
         >
           <div
-            className={[
-              "truncate font-semibold text-foreground/80",
-              dayColumn ? "text-xs" : "text-[11px]",
-            ].join(" ")}
+            className={["truncate font-semibold", dayColumn ? "text-xs" : "text-[11px]"].join(" ")}
+            style={{ color: palette.text }}
           >
             {item.title}
           </div>
 
-          <div className="truncate text-[10px] text-muted-foreground">
+          <div className="truncate text-[10px] font-medium" style={{ color: palette.mutedText }}>
             Class · {item.timeLabel}
             {location ? ` · ${location}` : ""}
             {teacher ? ` · ${teacher}` : ""}
@@ -1404,11 +1588,16 @@ function CalendarView({
     );
   };
 
-  const renderTimedItem = (item: CalendarItem, dayColumn = false) => {
-    if (item.isTimetableClass) return renderClassItem(item, dayColumn);
-    if (item.kind === "reminder") return renderReminderMarker(item, dayColumn);
+  const renderTimedItem = (
+    item: CalendarItem,
+    dayColumn = false,
+    layoutStyle?: React.CSSProperties
+  ) => {
+    if (item.isTimetableClass) return renderClassItem(item, dayColumn, layoutStyle);
+    if (item.kind === "reminder") return renderReminderMarker(item, dayColumn, layoutStyle);
 
     const color = getItemColor(item);
+    const palette = createEventPalette(color, item.kind, item.isTimetableClass);
     const start = Math.max(itemStartMinutes(item), DAY_START_HOUR * 60);
     const end = Math.min(itemEndMinutes(item), DAY_END_HOUR * 60);
     const top = ((start - DAY_START_HOUR * 60) / 60) * HOUR_HEIGHT;
@@ -1421,24 +1610,24 @@ function CalendarView({
       Boolean(item.task && onToggleTaskCompleted);
 
     return (
-      <div key={item.id} className="absolute left-1.5 right-1.5 z-20" style={{ top, height }}>
+      <div
+        key={item.id}
+        className="absolute z-20 px-1"
+        style={{ top, height, ...(layoutStyle ?? { left: 0, width: "100%" }) }}
+      >
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
             openCalendarItem(item);
           }}
-          className={[
-            "group h-full w-full overflow-hidden rounded-xl border bg-card px-2.5 py-1.5 text-left",
-            "shadow-[0_4px_10px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.02]",
-            "transition hover:-translate-y-px hover:shadow-[0_7px_14px_rgba(0,0,0,0.09)]",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-            item.isDeadlineMarker ? "border-dashed bg-background/80" : "",
-          ].join(" ")}
+          className="group h-full w-full overflow-hidden rounded-xl border px-2.5 py-1.5 text-left shadow-sm transition hover:-translate-y-px hover:shadow-app-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
           style={{
+            borderColor: palette.border,
             borderLeftWidth: 4,
-            borderLeftColor: color,
-            backgroundColor: item.isDeadlineMarker ? undefined : `${color}12`,
+            borderLeftColor: palette.stripe,
+            backgroundColor: palette.background,
+            color: palette.text,
           }}
           title={`${getItemLabel(item)}: ${item.title}`}
         >
@@ -1448,24 +1637,25 @@ function CalendarView({
                 role="button"
                 tabIndex={0}
                 onClick={(event) => handleToggleItem(event, item)}
-                className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border bg-card/70 transition hover:bg-muted"
+                className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-white/55 bg-white/45 transition hover:bg-white/70"
                 aria-label="Mark complete"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-primary opacity-0 transition group-hover:opacity-60" />
+                <span className="h-1.5 w-1.5 rounded-full opacity-0 transition group-hover:opacity-70" style={{ backgroundColor: palette.stripe }} />
               </span>
             ) : null}
 
             <div className="min-w-0 flex-1">
               <div
                 className={[
-                  "truncate font-semibold text-foreground",
+                  "truncate font-semibold",
                   dayColumn ? "text-xs" : "text-[11px]",
                 ].join(" ")}
+                style={{ color: palette.text }}
               >
                 {item.title}
               </div>
 
-              <div className="truncate text-[10px] text-muted-foreground">
+              <div className="truncate text-[10px] font-medium" style={{ color: palette.mutedText }}>
                 {item.isDeadlineMarker ? (
                   item.dueLabel
                 ) : (
@@ -1489,10 +1679,10 @@ function CalendarView({
       {hours.slice(0, -1).map((hour) => (
         <div
           key={hour}
-          className="relative border-b border-border/60"
+          className="relative border-b calendar-grid-line"
           style={{ height: HOUR_HEIGHT }}
         >
-          <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-border/35" />
+          <div className="absolute left-0 right-0 top-1/2 border-t border-dashed calendar-grid-line" />
         </div>
       ))}
     </div>
@@ -1572,12 +1762,6 @@ function CalendarView({
                   >
                     {date.getDate()}
                   </span>
-
-                  {dayItems.length > 0 ? (
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {dayItems.length}
-                    </span>
-                  ) : null}
                 </div>
 
                 <div className="space-y-1">
@@ -1681,7 +1865,7 @@ function CalendarView({
                   >
                     {renderHourGridLines(hours)}
                     {renderCurrentTimeLine(date)}
-                    {timedItems.map((item) => renderTimedItem(item))}
+                    {layoutTimedItems(timedItems).map(({ item, style }) => renderTimedItem(item, false, style))}
                   </div>
                 );
               })}
@@ -1734,7 +1918,7 @@ function CalendarView({
             <button
               type="button"
               onClick={() => openAddMenuForDate(currentDate)}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              className="app-btn-secondary h-9 px-3"
             >
               <Plus className="h-4 w-4" />
               Add item
@@ -1768,7 +1952,7 @@ function CalendarView({
             >
               {renderHourGridLines(hours)}
               {renderCurrentTimeLine(currentDate, true)}
-              {timedItems.map((item) => renderTimedItem(item, true))}
+              {layoutTimedItems(timedItems).map(({ item, style }) => renderTimedItem(item, true, style))}
             </div>
           </div>
         </div>
@@ -1879,11 +2063,11 @@ function CalendarView({
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-7 sm:px-6 md:px-8">
+    <div className="app-page-wide space-y-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="app-page-title">Calendar</h1>
+          <p className="app-page-subtitle">
             Plan study blocks, homework, assignments, exams, reminders, and timetable classes.
           </p>
         </div>
@@ -1891,7 +2075,7 @@ function CalendarView({
         <button
           type="button"
           onClick={() => openAddMenuForDate(currentDate)}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+          className="app-btn-secondary"
         >
           <Plus className="h-4 w-4" />
           Add item
@@ -1914,7 +2098,7 @@ function CalendarView({
               <button
                 type="button"
                 onClick={onOpenTimetableSettings}
-                className="inline-flex h-9 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                className="app-btn-primary h-9"
               >
                 Set up timetable
               </button>
@@ -1924,7 +2108,7 @@ function CalendarView({
       ) : null}
 
       <CalendarShell>
-        <div className="flex flex-col gap-3 border-b border-border bg-card px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="calendar-toolbar">
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleNavigate("prev")}
@@ -1957,7 +2141,7 @@ function CalendarView({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex rounded-xl border border-border bg-muted/20 p-1">
+            <div className="app-switch">
               <SwitchPill label="Month" active={viewMode === "month"} onClick={() => setViewMode("month")} />
               <SwitchPill label="Week" active={viewMode === "week"} onClick={() => setViewMode("week")} />
               <SwitchPill label="Day" active={viewMode === "day"} onClick={() => setViewMode("day")} />
