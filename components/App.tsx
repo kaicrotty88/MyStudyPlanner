@@ -20,6 +20,7 @@ import type {
   Reminder,
   TimetableSettings,
   TimetableClass,
+  TimetablePeriod,
 } from "./models";
 
 import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
@@ -38,8 +39,8 @@ import WhatsNewModal from "@/components/WhatsNewModal";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
-const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 
 const WHATS_NEW_VERSION_KEY = "2026-02-21";
 const WHATS_NEW_VERSION_LABEL = "Update";
@@ -80,6 +81,73 @@ const DEFAULT_TIMETABLE_SETTINGS: TimetableSettings = {
   cycleStartDate: undefined,
 };
 
+const DEFAULT_SCHOOL_TIMETABLE_PERIODS: TimetablePeriod[] = [
+  {
+    id: "tp1",
+    name: "Period 1",
+    startTime: "08:40",
+    endTime: "09:35",
+    type: "class",
+    order: 1,
+  },
+  {
+    id: "tp2",
+    name: "Period 2",
+    startTime: "09:35",
+    endTime: "10:30",
+    type: "class",
+    order: 2,
+  },
+  {
+    id: "tp-recess",
+    name: "Recess",
+    startTime: "10:30",
+    endTime: "10:50",
+    type: "break",
+    order: 3,
+  },
+  {
+    id: "tp3",
+    name: "Period 3",
+    startTime: "10:50",
+    endTime: "11:45",
+    type: "class",
+    order: 4,
+  },
+  {
+    id: "tp4",
+    name: "Period 4",
+    startTime: "11:45",
+    endTime: "12:40",
+    type: "class",
+    order: 5,
+  },
+  {
+    id: "tp-lunch",
+    name: "Lunch",
+    startTime: "12:40",
+    endTime: "13:20",
+    type: "break",
+    order: 6,
+  },
+  {
+    id: "tp5",
+    name: "Period 5",
+    startTime: "13:20",
+    endTime: "14:15",
+    type: "class",
+    order: 7,
+  },
+  {
+    id: "tp6",
+    name: "Period 6",
+    startTime: "14:15",
+    endTime: "15:10",
+    type: "class",
+    order: 8,
+  },
+];
+
 const DEMO_PERIODS: Period[] = [
   {
     id: "p1",
@@ -105,10 +173,11 @@ const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
   {
     id: "tc1",
     subjectId: "1",
-    title: "Maths",
+    title: "Mathematics",
     dayOfWeek: 1,
-    startTime: "09:00",
-    endTime: "09:50",
+    periodId: "tp1",
+    startTime: "08:40",
+    endTime: "09:35",
     week: "both",
     location: "Room M2",
     teacher: "Mr Anderson",
@@ -119,8 +188,9 @@ const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
     subjectId: "4",
     title: "English",
     dayOfWeek: 1,
-    startTime: "10:10",
-    endTime: "11:00",
+    periodId: "tp3",
+    startTime: "10:50",
+    endTime: "11:45",
     week: "both",
     location: "Room E4",
     teacher: "Ms Taylor",
@@ -131,8 +201,9 @@ const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
     subjectId: "2",
     title: "Physics",
     dayOfWeek: 2,
-    startTime: "11:20",
-    endTime: "12:10",
+    periodId: "tp4",
+    startTime: "11:45",
+    endTime: "12:40",
     week: "A",
     location: "Lab 1",
     teacher: "Dr Harris",
@@ -143,8 +214,9 @@ const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
     subjectId: "3",
     title: "Chemistry",
     dayOfWeek: 2,
-    startTime: "11:20",
-    endTime: "12:10",
+    periodId: "tp4",
+    startTime: "11:45",
+    endTime: "12:40",
     week: "B",
     location: "Lab 2",
     teacher: "Ms Chen",
@@ -155,8 +227,9 @@ const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
     subjectId: "5",
     title: "History",
     dayOfWeek: 3,
+    periodId: "tp5",
     startTime: "13:20",
-    endTime: "14:10",
+    endTime: "14:15",
     week: "both",
     location: "Room H1",
     teacher: "Mr Lewis",
@@ -164,286 +237,113 @@ const DEMO_TIMETABLE_CLASSES: TimetableClass[] = [
   },
 ];
 
-const makeDefaultData = () => {
+function debounce<T extends (...args: any[]) => void>(fn: T, delay = 600) {
+  let timer: number | null = null;
+
+  return (...args: Parameters<T>) => {
+    if (timer !== null) window.clearTimeout(timer);
+
+    timer = window.setTimeout(() => {
+      fn(...args);
+    }, delay);
+  };
+}
+
+const startOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return startOfDay(next);
+};
+
+const makeDemoData = () => {
   const now = new Date();
 
-  const atStartOfDay = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const today = addDays(now, 0);
+  const tomorrow = addDays(now, 1);
+  const in3 = addDays(now, 3);
+  const in7 = addDays(now, 7);
+  const in10 = addDays(now, 10);
+  const yesterday = addDays(now, -1);
+  const twoDaysAgo = addDays(now, -2);
 
-  const addDays = (days: number) => {
-    const date = new Date(now);
-    date.setDate(date.getDate() + days);
-    return atStartOfDay(date);
-  };
-
-  const withTime = (base: Date, hours: number, minutes: number) => {
-    const date = new Date(base);
-    date.setHours(hours, minutes, 0, 0);
-    return date;
-  };
-
-  const formatTime12 = (hours: number, minutes: number) => {
-    const ampm = hours >= 12 ? "PM" : "AM";
-    const h12 = hours % 12 === 0 ? 12 : hours % 12;
-    return `${h12}:${String(minutes).padStart(2, "0")} ${ampm}`;
-  };
-
-  const today = addDays(0);
-  const yesterday = addDays(-1);
-  const twoDaysAgo = addDays(-2);
-  const fourDaysAgo = addDays(-4);
-  const sixDaysAgo = addDays(-6);
-  const nineDaysAgo = addDays(-9);
-  const fourteenDaysAgo = addDays(-14);
-  const twentyOneDaysAgo = addDays(-21);
-
-  const tomorrow = addDays(1);
-  const in3 = addDays(3);
-  const in5 = addDays(5);
-  const in7 = addDays(7);
-  const in10 = addDays(10);
-  const in14 = addDays(14);
-  const in18 = addDays(18);
-  const in22 = addDays(22);
-  const in26 = addDays(26);
-
-  const demoTasks: Task[] = [
+  const tasks: Task[] = [
     {
       id: "t1",
-      title: "Read pages 120–145",
-      subjectId: "5",
-      dueDate: tomorrow,
+      title: "Calculus worksheet",
+      subjectId: "1",
+      dueDate: in3,
       type: "homework",
       scheduledDate: today,
       startTime: "16:00",
-      duration: "45 min",
+      duration: "60 min",
       periodId: "p1",
+      completed: false,
     },
     {
       id: "t2",
-      title: "Lab Report",
+      title: "Practical report draft",
       subjectId: "3",
-      dueDate: in3,
+      dueDate: in7,
       type: "assignment",
+      scheduledDate: tomorrow,
+      startTime: "16:30",
+      duration: "1h 30m",
       periodId: "p1",
+      completed: false,
     },
     {
       id: "t3",
-      title: "Midterm Exam",
+      title: "Motion topic test",
       subjectId: "2",
-      dueDate: in7,
+      dueDate: in10,
       type: "exam",
+      scheduledDate: in10,
+      startTime: "09:00",
+      duration: "2h",
       periodId: "p1",
+      completed: false,
     },
     {
       id: "t4",
-      title: "Essay plan",
+      title: "English paragraph",
       subjectId: "4",
-      dueDate: in10,
-      type: "assignment",
-      periodId: "p1",
-    },
-    {
-      id: "t5",
-      title: "Source analysis",
-      subjectId: "5",
-      dueDate: in14,
-      type: "assignment",
-      periodId: "p1",
-    },
-    {
-      id: "t6",
-      title: "Chemistry quiz",
-      subjectId: "3",
-      dueDate: in18,
-      type: "exam",
-      periodId: "p1",
-    },
-    {
-      id: "t7",
-      title: "Complete Chapter 7 worksheet",
-      subjectId: "1",
-      dueDate: in22,
+      dueDate: yesterday,
       type: "homework",
-      periodId: "p1",
-    },
-    {
-      id: "t8",
-      title: "Practice response paragraph",
-      subjectId: "4",
-      dueDate: in26,
-      type: "homework",
-      periodId: "p1",
-    },
-    {
-      id: "t9",
-      title: "Complete Chapter 5 Review",
-      subjectId: "1",
-      dueDate: fourDaysAgo,
-      type: "assignment",
-      periodId: "p1",
-      completed: true,
-      completedAt: fourDaysAgo,
-      result: {
-        score: 18,
-        outOf: 20,
-        dateRecorded: fourDaysAgo,
-        notes: "Stronger on algebra than worded questions.",
-      },
-    },
-    {
-      id: "t10",
-      title: "Practical write-up",
-      subjectId: "3",
-      dueDate: nineDaysAgo,
-      type: "assignment",
-      periodId: "p1",
-      completed: true,
-      completedAt: nineDaysAgo,
-      result: {
-        score: 12,
-        outOf: 20,
-        dateRecorded: nineDaysAgo,
-        notes: "Lost marks on evaluation depth.",
-      },
-    },
-    {
-      id: "t11",
-      title: "Reading quiz",
-      subjectId: "4",
-      dueDate: fourteenDaysAgo,
-      type: "exam",
-      periodId: "p1",
-      completed: true,
-      completedAt: fourteenDaysAgo,
-      result: {
-        score: 23,
-        outOf: 25,
-        dateRecorded: fourteenDaysAgo,
-      },
-    },
-    {
-      id: "t12",
-      title: "Forces test",
-      subjectId: "2",
-      dueDate: twentyOneDaysAgo,
-      type: "exam",
-      periodId: "p1",
-      completed: true,
-      completedAt: twentyOneDaysAgo,
-      result: {
-        score: 32,
-        outOf: 50,
-        dateRecorded: twentyOneDaysAgo,
-      },
-    },
-    {
-      id: "t13",
-      title: "Functions checkpoint",
-      subjectId: "1",
-      dueDate: sixDaysAgo,
-      type: "assignment",
-      periodId: "p1",
-      completed: true,
-      completedAt: sixDaysAgo,
-      result: {
-        score: 27,
-        outOf: 30,
-        dateRecorded: sixDaysAgo,
-      },
-    },
-  ];
-
-  const demoStudySessions: StudySession[] = [
-    {
-      id: "ss1",
-      subjectId: "1",
-      title: "Chapter 5 review",
-      date: withTime(today, 16, 0),
-      startTime: formatTime12(16, 0),
-      duration: "60 min",
-      linkedTaskId: "t9",
-      completed: false,
-    },
-    {
-      id: "ss2",
-      subjectId: "3",
-      title: "Plan lab structure",
-      date: withTime(today, 19, 0),
-      startTime: formatTime12(19, 0),
+      scheduledDate: twoDaysAgo,
+      startTime: "18:00",
       duration: "45 min",
-      linkedTaskId: "t2",
+      periodId: "p1",
       completed: false,
-    },
-    {
-      id: "ss3",
-      subjectId: "5",
-      title: "History reading",
-      date: withTime(yesterday, 17, 30),
-      startTime: formatTime12(17, 30),
-      duration: "50 min",
-      linkedTaskId: "t1",
-      completed: true,
-      completedAt: withTime(yesterday, 18, 20),
-    },
-    {
-      id: "ss4",
-      subjectId: "2",
-      title: "Physics formulas",
-      date: withTime(twoDaysAgo, 18, 15),
-      startTime: formatTime12(18, 15),
-      duration: "1h 15m",
-      linkedTaskId: "t3",
-      completed: true,
-      completedAt: withTime(twoDaysAgo, 19, 30),
-    },
-    {
-      id: "ss5",
-      subjectId: "4",
-      title: "Essay structure practice",
-      date: withTime(fourDaysAgo, 16, 45),
-      startTime: formatTime12(16, 45),
-      duration: "60 min",
-      linkedTaskId: "t4",
-      completed: true,
-      completedAt: withTime(fourDaysAgo, 17, 45),
-    },
-    {
-      id: "ss6",
-      subjectId: "1",
-      title: "Functions revision",
-      date: withTime(sixDaysAgo, 15, 30),
-      startTime: formatTime12(15, 30),
-      duration: "1h 30m",
-      linkedTaskId: "t13",
-      completed: true,
-      completedAt: withTime(sixDaysAgo, 17, 0),
-    },
-    {
-      id: "ss7",
-      subjectId: "3",
-      title: "Chemistry recap",
-      date: withTime(nineDaysAgo, 18, 0),
-      startTime: formatTime12(18, 0),
-      duration: "40 min",
-      linkedTaskId: "t10",
-      completed: true,
-      completedAt: withTime(nineDaysAgo, 18, 40),
-    },
-    {
-      id: "ss8",
-      subjectId: "4",
-      title: "Reading analysis",
-      date: withTime(fourteenDaysAgo, 17, 0),
-      startTime: formatTime12(17, 0),
-      duration: "55 min",
-      linkedTaskId: "t11",
-      completed: true,
-      completedAt: withTime(fourteenDaysAgo, 17, 55),
     },
   ];
 
-  const demoReminders: Reminder[] = [
+  const studySessions: StudySession[] = [
+    {
+      id: "s1",
+      title: "Calculus practice",
+      subjectId: "1",
+      date: today,
+      startTime: "17:00",
+      duration: "60 min",
+      linkedTaskId: "t1",
+      completed: false,
+    },
+    {
+      id: "s2",
+      title: "Physics review",
+      subjectId: "2",
+      date: tomorrow,
+      startTime: "18:00",
+      duration: "45 min",
+      linkedTaskId: "t3",
+      completed: false,
+    },
+  ];
+
+  const reminders: Reminder[] = [
     {
       id: "r1",
       title: "Pack bag tonight",
@@ -456,50 +356,29 @@ const makeDefaultData = () => {
     },
     {
       id: "r2",
-      title: "Email teacher about extension question",
+      title: "Email teacher",
       dueDate: tomorrow,
       time: "16:15",
       repeat: "none",
       completed: false,
-      createdAt: yesterday,
-    },
-    {
-      id: "r3",
-      title: "Buy new pens",
-      notes: "Black + blue",
-      dueDate: today,
-      time: "17:30",
-      repeat: "none",
-      completed: false,
-      createdAt: sixDaysAgo,
-    },
-    {
-      id: "r4",
-      title: "Library books due back",
-      dueDate: in5,
-      time: "15:45",
-      repeat: "none",
-      completed: false,
-      createdAt: twoDaysAgo,
+      createdAt: today,
     },
   ];
 
   return {
     subjects: defaultSubjects,
     periods: DEMO_PERIODS,
-    tasks: demoTasks,
-    studySessions: demoStudySessions,
-    reminders: demoReminders,
+    tasks,
+    studySessions,
+    reminders,
     timetableSettings: DEMO_TIMETABLE_SETTINGS,
+    timetablePeriods: DEFAULT_SCHOOL_TIMETABLE_PERIODS,
     timetableClasses: DEMO_TIMETABLE_CLASSES,
   };
 };
 
-const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
+const seedPeriodsStorage = (periods: Period[]) => {
   try {
-    const existing = localStorage.getItem(PERIODS_STORAGE_KEY);
-    if (existing) return;
-
     const stored = periods.map((p) => ({
       id: p.id,
       name: p.name,
@@ -511,103 +390,49 @@ const seedDemoPeriodsKeyIfMissing = (periods: Period[]) => {
   } catch {}
 };
 
-const navTabButtonClass = (active: boolean) =>
-  [
-    "h-9 px-3 rounded-xl text-sm font-medium transition-colors",
-    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-    active
-      ? "bg-primary text-primary-foreground shadow-sm"
-      : "text-foreground/90 hover:bg-muted",
-  ].join(" ");
-
-const navTabButtonClassMobile = (active: boolean) =>
-  [
-    "shrink-0 h-9 px-3 rounded-xl text-sm font-medium transition-colors",
-    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-    active
-      ? "bg-primary text-primary-foreground shadow-sm"
-      : "text-foreground/90 hover:bg-muted",
-  ].join(" ");
-
-function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
-  let t: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Parameters<T>) => {
-    if (t) clearTimeout(t);
-    t = setTimeout(() => fn(...args), ms);
-  };
-}
+const hydrateDate = (value: any, fallback = new Date()) => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date;
+};
 
 function LockedPremiumView({
   feature,
   onGoToSettings,
 }: {
-  feature: "marks" | "insights";
+  feature: "insights" | "marks";
   onGoToSettings: () => void;
 }) {
-  const title = feature === "marks" ? "Marks" : "Insights";
-  const description =
-    feature === "marks"
-      ? "Track results across the year and keep all your marks in one place."
-      : "Unlock advanced analytics and deeper insights into your study and results.";
+  const title = feature === "insights" ? "Insights are Premium" : "Marks are Premium";
+  const body =
+    feature === "insights"
+      ? "Upgrade to unlock deeper study analytics, trends, and progress insights."
+      : "Upgrade to track assessment results, marks, and performance over time.";
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8 md:px-10">
-      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border bg-muted/10 px-6 py-5 md:px-8">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-background/70">
-            <Lock className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-            {title} is a Premium feature
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {description}
-          </p>
-        </div>
-
-        <div className="space-y-6 px-6 py-6 md:px-8 md:py-8">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="text-sm font-semibold text-foreground">Marks</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Log results, keep track of assessments, and build a record across
-                the year.
-              </div>
+    <div className="min-h-[calc(100vh-68px)] bg-[#F7F5EF]">
+      <div className="mx-auto flex min-h-[calc(100vh-68px)] max-w-4xl items-center justify-center px-6 py-12">
+        <div className="w-full rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+            <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-muted">
+              <Lock className="h-6 w-6 text-muted-foreground" />
             </div>
 
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="text-sm font-semibold text-foreground">
-                Insights
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                See stronger analytics, patterns, and performance trends over
-                time.
-              </div>
-            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              {title}
+            </h1>
 
-            <div className="rounded-2xl border border-border bg-background/60 p-4">
-              <div className="text-sm font-semibold text-foreground">
-                Custom widgets
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Personalise your dashboard and insights layout with
-                interchangeable widgets.
-              </div>
-            </div>
-          </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
 
-          <div className="rounded-2xl border border-border bg-muted/20 p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Sparkles className="h-4 w-4" />
-                  Premium setup is coming next
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Billing is not connected yet, so this feature is locked for
-                  now in the app and open in demo mode.
-                </div>
-              </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={onGoToSettings}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              >
+                <Sparkles className="h-4 w-4" />
+                View Premium
+              </button>
 
               <button
                 type="button"
@@ -616,6 +441,10 @@ function LockedPremiumView({
               >
                 Go to Settings
               </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-border bg-muted/20 px-4 py-3 text-xs leading-5 text-muted-foreground">
+              Billing is not connected yet, so this feature is locked for now in the app and open in demo mode.
             </div>
           </div>
         </div>
@@ -651,11 +480,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [timetableSettings, setTimetableSettings] = useState<TimetableSettings>(
     mode === "demo" ? DEMO_TIMETABLE_SETTINGS : DEFAULT_TIMETABLE_SETTINGS
   );
+  const [timetablePeriods, setTimetablePeriods] = useState<TimetablePeriod[]>(
+    DEFAULT_SCHOOL_TIMETABLE_PERIODS
+  );
   const [timetableClasses, setTimetableClasses] = useState<TimetableClass[]>(
     mode === "demo" ? DEMO_TIMETABLE_CLASSES : []
   );
 
-  const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
   const [settingsOpenSection, setSettingsOpenSection] =
     useState<SettingsOpenSection>(null);
 
@@ -663,139 +494,146 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [plan, setPlan] = useState<Plan>(mode === "demo" ? "premium" : "free");
 
+  const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
+
   const hasPremium = plan === "premium";
-  const isPremiumTab = (tab: Tab) => tab === "insights" || tab === "marks";
+  const isPremiumTab = (tab: Tab | string) => tab === "insights" || tab === "marks";
 
-  useEffect(() => {
-    try {
-      const dismissed = localStorage.getItem("msp-desktop-hint-dismissed");
-      if (!dismissed) setShowMobileDesktopHint(true);
-    } catch {
-      setShowMobileDesktopHint(true);
-    }
-  }, []);
+  const tabs = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "calendar", label: "Calendar" },
+    { id: "tasks", label: "Tasks" },
+    { id: "study", label: "Study Planner" },
+    { id: "insights", label: "Insights" },
+    { id: "marks", label: "Marks" },
+    { id: "settings", label: "Settings" },
+  ] satisfies Array<{ id: Tab; label: string }>;
 
-  const dismissMobileDesktopHint = () => {
-    setShowMobileDesktopHint(false);
-    try {
-      localStorage.setItem("msp-desktop-hint-dismissed", "1");
-    } catch {}
-  };
-
-  const pruneAutoDeletedCompletedTasks = (input: Task[]) => {
-    const now = Date.now();
-    return input.filter((t) => {
-      if (!t.completed || !t.completedAt) return true;
-      return now - t.completedAt.getTime() < AUTO_DELETE_COMPLETED_AFTER_MS;
-    });
-  };
-
-  const markReadyNextPaint = () => {
-    requestAnimationFrame(() => setIsReady(true));
-  };
-
-  const periodIdForDate = (d: Date) => {
-    const t = d.getTime();
-    const match = periods.find(
-      (p) => t >= p.startDate.getTime() && t <= p.endDate.getTime()
-    );
-    return match?.id;
-  };
+  const makeStateSnapshot = () => ({
+    subjects,
+    periods,
+    tasks,
+    studySessions,
+    reminders,
+    timetableSettings,
+    timetablePeriods,
+    timetableClasses,
+  });
 
   const applyParsedState = (parsed: any) => {
-    setSubjects(Array.isArray(parsed.subjects) ? parsed.subjects : []);
+    setSubjects(Array.isArray(parsed?.subjects) ? parsed.subjects : []);
 
     setPeriods(
-      Array.isArray(parsed.periods)
+      Array.isArray(parsed?.periods)
         ? parsed.periods.map((p: any) => ({
-            id: String(p.id),
-            name: String(p.name),
-            startDate: p?.startDate ? new Date(p.startDate) : new Date(),
-            endDate: p?.endDate ? new Date(p.endDate) : new Date(),
+            id: String(p?.id ?? Date.now()),
+            name: String(p?.name ?? "Term"),
+            startDate: hydrateDate(p?.startDate),
+            endDate: hydrateDate(p?.endDate),
           }))
-        : mode === "demo"
-          ? DEMO_PERIODS
-          : []
+        : []
     );
 
     setTasks(
-      pruneAutoDeletedCompletedTasks(
-        (parsed.tasks ?? []).map((t: any) => ({
-          ...t,
-          type: t?.type === "task" ? "homework" : t?.type,
-          dueDate: t?.dueDate ? new Date(t.dueDate) : new Date(),
-          scheduledDate: t?.scheduledDate ? new Date(t.scheduledDate) : undefined,
-          completedAt: t?.completedAt ? new Date(t.completedAt) : undefined,
-          repeatUntil: t?.repeatUntil ? new Date(t.repeatUntil) : undefined,
-          result: t?.result
-            ? {
-                ...t.result,
-                score:
-                  typeof t?.result?.score === "number"
-                    ? t.result.score
-                    : Number(t?.result?.score ?? 0),
-                outOf:
-                  typeof t?.result?.outOf === "number"
-                    ? t.result.outOf
-                    : Number(t?.result?.outOf ?? 100),
-                dateRecorded: t?.result?.dateRecorded
-                  ? new Date(t.result.dateRecorded)
-                  : new Date(),
-              }
-            : undefined,
-        }))
-      )
+      Array.isArray(parsed?.tasks)
+        ? parsed.tasks.map((t: any) => ({
+            ...t,
+            id: String(t?.id ?? Date.now()),
+            title: String(t?.title ?? ""),
+            subjectId: String(t?.subjectId ?? ""),
+            dueDate: hydrateDate(t?.dueDate),
+            type:
+              t?.type === "assignment" || t?.type === "exam" || t?.type === "homework"
+                ? t.type
+                : "homework",
+            scheduledDate: t?.scheduledDate ? hydrateDate(t.scheduledDate) : undefined,
+            completedAt: t?.completedAt ? hydrateDate(t.completedAt) : undefined,
+            repeatUntil: t?.repeatUntil ? hydrateDate(t.repeatUntil) : undefined,
+            result:
+              t?.result && typeof t.result === "object"
+                ? {
+                    ...t.result,
+                    score: Number(t.result.score ?? 0),
+                    outOf: Number(t.result.outOf ?? 100) || 100,
+                    dateRecorded: hydrateDate(t.result.dateRecorded),
+                  }
+                : undefined,
+          }))
+        : []
     );
 
     setStudySessions(
-      (parsed.studySessions ?? []).map((s: any) => ({
-        ...s,
-        title: s?.title?.trim() || "Study session",
-        date: s?.date ? new Date(s.date) : new Date(),
-        completedAt: s?.completedAt ? new Date(s.completedAt) : undefined,
-      }))
+      Array.isArray(parsed?.studySessions)
+        ? parsed.studySessions.map((s: any) => ({
+            ...s,
+            id: String(s?.id ?? Date.now()),
+            subjectId: String(s?.subjectId ?? ""),
+            title: String(s?.title ?? "Study session"),
+            date: hydrateDate(s?.date),
+            startTime: String(s?.startTime ?? "16:00"),
+            duration: String(s?.duration ?? "60 min"),
+            completedAt: s?.completedAt ? hydrateDate(s.completedAt) : undefined,
+          }))
+        : []
     );
 
     setReminders(
-      (parsed.reminders ?? []).map((r: any) => {
-        const createdAt = r?.createdAt ? new Date(r.createdAt) : undefined;
-        const dueDate = r?.dueDate ? new Date(r.dueDate) : createdAt ?? new Date();
-
-        return {
-          ...r,
-          title: String(r?.title ?? "").trim(),
-          notes: r?.notes ? String(r.notes) : undefined,
-          dueDate,
-          time: r?.time ? String(r.time) : "09:00",
-          completedAt: r?.completedAt ? new Date(r.completedAt) : undefined,
-          createdAt,
-        };
-      })
+      Array.isArray(parsed?.reminders)
+        ? parsed.reminders.map((r: any) => ({
+            ...r,
+            id: String(r?.id ?? Date.now()),
+            title: String(r?.title ?? ""),
+            dueDate: r?.dueDate ? hydrateDate(r.dueDate) : hydrateDate(r?.createdAt),
+            time: String(r?.time ?? "09:00"),
+            completedAt: r?.completedAt ? hydrateDate(r.completedAt) : undefined,
+            createdAt: r?.createdAt ? hydrateDate(r.createdAt) : undefined,
+          }))
+        : []
     );
 
-    const parsedTimetableSettings = parsed.timetableSettings;
+    const incomingSettings = parsed?.timetableSettings;
 
     setTimetableSettings({
       mode:
-        parsedTimetableSettings?.mode === "school" ||
-        parsedTimetableSettings?.mode === "university" ||
-        parsedTimetableSettings?.mode === "custom"
-          ? parsedTimetableSettings.mode
+        incomingSettings?.mode === "school" ||
+        incomingSettings?.mode === "university" ||
+        incomingSettings?.mode === "custom"
+          ? incomingSettings.mode
           : DEFAULT_TIMETABLE_SETTINGS.mode,
       cycle:
-        parsedTimetableSettings?.cycle === "weekly" ||
-        parsedTimetableSettings?.cycle === "fortnightly"
-          ? parsedTimetableSettings.cycle
+        incomingSettings?.cycle === "weekly" ||
+        incomingSettings?.cycle === "fortnightly"
+          ? incomingSettings.cycle
           : DEFAULT_TIMETABLE_SETTINGS.cycle,
-      cycleStartDate: parsedTimetableSettings?.cycleStartDate
-        ? new Date(parsedTimetableSettings.cycleStartDate)
+      cycleStartDate: incomingSettings?.cycleStartDate
+        ? hydrateDate(incomingSettings.cycleStartDate)
         : undefined,
     });
 
+    setTimetablePeriods(
+      Array.isArray(parsed?.timetablePeriods)
+        ? parsed.timetablePeriods
+            .map((p: any, index: number) => ({
+              id: String(p?.id ?? `tp-${index + 1}`),
+              name: String(p?.name ?? `Period ${index + 1}`),
+              startTime: String(p?.startTime ?? "09:00"),
+              endTime: String(p?.endTime ?? "10:00"),
+              type: p?.type === "break" ? "break" : "class",
+              order:
+                typeof p?.order === "number"
+                  ? p.order
+                  : Number.isFinite(Number(p?.order))
+                    ? Number(p.order)
+                    : index + 1,
+            }))
+            .sort((a: TimetablePeriod, b: TimetablePeriod) => a.order - b.order)
+        : DEFAULT_SCHOOL_TIMETABLE_PERIODS
+    );
+
     setTimetableClasses(
-      Array.isArray(parsed.timetableClasses)
+      Array.isArray(parsed?.timetableClasses)
         ? parsed.timetableClasses.map((c: any) => ({
-            id: String(c.id),
+            id: String(c?.id ?? Date.now()),
             subjectId: c?.subjectId ? String(c.subjectId) : undefined,
             title: String(c?.title ?? "Class"),
             dayOfWeek:
@@ -808,32 +646,25 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               c?.dayOfWeek === 6
                 ? c.dayOfWeek
                 : 1,
-            startTime: String(c?.startTime ?? "09:00"),
-            endTime: String(c?.endTime ?? "10:00"),
-            week:
-              c?.week === "A" || c?.week === "B" || c?.week === "both"
-                ? c.week
-                : "both",
+            periodId: c?.periodId ? String(c.periodId) : undefined,
+            startTime: c?.startTime ? String(c.startTime) : undefined,
+            endTime: c?.endTime ? String(c.endTime) : undefined,
+            week: c?.week === "A" || c?.week === "B" || c?.week === "both" ? c.week : "both",
             location: c?.location ? String(c.location) : undefined,
             teacher: c?.teacher ? String(c.teacher) : undefined,
             notes: c?.notes ? String(c.notes) : undefined,
-            createdAt: c?.createdAt ? new Date(c.createdAt) : undefined,
+            createdAt: c?.createdAt ? hydrateDate(c.createdAt) : undefined,
           }))
-        : mode === "demo"
-          ? DEMO_TIMETABLE_CLASSES
-          : []
+        : []
     );
   };
 
-  const makeStateSnapshot = () => ({
-    subjects,
-    periods,
-    tasks,
-    studySessions,
-    reminders,
-    timetableSettings,
-    timetableClasses,
-  });
+  useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem("mystudyplanner-mobile-desktop-hint");
+      if (!dismissed) setShowMobileDesktopHint(true);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (mode === "demo") {
@@ -854,8 +685,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       try {
         const nextPlan = await fetchUserPlan(supabase, user.id);
         if (!cancelled) setPlan(nextPlan);
-      } catch (e) {
-        console.error("Failed to fetch user plan:", e);
+      } catch (error) {
+        console.error("Failed to fetch user plan:", error);
         if (!cancelled) setPlan("free");
       }
     })();
@@ -866,37 +697,18 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }, [mode, userLoaded, isSignedIn, supabase, user?.id]);
 
   useEffect(() => {
-    if (mode !== "app") return;
-    if (!userLoaded) return;
-    if (!isSignedIn) return;
-    if (!user?.id) return;
-
-    const key = `msp-whatsnew:${WHATS_NEW_VERSION_KEY}:${user.id}`;
-    try {
-      if (localStorage.getItem(key) === "1") return;
-      setShowWhatsNew(true);
-    } catch {
-      setShowWhatsNew(true);
-    }
-  }, [mode, userLoaded, isSignedIn, user?.id]);
-
-  const closeWhatsNew = () => {
-    if (mode === "app" && user?.id) {
-      const key = `msp-whatsnew:${WHATS_NEW_VERSION_KEY}:${user.id}`;
-      try {
-        localStorage.setItem(key, "1");
-      } catch {}
-    }
-    setShowWhatsNew(false);
-  };
-
-  useEffect(() => {
     let cancelled = false;
 
     const finishLoading = () => {
       if (cancelled) return;
+
       hydrated.current = true;
-      markReadyNextPaint();
+      setIsReady(true);
+
+      try {
+        const seen = localStorage.getItem("mystudyplanner-whats-new-version");
+        if (seen !== WHATS_NEW_VERSION_KEY) setShowWhatsNew(true);
+      } catch {}
     };
 
     const loadLocalFallback = () => {
@@ -913,20 +725,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     };
 
     if (mode === "demo") {
-      try {
-        localStorage.removeItem(DEMO_STORAGE_KEY);
-      } catch {}
+      const demo = makeDemoData();
 
-      const seeded = makeDefaultData();
-      seedDemoPeriodsKeyIfMissing(seeded.periods);
-
-      setSubjects(seeded.subjects);
-      setPeriods(seeded.periods);
-      setTasks(seeded.tasks);
-      setStudySessions(seeded.studySessions);
-      setReminders(seeded.reminders);
-      setTimetableSettings(seeded.timetableSettings);
-      setTimetableClasses(seeded.timetableClasses);
+      setSubjects(demo.subjects);
+      setPeriods(demo.periods);
+      setTasks(demo.tasks);
+      setStudySessions(demo.studySessions);
+      setReminders(demo.reminders);
+      setTimetableSettings(demo.timetableSettings);
+      setTimetablePeriods(demo.timetablePeriods);
+      setTimetableClasses(demo.timetableClasses);
+      seedPeriodsStorage(demo.periods);
 
       finishLoading();
       return () => {
@@ -940,14 +749,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       };
     }
 
-    if (!isSignedIn) {
+    if (!isSignedIn || !supabase) {
+      loadLocalFallback();
       finishLoading();
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (!supabase) {
       return () => {
         cancelled = true;
       };
@@ -966,14 +770,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             Array.isArray((remote as any).periods) ||
             Array.isArray((remote as any).studySessions) ||
             Array.isArray((remote as any).reminders) ||
+            Array.isArray((remote as any).timetablePeriods) ||
             Array.isArray((remote as any).timetableClasses) ||
             Boolean((remote as any).timetableSettings));
 
         if (remoteHasPlannerData) {
           applyParsedState(remote);
+
           try {
             localStorage.setItem(storageKey, JSON.stringify(remote));
           } catch {}
+
           finishLoading();
           return;
         }
@@ -983,38 +790,33 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         if (localLoaded) {
           const snapshotFromLocal = JSON.parse(localStorage.getItem(storageKey) || "{}");
           await upsertPlannerState(supabase, snapshotFromLocal);
-
-          if (cancelled) return;
-          finishLoading();
-          return;
+        } else {
+          setSubjects([]);
+          setPeriods([]);
+          setTasks([]);
+          setStudySessions([]);
+          setReminders([]);
+          setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
+          setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
+          setTimetableClasses([]);
         }
 
-        setSubjects([]);
-        setPeriods([]);
-        setTasks([]);
-        setStudySessions([]);
-        setReminders([]);
-        setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
-        setTimetableClasses([]);
-
         finishLoading();
-      } catch (e) {
-        console.error("Failed to init planner state:", e);
+      } catch (error) {
+        console.error("Failed to init planner state:", error);
 
         if (cancelled) return;
 
-        const localLoaded = loadLocalFallback();
-        if (localLoaded) {
-          finishLoading();
-          return;
-        }
+        loadLocalFallback();
+        finishLoading();
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [mode, storageKey, userLoaded, isSignedIn, supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, userLoaded, isSignedIn, supabase, storageKey]);
 
   const saveRemoteDebounced = useMemo(
     () =>
@@ -1038,6 +840,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     if (mode === "app" && Boolean(isSignedIn) && supabase && isReady) {
       saveRemoteDebounced(snapshot);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     subjects,
     periods,
@@ -1045,6 +848,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     studySessions,
     reminders,
     timetableSettings,
+    timetablePeriods,
     timetableClasses,
     storageKey,
     mode,
@@ -1054,6 +858,48 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     isReady,
   ]);
 
+  useEffect(() => {
+    const completedCutoff = Date.now() - AUTO_DELETE_COMPLETED_AFTER_MS;
+
+    setTasks((prev) =>
+      prev.filter((task) => {
+        if (!task.completed || !task.completedAt) return true;
+        return task.completedAt.getTime() >= completedCutoff;
+      })
+    );
+
+    setStudySessions((prev) =>
+      prev.filter((session) => {
+        if (!session.completed || !session.completedAt) return true;
+        return session.completedAt.getTime() >= completedCutoff;
+      })
+    );
+
+    setReminders((prev) =>
+      prev.filter((reminder) => {
+        if (!reminder.completed || !reminder.completedAt) return true;
+        return reminder.completedAt.getTime() >= completedCutoff;
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks.length, studySessions.length, reminders.length]);
+
+  const dismissMobileDesktopHint = () => {
+    setShowMobileDesktopHint(false);
+
+    try {
+      localStorage.setItem("mystudyplanner-mobile-desktop-hint", "1");
+    } catch {}
+  };
+
+  const markWhatsNewSeen = () => {
+    setShowWhatsNew(false);
+
+    try {
+      localStorage.setItem("mystudyplanner-whats-new-version", WHATS_NEW_VERSION_KEY);
+    } catch {}
+  };
+
   const handleClearAllData = async () => {
     try {
       localStorage.removeItem(storageKey);
@@ -1061,16 +907,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     } catch {}
 
     if (mode === "demo") {
-      const seeded = makeDefaultData();
-      seedDemoPeriodsKeyIfMissing(seeded.periods);
+      const demo = makeDemoData();
 
-      setSubjects(seeded.subjects);
-      setPeriods(seeded.periods);
-      setTasks(seeded.tasks);
-      setStudySessions(seeded.studySessions);
-      setReminders(seeded.reminders);
-      setTimetableSettings(seeded.timetableSettings);
-      setTimetableClasses(seeded.timetableClasses);
+      setSubjects(demo.subjects);
+      setPeriods(demo.periods);
+      setTasks(demo.tasks);
+      setStudySessions(demo.studySessions);
+      setReminders(demo.reminders);
+      setTimetableSettings(demo.timetableSettings);
+      setTimetablePeriods(demo.timetablePeriods);
+      setTimetableClasses(demo.timetableClasses);
+      seedPeriodsStorage(demo.periods);
       setActiveTab("dashboard");
       return;
     }
@@ -1081,130 +928,118 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setStudySessions([]);
     setReminders([]);
     setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
+    setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
     setTimetableClasses([]);
     setActiveTab("dashboard");
 
     if (Boolean(isSignedIn) && supabase) {
       try {
         await clearPlannerState(supabase);
-      } catch (e) {
-        console.error("Failed to clear remote planner state:", e);
+      } catch (error) {
+        console.error("Failed to clear remote planner state:", error);
       }
     }
   };
 
   const handleAddSubject = (name: string, color: string) =>
-    setSubjects((p) => [...p, { id: Date.now().toString(), name, color }]);
+    setSubjects((prev) => [...prev, { id: Date.now().toString(), name, color }]);
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
-    setSubjects((p) =>
-      p.map((s) => (s.id === id ? { ...s, name, color } : s))
+    setSubjects((prev) =>
+      prev.map((subject) => (subject.id === id ? { ...subject, name, color } : subject))
     );
 
   const handleDeleteSubject = (id: string) => {
-    setSubjects((p) => p.filter((s) => s.id !== id));
-    setTasks((p) => p.filter((t) => t.subjectId !== id));
-    setStudySessions((p) => p.filter((s) => s.subjectId !== id));
-    setTimetableClasses((p) => p.filter((c) => c.subjectId !== id));
+    setSubjects((prev) => prev.filter((subject) => subject.id !== id));
+    setTasks((prev) => prev.filter((task) => task.subjectId !== id));
+    setStudySessions((prev) => prev.filter((session) => session.subjectId !== id));
+    setTimetableClasses((prev) => prev.filter((item) => item.subjectId !== id));
   };
 
-  const handleAddTask = (t: Omit<Task, "id">) => {
-    const inferredPeriodId = periodIdForDate(t.dueDate);
-    const safeType = t.type === "task" ? "homework" : t.type;
+  const handleAddTask = (task: Omit<Task, "id">) =>
+    setTasks((prev) => [...prev, { ...task, id: Date.now().toString() }]);
 
-    setTasks((p) => [
-      ...p,
-      {
-        ...t,
-        type: safeType,
-        periodId: inferredPeriodId ?? t.periodId,
-        id: Date.now().toString(),
-      },
-    ]);
-  };
+  const handleUpdateTask = (id: string, task: Omit<Task, "id">) =>
+    setTasks((prev) => prev.map((item) => (item.id === id ? { ...task, id } : item)));
 
-  const handleUpdateTask = (id: string, t: Omit<Task, "id">) => {
-    const inferredPeriodId = periodIdForDate(t.dueDate);
-    const safeType = t.type === "task" ? "homework" : t.type;
-
-    setTasks((p) =>
-      p.map((x) =>
-        x.id === id
-          ? { ...t, type: safeType, periodId: inferredPeriodId ?? t.periodId, id }
-          : x
-      )
-    );
-  };
-
-  const handleDeleteTask = (id: string) => {
-    setTasks((p) => p.filter((t) => t.id !== id));
-    setStudySessions((p) =>
-      p.map((s) => (s.linkedTaskId === id ? { ...s, linkedTaskId: undefined } : s))
-    );
-  };
+  const handleDeleteTask = (id: string) =>
+    setTasks((prev) => prev.filter((task) => task.id !== id));
 
   const toggleTaskCompleted = (id: string) =>
-    setTasks((p) =>
-      p.map((t) => {
-        if (t.id !== id) return t;
-        const nextCompleted = !t.completed;
+    setTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== id) return task;
+
+        const nextCompleted = !task.completed;
+
         return {
-          ...t,
+          ...task,
           completed: nextCompleted,
           completedAt: nextCompleted ? new Date() : undefined,
         };
       })
     );
 
-  const handleAddStudySession = (s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => [
-      ...p,
-      { ...s, id: Date.now().toString(), completed: false },
-    ]);
-
-  const handleUpdateStudySession = (id: string, s: Omit<StudySession, "id">) =>
-    setStudySessions((p) => p.map((x) => (x.id === id ? { ...s, id } : x)));
-
-  const handleDeleteStudySession = (id: string) =>
-    setStudySessions((p) => p.filter((s) => s.id !== id));
-
-  const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((p) =>
-      p.map((s) => {
-        if (s.id !== id) return s;
-        const nextCompleted = !s.completed;
-        return {
-          ...s,
-          completed: nextCompleted,
-          completedAt: nextCompleted ? new Date() : undefined,
-        };
-      })
-    );
-
-  const handleAddReminder = (r: Omit<Reminder, "id">) =>
-    setReminders((p) => [
-      ...p,
+  const handleAddStudySession = (session: Omit<StudySession, "id">) =>
+    setStudySessions((prev) => [
+      ...prev,
       {
-        ...r,
+        ...session,
         id: Date.now().toString(),
-        createdAt: r.createdAt ?? new Date(),
-        completed: r.completed ?? false,
       },
     ]);
 
-  const handleUpdateReminder = (id: string, r: Omit<Reminder, "id">) =>
-    setReminders((p) => p.map((x) => (x.id === id ? { ...r, id } : x)));
+  const handleUpdateStudySession = (id: string, session: Omit<StudySession, "id">) =>
+    setStudySessions((prev) =>
+      prev.map((item) => (item.id === id ? { ...session, id } : item))
+    );
+
+  const handleDeleteStudySession = (id: string) =>
+    setStudySessions((prev) => prev.filter((session) => session.id !== id));
+
+  const handleToggleSessionCompleted = (id: string) =>
+    setStudySessions((prev) =>
+      prev.map((session) => {
+        if (session.id !== id) return session;
+
+        const nextCompleted = !session.completed;
+
+        return {
+          ...session,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? new Date() : undefined,
+        };
+      })
+    );
+
+  const handleAddReminder = (reminder: Omit<Reminder, "id">) =>
+    setReminders((prev) => [
+      ...prev,
+      {
+        ...reminder,
+        id: Date.now().toString(),
+        createdAt: reminder.createdAt ?? new Date(),
+        completed: reminder.completed ?? false,
+      },
+    ]);
+
+  const handleUpdateReminder = (id: string, reminder: Omit<Reminder, "id">) =>
+    setReminders((prev) =>
+      prev.map((item) => (item.id === id ? { ...reminder, id } : item))
+    );
 
   const handleDeleteReminder = (id: string) =>
-    setReminders((p) => p.filter((r) => r.id !== id));
+    setReminders((prev) => prev.filter((reminder) => reminder.id !== id));
 
   const handleToggleReminderCompleted = (id: string) =>
-    setReminders((p) =>
-      p.map((r) => {
-        if (r.id !== id) return r;
-        const nextCompleted = !r.completed;
+    setReminders((prev) =>
+      prev.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+
+        const nextCompleted = !reminder.completed;
+
         return {
-          ...r,
+          ...reminder,
           completed: nextCompleted,
           completedAt: nextCompleted ? new Date() : undefined,
         };
@@ -1215,9 +1050,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setTimetableSettings(settings);
   };
 
+  const handleUpdateTimetablePeriods = (nextPeriods: TimetablePeriod[]) => {
+    setTimetablePeriods([...nextPeriods].sort((a, b) => a.order - b.order));
+  };
+
   const handleAddTimetableClass = (timetableClass: Omit<TimetableClass, "id">) => {
-    setTimetableClasses((p) => [
-      ...p,
+    setTimetableClasses((prev) => [
+      ...prev,
       {
         ...timetableClass,
         id: Date.now().toString(),
@@ -1230,191 +1069,160 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     id: string,
     timetableClass: Omit<TimetableClass, "id">
   ) => {
-    setTimetableClasses((p) =>
-      p.map((x) => (x.id === id ? { ...timetableClass, id } : x))
+    setTimetableClasses((prev) =>
+      prev.map((item) => (item.id === id ? { ...timetableClass, id } : item))
     );
   };
 
   const handleDeleteTimetableClass = (id: string) => {
-    setTimetableClasses((p) => p.filter((x) => x.id !== id));
+    setTimetableClasses((prev) => prev.filter((item) => item.id !== id));
   };
 
   const openTab = (tab: Tab) => {
     setActiveTab(tab);
   };
 
-  const tabs: Array<[Tab, string]> = [
-    ["dashboard", "Dashboard"],
-    ["calendar", "Calendar"],
-    ["tasks", "Tasks"],
-    ["study", "Study Log"],
-    ["insights", "Insights"],
-    ["marks", "Marks"],
-  ];
-
-  if (!isReady) return <LoadingScreen label="Opening your planner…" />;
-
-  if (mode === "app" && userLoaded && !Boolean(isSignedIn)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
-          <div className="text-lg font-semibold">
-            Sign in to sync your planner
-          </div>
-          <SignInButton mode="modal">
-            <button
-              className="rounded-xl border border-border px-4 py-2 transition hover:bg-muted"
-              type="button"
-            >
-              Sign in
-            </button>
-          </SignInButton>
-        </div>
-      </div>
-    );
-  }
+  if (!isReady) return <LoadingScreen />;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F7F5EF] text-foreground">
       <WhatsNewModal
         open={mode === "app" && Boolean(isSignedIn) && showWhatsNew}
-        onClose={closeWhatsNew}
+        onClose={markWhatsNewSeen}
         versionLabel={WHATS_NEW_VERSION_LABEL}
         updates={WHATS_NEW_UPDATES}
       />
 
-      <nav className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6 md:px-10">
-          <div className="flex min-w-0 items-center gap-5">
-            <div className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate font-semibold text-foreground">
-                MyStudyPlanner
-              </span>
-              <span className="truncate text-[11px] text-muted-foreground">
-                Made by students, for students
-              </span>
+      <nav className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link
+            href={mode === "demo" ? "/preview" : "/dashboard"}
+            className="flex items-center gap-3"
+          >
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+              <span className="text-sm font-semibold">MSP</span>
             </div>
 
-            <div className="hidden items-center gap-1 md:flex">
-              {tabs.map(([k, l]) => (
+            <div className="leading-tight">
+              <div className="text-sm font-semibold tracking-tight">MyStudyPlanner</div>
+              <div className="text-[11px] text-muted-foreground">
+                {mode === "demo" ? "Preview Mode" : "Student dashboard"}
+              </div>
+            </div>
+          </Link>
+
+          <div className="hidden items-center gap-1 lg:flex">
+            {tabs.map((tab) => {
+              const locked = mode === "app" && isPremiumTab(tab.id) && !hasPremium;
+
+              return (
                 <button
-                  key={k}
-                  onClick={() => openTab(k)}
-                  className={navTabButtonClass(activeTab === k)}
+                  key={tab.id}
                   type="button"
+                  onClick={() => openTab(tab.id)}
+                  className={[
+                    "relative rounded-xl px-3 py-2 text-sm font-medium transition",
+                    activeTab === tab.id
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  ].join(" ")}
                 >
                   <span className="inline-flex items-center gap-1.5">
-                    <span>{l}</span>
-                    {isPremiumTab(k) && !hasPremium ? (
-                      <Lock className="h-3.5 w-3.5 opacity-70" />
-                    ) : null}
+                    {tab.label}
+                    {locked ? <Lock className="h-3.5 w-3.5" /> : null}
                   </span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-2">
             <ThemeToggle />
 
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={navTabButtonClass(activeTab === "settings")}
-              type="button"
-            >
-              Settings
-            </button>
-
             {mode === "demo" ? (
-              <span className="hidden items-center rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground sm:inline-flex">
-                Sample data preview
-              </span>
+              <Link
+                href="/dashboard"
+                className="hidden rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted sm:inline-flex"
+              >
+                Go to app
+              </Link>
+            ) : isSignedIn ? (
+              <UserButton afterSignOutUrl="/" />
             ) : (
-              <div className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-1.5 transition-colors hover:bg-muted/40">
-                <span className="hidden text-sm text-muted-foreground sm:inline">
-                  Account
-                </span>
+              <div className="hidden items-center gap-2 sm:flex">
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+                  >
+                    Sign in
+                  </button>
+                </SignInButton>
 
-                <UserButton
-                  afterSignOutUrl="/sign-in"
-                  appearance={{
-                    variables: {
-                      colorPrimary: "hsl(var(--primary))",
-                      colorText: "hsl(var(--foreground))",
-                      colorTextSecondary: "hsl(var(--muted-foreground))",
-                      colorBackground: "hsl(var(--card))",
-                      colorNeutral: "hsl(var(--border))",
-                      borderRadius: "12px",
-                      fontFamily: "inherit",
-                    },
-                    elements: {
-                      userButtonAvatarBox: "ring-1 ring-border",
-                      userButtonPopoverCard:
-                        "border border-border shadow-lg bg-card",
-                      userButtonPopoverFooter: "hidden",
-                    },
-                  }}
+                <Link
+                  href="/sign-up"
+                  className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                 >
-                  <UserButton.MenuItems>
-                    <UserButton.Action
-                      label="Account"
-                      labelIcon={<User className="h-4 w-4" />}
-                      onClick={() => setActiveTab("settings")}
-                    />
-                  </UserButton.MenuItems>
-                </UserButton>
+                  Create account
+                </Link>
               </div>
             )}
-          </div>
-        </div>
 
-        <div className="border-t border-border md:hidden">
-          <div className="mx-auto max-w-7xl px-3 py-2">
-            <div className="no-scrollbar flex gap-1 overflow-x-auto">
-              {tabs.map(([k, l]) => (
-                <button
-                  key={k}
-                  onClick={() => openTab(k)}
-                  className={navTabButtonClassMobile(activeTab === k)}
-                  type="button"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>{l}</span>
-                    {isPremiumTab(k) && !hasPremium ? (
-                      <Lock className="h-3.5 w-3.5 opacity-70" />
-                    ) : null}
-                  </span>
-                </button>
-              ))}
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={() => setActiveTab("dashboard")}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card"
+                aria-label="Open dashboard"
+              >
+                <User className="h-4 w-4 text-muted-foreground" />
+              </button>
             </div>
           </div>
         </div>
 
-        {mode === "demo" ? (
-          <div className="border-t border-border bg-primary/10">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-2.5 md:px-10">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
-                    Preview mode
+        <div className="border-t border-border bg-card px-3 py-2 lg:hidden">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {tabs.map((tab) => {
+              const locked = mode === "app" && isPremiumTab(tab.id) && !hasPremium;
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => openTab(tab.id)}
+                  className={[
+                    "shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition",
+                    activeTab === tab.id
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  ].join(" ")}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {tab.label}
+                    {locked ? <Lock className="h-3.5 w-3.5" /> : null}
                   </span>
-                  <span className="hidden text-xs text-muted-foreground sm:block">
-                    You’re using sample data. Changes won’t sync or be saved to
-                    an account.
-                  </span>
-                  <span className="text-[11px] text-muted-foreground sm:hidden">
-                    Sample data • not saved
-                  </span>
-                </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {mode === "app" && !isSignedIn ? (
+          <div className="border-t border-border bg-muted/30 px-4 py-2 sm:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                Sign in to save and sync your planner.
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Link
                   href="/sign-in"
                   className="rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted/60"
                 >
                   Sign in
                 </Link>
+
                 <Link
                   href="/sign-up"
                   className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95"
@@ -1427,7 +1235,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         ) : null}
       </nav>
 
-      {showMobileDesktopHint && (
+      {showMobileDesktopHint ? (
         <div className="border-b border-border bg-card/80 backdrop-blur md:hidden">
           <div className="mx-auto flex max-w-7xl items-start justify-between gap-3 px-4 py-2">
             <div className="text-[12px] leading-5 text-muted-foreground">
@@ -1444,10 +1252,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       <main>
-        {activeTab === "dashboard" && (
+        {activeTab === "dashboard" ? (
           <Dashboard
             tasks={tasks}
             subjects={subjects}
@@ -1459,15 +1267,16 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               setSettingsOpenSection(section ?? null);
             }}
           />
-        )}
+        ) : null}
 
-        {activeTab === "calendar" && (
+        {activeTab === "calendar" ? (
           <Calendar
             studySessions={studySessions}
             tasks={tasks}
             reminders={reminders}
             subjects={subjects}
             timetableSettings={timetableSettings}
+            timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}
             onAddTask={handleAddTask}
             onUpdateTask={handleUpdateTask}
@@ -1482,9 +1291,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onDeleteReminder={handleDeleteReminder}
             onToggleReminderCompleted={handleToggleReminderCompleted}
           />
-        )}
+        ) : null}
 
-        {activeTab === "tasks" && (
+        {activeTab === "tasks" ? (
           <Tasks
             tasks={tasks}
             subjects={subjects}
@@ -1494,9 +1303,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onDeleteTask={handleDeleteTask}
             onToggleCompleted={toggleTaskCompleted}
           />
-        )}
+        ) : null}
 
-        {activeTab === "study" && (
+        {activeTab === "study" ? (
           <StudyPlanner
             tasks={tasks}
             subjects={subjects}
@@ -1506,10 +1315,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onDeleteStudySession={handleDeleteStudySession}
             onToggleSessionCompleted={handleToggleSessionCompleted}
           />
-        )}
+        ) : null}
 
-        {activeTab === "insights" &&
-          (hasPremium ? (
+        {activeTab === "insights" ? (
+          hasPremium ? (
             <Insights
               tasks={tasks}
               studySessions={studySessions}
@@ -1520,10 +1329,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               feature="insights"
               onGoToSettings={() => setActiveTab("settings")}
             />
-          ))}
+          )
+        ) : null}
 
-        {activeTab === "marks" &&
-          (hasPremium ? (
+        {activeTab === "marks" ? (
+          hasPremium ? (
             <Marks
               tasks={tasks}
               subjects={subjects}
@@ -1534,9 +1344,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               feature="marks"
               onGoToSettings={() => setActiveTab("settings")}
             />
-          ))}
+          )
+        ) : null}
 
-        {activeTab === "settings" && (
+        {activeTab === "settings" ? (
           <Settings
             appMode={mode}
             subjects={subjects}
@@ -1544,11 +1355,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             studyItems={[]}
             studySessions={studySessions}
             timetableSettings={timetableSettings}
+            timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}
             onAddSubject={handleAddSubject}
             onUpdateSubject={handleUpdateSubject}
             onDeleteSubject={handleDeleteSubject}
             onUpdateTimetableSettings={handleUpdateTimetableSettings}
+            onUpdateTimetablePeriods={handleUpdateTimetablePeriods}
             onAddTimetableClass={handleAddTimetableClass}
             onUpdateTimetableClass={handleUpdateTimetableClass}
             onDeleteTimetableClass={handleDeleteTimetableClass}
@@ -1556,7 +1369,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             openSection={settingsOpenSection}
             onOpenSectionHandled={() => setSettingsOpenSection(null)}
           />
-        )}
+        ) : null}
       </main>
     </div>
   );

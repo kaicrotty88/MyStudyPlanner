@@ -15,6 +15,7 @@ import type {
   Subject,
   Task,
   TimetableClass,
+  TimetablePeriod,
   TimetableSettings,
   TimetableWeek,
 } from "./models";
@@ -82,6 +83,7 @@ interface CalendarProps {
   subjects: Subject[];
 
   timetableSettings: TimetableSettings;
+  timetablePeriods: TimetablePeriod[];
   timetableClasses: TimetableClass[];
 
   onAddTask: (task: Omit<Task, "id">) => void;
@@ -396,6 +398,7 @@ function CalendarView({
   reminders,
   subjects,
   timetableSettings,
+  timetablePeriods,
   timetableClasses,
   onAddTask,
   onUpdateTask,
@@ -560,6 +563,21 @@ function CalendarView({
     return map;
   }, [subjects]);
 
+  const timetablePeriodById = useMemo(() => {
+    const map = new Map<string, TimetablePeriod>();
+    timetablePeriods.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [timetablePeriods]);
+
+  const getTimetableClassTimes = (item: TimetableClass) => {
+    const period = item.periodId ? timetablePeriodById.get(item.periodId) : undefined;
+
+    const startTime = period?.startTime ?? item.startTime;
+    const endTime = period?.endTime ?? item.endTime;
+
+    return { startTime, endTime, period };
+  };
+
   const taskById = useMemo(() => {
     const map = new Map<string, Task>();
     tasks.forEach((t) => map.set(t.id, t));
@@ -580,7 +598,12 @@ function CalendarView({
     return timetableClasses
       .filter((item) => item.subjectId === task.subjectId)
       .filter((item) => isTimetableClassOnDate(task.dueDate, item, timetableSettings))
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+      .sort((a, b) => {
+        const aTimes = getTimetableClassTimes(a);
+        const bTimes = getTimetableClassTimes(b);
+
+        return String(aTimes.startTime ?? "").localeCompare(String(bTimes.startTime ?? ""));
+      })[0];
   };
 
   const formatDueLabel = (task: Task) => {
@@ -589,7 +612,9 @@ function CalendarView({
 
     if (!matchingClass) return base;
 
-    return `${base} · ${matchingClass.title} ${displayTime(matchingClass.startTime)}`;
+    const { startTime } = getTimetableClassTimes(matchingClass);
+
+    return `${base} · ${matchingClass.title}${startTime ? ` ${displayTime(startTime)}` : ""}`;
   };
 
   const calendarItems = useMemo<CalendarItem[]>(() => {
@@ -715,14 +740,18 @@ function CalendarView({
 
       return a.start.getTime() - b.start.getTime();
     });
-  }, [activeTasks, activeSessions, activeReminders, timetableClasses, timetableSettings]);
+  }, [activeTasks, activeSessions, activeReminders, timetableClasses, timetableSettings, timetablePeriodById]);
 
   const getTimetableItemsForDate = (date: Date): CalendarItem[] => {
     return timetableClasses
       .filter((item) => isTimetableClassOnDate(date, item, timetableSettings))
-      .map((item): CalendarItem => {
-        const startMins = parseTimeToMinutes(item.startTime) ?? 9 * 60;
-        const endMins = parseTimeToMinutes(item.endTime) ?? startMins + 60;
+      .map((item): CalendarItem | null => {
+        const { startTime, endTime, period } = getTimetableClassTimes(item);
+
+        const startMins = parseTimeToMinutes(startTime);
+        if (startMins === null) return null;
+
+        const endMins = parseTimeToMinutes(endTime) ?? startMins + 60;
         const safeEndMins = Math.max(endMins, startMins + 15);
 
         return {
@@ -734,17 +763,19 @@ function CalendarView({
           subjectId: item.subjectId,
           start: dateWithMinutes(date, startMins),
           end: dateWithMinutes(date, safeEndMins),
-          timeLabel: `${displayTime(item.startTime)} – ${displayTime(item.endTime)}`,
+          timeLabel: `${displayTime(startTime)} – ${displayTime(endTime)}`,
           durationLabel:
-            timetableSettings.cycle === "fortnightly"
+            period?.name ??
+            (timetableSettings.cycle === "fortnightly"
               ? item.week === "both"
                 ? "Both weeks"
                 : `Week ${item.week}`
-              : "Every week",
+              : "Every week"),
           isTimetableClass: true,
           timetableClass: item,
         };
       })
+      .filter((item): item is CalendarItem => item !== null)
       .sort((a, b) => a.start.getTime() - b.start.getTime());
   };
 
@@ -1240,7 +1271,7 @@ function CalendarView({
 
       timeGridScrollRef.current.scrollTop = clamp(rawTop, 0, maxTop);
     }, 0);
-  }, [viewMode, currentDate, calendarItems.length, timetableClasses.length]);
+  }, [viewMode, currentDate, calendarItems.length, timetableClasses.length, timetablePeriods.length]);
 
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);

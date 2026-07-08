@@ -7,15 +7,8 @@ import {
   Trash2,
   Trash,
   ChevronDown,
-  Sparkles,
-  Lock,
-  Check,
   CalendarDays,
 } from "lucide-react";
-import { useSession, useUser } from "@clerk/nextjs";
-
-import { getSupabaseClient } from "@/lib/supabaseClient";
-import { fetchUserPlan, type Plan } from "@/lib/profileSupabase";
 
 import type {
   Subject,
@@ -25,6 +18,8 @@ import type {
   TimetableCycle,
   TimetableDayOfWeek,
   TimetableMode,
+  TimetablePeriod,
+  TimetablePeriodType,
   TimetableSettings,
   TimetableWeek,
 } from "./models";
@@ -40,7 +35,6 @@ interface StudyItem {
 }
 
 type AppMode = "demo" | "app";
-type BillingInterval = "monthly" | "yearly";
 
 type Period = {
   id: string;
@@ -56,7 +50,9 @@ type PeriodStored = {
   endDate: string;
 };
 
-type TimetableForm = {
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup";
+
+type ManualTimetableForm = {
   title: string;
   subjectId: string;
   dayOfWeek: TimetableDayOfWeek;
@@ -71,8 +67,6 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
-type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup";
-
 interface SettingsProps {
   subjects: Subject[];
   tasks: Task[];
@@ -80,8 +74,11 @@ interface SettingsProps {
   studySessions: StudySession[];
 
   timetableSettings: TimetableSettings;
+  timetablePeriods: TimetablePeriod[];
   timetableClasses: TimetableClass[];
+
   onUpdateTimetableSettings: (settings: TimetableSettings) => void;
+  onUpdateTimetablePeriods: (periods: TimetablePeriod[]) => void;
   onAddTimetableClass: (timetableClass: Omit<TimetableClass, "id">) => void;
   onUpdateTimetableClass: (
     id: string,
@@ -97,27 +94,6 @@ interface SettingsProps {
   onClearAllData: () => void;
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
-}
-
-function toISODateInputValue(d: Date) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateInput(value: string) {
-  const [y, m, d] = value.split("-").map((x) => Number(x));
-  return new Date(y, (m || 1) - 1, d || 1);
-}
-
-function safeUUID() {
-  const c = globalThis as typeof globalThis & {
-    crypto?: { randomUUID?: () => string };
-  };
-
-  if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
-  return `p_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
 const SUBJECT_COLOR_PALETTE = [
@@ -153,49 +129,52 @@ const SUBJECT_COLOR_PALETTE = [
   "#5B21B6",
 ];
 
-const PREMIUM_FEATURES = [
-  "Track marks across the year",
-  "See insights and progress trends",
-  "Keep everything organised in one place",
-  "Future advanced analytics and dashboard customisation",
+const SCHOOL_DAYS: Array<{ value: TimetableDayOfWeek; label: string; short: string }> = [
+  { value: 1, label: "Monday", short: "Mon" },
+  { value: 2, label: "Tuesday", short: "Tue" },
+  { value: 3, label: "Wednesday", short: "Wed" },
+  { value: 4, label: "Thursday", short: "Thu" },
+  { value: 5, label: "Friday", short: "Fri" },
 ];
 
-const PLAN_OPTIONS: Array<{
-  interval: BillingInterval;
-  name: string;
-  price: string;
-  periodLabel: string;
-  description: string;
-  badge?: string;
-  helperText?: string;
-}> = [
-  {
-    interval: "monthly",
-    name: "Premium Monthly",
-    price: "US$2.99",
-    periodLabel: "/month",
-    description: "Flexible access for students who want to try Premium.",
-  },
-  {
-    interval: "yearly",
-    name: "Premium Yearly",
-    price: "US$19.99",
-    periodLabel: "/year",
-    description: "Better value for the full school year.",
-    badge: "Best value",
-    helperText: "Save more across the year.",
-  },
+const ALL_DAYS: Array<{ value: TimetableDayOfWeek; label: string; short: string }> = [
+  { value: 1, label: "Monday", short: "Mon" },
+  { value: 2, label: "Tuesday", short: "Tue" },
+  { value: 3, label: "Wednesday", short: "Wed" },
+  { value: 4, label: "Thursday", short: "Thu" },
+  { value: 5, label: "Friday", short: "Fri" },
+  { value: 6, label: "Saturday", short: "Sat" },
+  { value: 0, label: "Sunday", short: "Sun" },
 ];
 
-const DAY_LABELS: Array<{ value: TimetableDayOfWeek; label: string }> = [
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-  { value: 0, label: "Sunday" },
-];
+type BackupV1 = {
+  version: 1;
+  exportedAt: string;
+  appMode: AppMode;
+  data: any;
+  periods?: PeriodStored[];
+};
+
+function toISODateInputValue(d: Date) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value: string) {
+  const [y, m, d] = value.split("-").map((x) => Number(x));
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function safeUUID() {
+  const c = globalThis as typeof globalThis & {
+    crypto?: { randomUUID?: () => string };
+  };
+
+  if (c?.crypto?.randomUUID) return c.crypto.randomUUID();
+  return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+}
 
 function normalizeHex(hex: string) {
   return String(hex || "").trim().toLowerCase();
@@ -207,13 +186,15 @@ function pickNextColor(usedColors: string[]) {
   return next ?? SUBJECT_COLOR_PALETTE[usedColors.length % SUBJECT_COLOR_PALETTE.length];
 }
 
-type BackupV1 = {
-  version: 1;
-  exportedAt: string;
-  appMode: AppMode;
-  data: any;
-  periods?: PeriodStored[];
-};
+function safeJsonParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 
 function downloadJson(filename: string, obj: unknown) {
   const json = JSON.stringify(obj, null, 2);
@@ -230,17 +211,7 @@ function downloadJson(filename: string, obj: unknown) {
   URL.revokeObjectURL(url);
 }
 
-function safeJsonParse<T>(raw: string | null): T | null {
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-
-function formatTimetableTime(time: string) {
+function formatTimetableTime(time?: string) {
   if (!time) return "";
 
   const [hhRaw, mmRaw] = time.split(":");
@@ -255,14 +226,20 @@ function formatTimetableTime(time: string) {
   return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
 }
 
+function sortPeriods(periods: TimetablePeriod[]) {
+  return [...periods].sort((a, b) => a.order - b.order);
+}
+
 export function Settings({
   subjects,
   tasks,
   studyItems,
   studySessions,
   timetableSettings,
+  timetablePeriods,
   timetableClasses,
   onUpdateTimetableSettings,
+  onUpdateTimetablePeriods,
   onAddTimetableClass,
   onUpdateTimetableClass,
   onDeleteTimetableClass,
@@ -274,48 +251,42 @@ export function Settings({
   openSection,
   onOpenSectionHandled,
 }: SettingsProps) {
-  const { isLoaded: userLoaded, isSignedIn, user } = useUser();
-  const { session } = useSession();
-
-  const supabase = useMemo(() => {
-    if (!session) return null;
-    return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
-  }, [session]);
-
   const storageKey = appMode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
+  const [periodsOpen, setPeriodsOpen] = useState(false);
+  const [timetableOpen, setTimetableOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [showAddSubjectForm, setShowAddSubjectForm] = useState(false);
+  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
+  const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
+  const [subjectForm, setSubjectForm] = useState({
     name: "",
     color: pickNextColor([]),
   });
 
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-
-  const [subjectsOpen, setSubjectsOpen] = useState(false);
-
-  const [periodsOpen, setPeriodsOpen] = useState(false);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [showAddPeriodForm, setShowAddPeriodForm] = useState(false);
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
+  const [periodFormError, setPeriodFormError] = useState("");
   const [periodForm, setPeriodForm] = useState({
     name: "",
     startDate: toISODateInputValue(new Date()),
     endDate: toISODateInputValue(new Date()),
   });
-  const [periodFormError, setPeriodFormError] = useState<string>("");
 
-  const [timetableOpen, setTimetableOpen] = useState(false);
-  const [showAddTimetableForm, setShowAddTimetableForm] = useState(false);
-  const [editingTimetableClassId, setEditingTimetableClassId] = useState<string | null>(null);
+  const [activeTimetableWeek, setActiveTimetableWeek] = useState<"A" | "B">("A");
+  const [showPeriodEditor, setShowPeriodEditor] = useState(false);
+  const [periodDrafts, setPeriodDrafts] = useState<TimetablePeriod[]>([]);
+  const [periodEditorError, setPeriodEditorError] = useState("");
+
+  const [showManualClassForm, setShowManualClassForm] = useState(false);
+  const [editingManualClassId, setEditingManualClassId] = useState<string | null>(null);
   const [deletingTimetableClassId, setDeletingTimetableClassId] = useState<string | null>(null);
-  const [timetableFormError, setTimetableFormError] = useState("");
-
-  const [timetableForm, setTimetableForm] = useState<TimetableForm>({
+  const [manualClassError, setManualClassError] = useState("");
+  const [manualClassForm, setManualClassForm] = useState<ManualTimetableForm>({
     title: "",
     subjectId: "",
     dayOfWeek: 1,
@@ -326,9 +297,8 @@ export function Settings({
     teacher: "",
   });
 
-  const [backupOpen, setBackupOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importError, setImportError] = useState<string>("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [importError, setImportError] = useState("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
@@ -336,60 +306,85 @@ export function Settings({
   const termsCardRef = useRef<HTMLDivElement>(null);
   const timetableCardRef = useRef<HTMLDivElement>(null);
   const backupCardRef = useRef<HTMLDivElement>(null);
-
   const subjectNameInputRef = useRef<HTMLInputElement>(null);
   const termNameInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const usedSubjectColors = useMemo(() => subjects.map((s) => s.color), [subjects]);
 
-  const [currentPlan, setCurrentPlan] = useState<Plan>(
-    appMode === "demo" ? "premium" : "free"
+  const sortedTimetablePeriods = useMemo(
+    () => sortPeriods(timetablePeriods),
+    [timetablePeriods]
   );
-  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
-  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>("yearly");
-  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string>("");
 
-  const currentPlanLabel =
-    appMode === "demo" ? "Preview mode" : currentPlan === "premium" ? "Premium" : "Free";
-
-  const normalizeTermName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  const classPeriods = useMemo(
+    () => sortedTimetablePeriods.filter((p) => p.type === "class"),
+    [sortedTimetablePeriods]
+  );
 
   const getSubjectName = (subjectId?: string) =>
-    subjects.find((s) => s.id === subjectId)?.name ?? "No subject";
+    subjects.find((s) => s.id === subjectId)?.name ?? "";
 
   const getSubjectColor = (subjectId?: string) =>
     subjects.find((s) => s.id === subjectId)?.color ?? "#64748b";
 
-  useEffect(() => {
-    if (appMode === "demo") {
-      setCurrentPlan("premium");
-      return;
+  const getDayLabel = (day: TimetableDayOfWeek) =>
+    ALL_DAYS.find((d) => d.value === day)?.label ?? "Day";
+
+  const deletingSubject = useMemo(
+    () => subjects.find((s) => s.id === deletingSubjectId) || null,
+    [subjects, deletingSubjectId]
+  );
+
+  const deletingTerm = useMemo(
+    () => periods.find((p) => p.id === deletingPeriodId) || null,
+    [periods, deletingPeriodId]
+  );
+
+  const deletingTimetableClass = useMemo(
+    () => timetableClasses.find((c) => c.id === deletingTimetableClassId) ?? null,
+    [timetableClasses, deletingTimetableClassId]
+  );
+
+  const deleteCounts = useMemo(() => {
+    if (!deletingSubjectId) {
+      return { tasks: 0, items: 0, sessions: 0, timetableClasses: 0 };
     }
 
-    if (!userLoaded) return;
-
-    if (!isSignedIn || !supabase || !user?.id) {
-      setCurrentPlan("free");
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const plan = await fetchUserPlan(supabase, user.id);
-        if (!cancelled) setCurrentPlan(plan);
-      } catch (error) {
-        console.error("Failed to fetch settings plan:", error);
-        if (!cancelled) setCurrentPlan("free");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
+    return {
+      tasks: tasks.filter((x) => x.subjectId === deletingSubjectId).length,
+      items: studyItems.filter((x) => x.subjectId === deletingSubjectId).length,
+      sessions: studySessions.filter((x) => x.subjectId === deletingSubjectId).length,
+      timetableClasses: timetableClasses.filter((x) => x.subjectId === deletingSubjectId).length,
     };
-  }, [appMode, userLoaded, isSignedIn, supabase, user?.id]);
+  }, [deletingSubjectId, tasks, studyItems, studySessions, timetableClasses]);
+
+  const sortedManualClasses = useMemo(() => {
+    return [...timetableClasses]
+      .filter((c) => !c.periodId)
+      .sort((a, b) => {
+        if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+        const aTime = a.startTime ?? "";
+        const bTime = b.startTime ?? "";
+        if (aTime !== bTime) return aTime.localeCompare(bTime);
+        return a.title.localeCompare(b.title);
+      });
+  }, [timetableClasses]);
+
+  const importCounts = useMemo(() => {
+    const d = pendingBackup?.data;
+    const getLen = (x: any) => (Array.isArray(x) ? x.length : 0);
+
+    return {
+      subjects: getLen(d?.subjects),
+      tasks: getLen(d?.tasks),
+      studySessions: getLen(d?.studySessions),
+      reminders: getLen(d?.reminders),
+      timetablePeriods: getLen(d?.timetablePeriods),
+      timetableClasses: getLen(d?.timetableClasses),
+      periods: Array.isArray(pendingBackup?.periods) ? pendingBackup.periods.length : 0,
+    };
+  }, [pendingBackup]);
 
   useEffect(() => {
     try {
@@ -429,134 +424,6 @@ export function Settings({
     } catch {}
   }, [periods]);
 
-  const openNewPeriod = () => {
-    setPeriodFormError("");
-    setEditingPeriodId(null);
-    setShowAddPeriodForm(true);
-    setPeriodsOpen(true);
-
-    const today = new Date();
-
-    setPeriodForm({
-      name: "",
-      startDate: toISODateInputValue(today),
-      endDate: toISODateInputValue(today),
-    });
-  };
-
-  const openEditPeriod = (p: Period) => {
-    setPeriodFormError("");
-    setEditingPeriodId(p.id);
-    setShowAddPeriodForm(true);
-    setPeriodsOpen(true);
-
-    setPeriodForm({
-      name: p.name,
-      startDate: toISODateInputValue(p.startDate),
-      endDate: toISODateInputValue(p.endDate),
-    });
-  };
-
-  const cancelPeriodForm = () => {
-    setShowAddPeriodForm(false);
-    setEditingPeriodId(null);
-    setPeriodFormError("");
-
-    const today = new Date();
-
-    setPeriodForm({
-      name: "",
-      startDate: toISODateInputValue(today),
-      endDate: toISODateInputValue(today),
-    });
-  };
-
-  const resetTimetableForm = () => {
-    setTimetableForm({
-      title: "",
-      subjectId: "",
-      dayOfWeek: 1,
-      startTime: "09:00",
-      endTime: "10:00",
-      week: "both",
-      location: "",
-      teacher: "",
-    });
-    setEditingTimetableClassId(null);
-    setTimetableFormError("");
-  };
-
-  const openNewTimetableClass = () => {
-    resetTimetableForm();
-    setShowAddTimetableForm(true);
-    setTimetableOpen(true);
-  };
-
-  const openEditTimetableClass = (item: TimetableClass) => {
-    setEditingTimetableClassId(item.id);
-    setShowAddTimetableForm(true);
-    setTimetableOpen(true);
-    setTimetableFormError("");
-
-    setTimetableForm({
-      title: item.title,
-      subjectId: item.subjectId ?? "",
-      dayOfWeek: item.dayOfWeek,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      week: item.week,
-      location: item.location ?? "",
-      teacher: item.teacher ?? "",
-    });
-  };
-
-  const cancelTimetableForm = () => {
-    setShowAddTimetableForm(false);
-    resetTimetableForm();
-  };
-
-  const saveTimetableClass = () => {
-    const title = timetableForm.title.trim();
-
-    if (!title) {
-      setTimetableFormError("Please enter a class name.");
-      return;
-    }
-
-    if (!timetableForm.startTime || !timetableForm.endTime) {
-      setTimetableFormError("Start and end time are required.");
-      return;
-    }
-
-    if (timetableForm.startTime >= timetableForm.endTime) {
-      setTimetableFormError("End time must be after start time.");
-      return;
-    }
-
-    const payload: Omit<TimetableClass, "id"> = {
-      title,
-      subjectId: timetableForm.subjectId || undefined,
-      dayOfWeek: timetableForm.dayOfWeek,
-      startTime: timetableForm.startTime,
-      endTime: timetableForm.endTime,
-      week: timetableSettings.cycle === "weekly" ? "both" : timetableForm.week,
-      location: timetableForm.location.trim() || undefined,
-      teacher: timetableForm.teacher.trim() || undefined,
-      createdAt: editingTimetableClassId
-        ? timetableClasses.find((c) => c.id === editingTimetableClassId)?.createdAt
-        : new Date(),
-    };
-
-    if (editingTimetableClassId) {
-      onUpdateTimetableClass(editingTimetableClassId, payload);
-    } else {
-      onAddTimetableClass(payload);
-    }
-
-    setShowAddTimetableForm(false);
-    resetTimetableForm();
-  };
-
   useEffect(() => {
     if (!openSection) return;
 
@@ -565,9 +432,8 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(false);
       setBackupOpen(false);
-
-      setEditingId(null);
-      setShowAddForm(true);
+      setShowAddSubjectForm(true);
+      setEditingSubjectId(null);
 
       requestAnimationFrame(() => {
         subjectsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -577,11 +443,10 @@ export function Settings({
 
     if (openSection === "terms") {
       setSubjectsOpen(false);
+      setPeriodsOpen(true);
       setTimetableOpen(false);
       setBackupOpen(false);
-      setPeriodsOpen(true);
-
-      openNewPeriod();
+      openNewTerm();
 
       requestAnimationFrame(() => {
         termsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -592,8 +457,8 @@ export function Settings({
     if (openSection === "timetable") {
       setSubjectsOpen(false);
       setPeriodsOpen(false);
-      setBackupOpen(false);
       setTimetableOpen(true);
+      setBackupOpen(false);
 
       requestAnimationFrame(() => {
         timetableCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -615,84 +480,78 @@ export function Settings({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSection]);
 
-  const deletingSubject = useMemo(
-    () => subjects.find((s) => s.id === deletingSubjectId) || null,
-    [subjects, deletingSubjectId]
-  );
-
-  const deleteCounts = useMemo(() => {
-    if (!deletingSubjectId) {
-      return { tasks: 0, items: 0, sessions: 0, timetableClasses: 0 };
-    }
-
-    const t = tasks.filter((x) => x.subjectId === deletingSubjectId).length;
-    const i = studyItems.filter((x) => x.subjectId === deletingSubjectId).length;
-    const s = studySessions.filter((x) => x.subjectId === deletingSubjectId).length;
-    const c = timetableClasses.filter((x) => x.subjectId === deletingSubjectId).length;
-
-    return { tasks: t, items: i, sessions: s, timetableClasses: c };
-  }, [deletingSubjectId, tasks, studyItems, studySessions, timetableClasses]);
-
-  const deletingPeriod = useMemo(
-    () => periods.find((p) => p.id === deletingPeriodId) || null,
-    [periods, deletingPeriodId]
-  );
-
-  const deletingTimetableClass = useMemo(
-    () => timetableClasses.find((c) => c.id === deletingTimetableClassId) ?? null,
-    [timetableClasses, deletingTimetableClassId]
-  );
-
-  const sortedTimetableClasses = useMemo(() => {
-    return [...timetableClasses].sort((a, b) => {
-      if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
-      if (a.startTime !== b.startTime) return a.startTime.localeCompare(b.startTime);
-      return a.title.localeCompare(b.title);
-    });
-  }, [timetableClasses]);
-
-  const ensureNewSubjectDefaults = () => {
-    setFormData({ name: "", color: pickNextColor(usedSubjectColors) });
+  const resetSubjectForm = () => {
+    setSubjectForm({ name: "", color: pickNextColor(usedSubjectColors) });
+    setEditingSubjectId(null);
   };
 
-  const handleSubmit = () => {
-    if (!formData.name || !formData.color) return;
-
-    if (editingId) {
-      onUpdateSubject(editingId, formData.name.trim(), formData.color);
-      setEditingId(null);
-    } else {
-      onAddSubject(formData.name.trim(), formData.color);
-      setShowAddForm(false);
-    }
-
-    ensureNewSubjectDefaults();
+  const openNewSubject = () => {
+    resetSubjectForm();
+    setShowAddSubjectForm(true);
+    setSubjectsOpen(true);
+    requestAnimationFrame(() => subjectNameInputRef.current?.focus());
   };
 
-  const handleEdit = (subject: Subject) => {
-    setEditingId(subject.id);
-    setFormData({ name: subject.name, color: subject.color });
-    setShowAddForm(false);
+  const openEditSubject = (subject: Subject) => {
+    setEditingSubjectId(subject.id);
+    setSubjectForm({ name: subject.name, color: subject.color });
+    setShowAddSubjectForm(true);
     setSubjectsOpen(true);
   };
 
-  const handleCancel = () => {
-    setShowAddForm(false);
-    setEditingId(null);
-    ensureNewSubjectDefaults();
+  const cancelSubjectForm = () => {
+    setShowAddSubjectForm(false);
+    resetSubjectForm();
   };
 
-  const confirmDelete = () => {
-    if (!deletingSubjectId) return;
-    onDeleteSubject(deletingSubjectId);
-    setDeletingSubjectId(null);
+  const saveSubject = () => {
+    const name = subjectForm.name.trim();
+    if (!name) return;
+
+    if (editingSubjectId) {
+      onUpdateSubject(editingSubjectId, name, subjectForm.color);
+    } else {
+      onAddSubject(name, subjectForm.color);
+    }
+
+    setShowAddSubjectForm(false);
+    resetSubjectForm();
   };
 
-  const savePeriod = () => {
+  const openNewTerm = () => {
+    const today = new Date();
+    setShowAddPeriodForm(true);
+    setEditingPeriodId(null);
+    setPeriodFormError("");
+    setPeriodForm({
+      name: "",
+      startDate: toISODateInputValue(today),
+      endDate: toISODateInputValue(today),
+    });
+  };
+
+  const openEditTerm = (period: Period) => {
+    setShowAddPeriodForm(true);
+    setEditingPeriodId(period.id);
+    setPeriodFormError("");
+    setPeriodForm({
+      name: period.name,
+      startDate: toISODateInputValue(period.startDate),
+      endDate: toISODateInputValue(period.endDate),
+    });
+  };
+
+  const cancelTermForm = () => {
+    setShowAddPeriodForm(false);
+    setEditingPeriodId(null);
+    setPeriodFormError("");
+  };
+
+  const saveTerm = () => {
     const name = periodForm.name.trim();
 
     if (!name) {
-      setPeriodFormError("Please enter a term name, e.g. Term 1.");
+      setPeriodFormError("Please enter a term name.");
       return;
     }
 
@@ -700,77 +559,286 @@ export function Settings({
     const end = parseDateInput(periodForm.endDate);
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      setPeriodFormError("Please enter valid start and end dates.");
+      setPeriodFormError("Please enter valid dates.");
       return;
     }
 
     if (start.getTime() > end.getTime()) {
-      setPeriodFormError("End date must be the same as or after the start date.");
-      return;
-    }
-
-    const n = normalizeTermName(name);
-    const nameClash = periods.some(
-      (p) => p.id !== editingPeriodId && normalizeTermName(p.name) === n
-    );
-
-    if (nameClash) {
-      setPeriodFormError("That term name already exists.");
+      setPeriodFormError("End date must be after start date.");
       return;
     }
 
     if (editingPeriodId) {
-      setPeriods((prev) => {
-        const next = prev.map((p) =>
-          p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
-        );
-        next.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-        return next;
-      });
+      setPeriods((prev) =>
+        prev
+          .map((p) =>
+            p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
+          )
+          .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+      );
     } else {
-      const newPeriod: Period = { id: safeUUID(), name, startDate: start, endDate: end };
-
-      setPeriods((prev) => {
-        const next = [...prev, newPeriod];
-        next.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-        return next;
-      });
-
-      setShowAddPeriodForm(false);
+      setPeriods((prev) =>
+        [...prev, { id: safeUUID(), name, startDate: start, endDate: end }].sort(
+          (a, b) => a.startDate.getTime() - b.startDate.getTime()
+        )
+      );
     }
 
-    setPeriodFormError("");
-    setEditingPeriodId(null);
-    setPeriodForm({ name: "", startDate: periodForm.startDate, endDate: periodForm.endDate });
+    cancelTermForm();
   };
 
-  const confirmDeletePeriod = () => {
-    if (!deletingPeriodId) return;
-    setPeriods((prev) => prev.filter((p) => p.id !== deletingPeriodId));
-    setDeletingPeriodId(null);
-  };
-
-  const handleConfirmClear = () => {
-    try {
-      localStorage.removeItem(PERIODS_STORAGE_KEY);
-    } catch {}
-
-    onClearAllData();
-    setShowClearConfirm(false);
-  };
-
-  const clearButtonLabel = appMode === "demo" ? "Reset demo" : "Clear all data";
-
-  const formatRange = (p: Period) => {
-    const start = p.startDate.toLocaleDateString("en-US", {
+  const formatTermRange = (period: Period) => {
+    const start = period.startDate.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
-    const end = p.endDate.toLocaleDateString("en-US", {
+    const end = period.endDate.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
     return `${start} → ${end}`;
+  };
+
+  const openPeriodEditor = () => {
+    setPeriodDrafts(sortPeriods(timetablePeriods));
+    setPeriodEditorError("");
+    setShowPeriodEditor(true);
+  };
+
+  const addTimetablePeriod = () => {
+    const nextOrder =
+      periodDrafts.length > 0 ? Math.max(...periodDrafts.map((p) => p.order)) + 1 : 1;
+
+    setPeriodDrafts((prev) => [
+      ...prev,
+      {
+        id: safeUUID(),
+        name: `Period ${prev.filter((p) => p.type === "class").length + 1}`,
+        startTime: "09:00",
+        endTime: "10:00",
+        type: "class",
+        order: nextOrder,
+      },
+    ]);
+  };
+
+  const updateTimetablePeriodDraft = (
+    id: string,
+    patch: Partial<TimetablePeriod>
+  ) => {
+    setPeriodDrafts((prev) =>
+      sortPeriods(prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+    );
+  };
+
+  const deleteTimetablePeriodDraft = (id: string) => {
+    setPeriodDrafts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const saveTimetablePeriods = () => {
+    for (const period of periodDrafts) {
+      if (!period.name.trim()) {
+        setPeriodEditorError("Every period needs a name.");
+        return;
+      }
+
+      if (!period.startTime || !period.endTime) {
+        setPeriodEditorError("Every period needs a start and end time.");
+        return;
+      }
+
+      if (period.startTime >= period.endTime) {
+        setPeriodEditorError(`${period.name} has an end time before its start time.`);
+        return;
+      }
+    }
+
+    onUpdateTimetablePeriods(
+      sortPeriods(periodDrafts).map((p, index) => ({
+        ...p,
+        name: p.name.trim(),
+        order: index + 1,
+      }))
+    );
+
+    setShowPeriodEditor(false);
+    setPeriodEditorError("");
+  };
+
+  const getGridClass = (
+    dayOfWeek: TimetableDayOfWeek,
+    periodId: string,
+    week: TimetableWeek
+  ) => {
+    return timetableClasses.find(
+      (item) =>
+        item.dayOfWeek === dayOfWeek &&
+        item.periodId === periodId &&
+        (timetableSettings.cycle === "weekly"
+          ? item.week === "both"
+          : item.week === week)
+    );
+  };
+
+  const setGridClass = (
+    dayOfWeek: TimetableDayOfWeek,
+    period: TimetablePeriod,
+    subjectId: string,
+    week: TimetableWeek
+  ) => {
+    const existing = getGridClass(dayOfWeek, period.id, week);
+
+    if (!subjectId) {
+      if (existing) onDeleteTimetableClass(existing.id);
+      return;
+    }
+
+    const subject = subjects.find((s) => s.id === subjectId);
+    const title = subject?.name ?? "Class";
+
+    const payload: Omit<TimetableClass, "id"> = {
+      title,
+      subjectId,
+      dayOfWeek,
+      periodId: period.id,
+      startTime: period.startTime,
+      endTime: period.endTime,
+      week: timetableSettings.cycle === "weekly" ? "both" : week,
+      location: existing?.location,
+      teacher: existing?.teacher,
+      notes: existing?.notes,
+      createdAt: existing?.createdAt ?? new Date(),
+    };
+
+    if (existing) {
+      onUpdateTimetableClass(existing.id, payload);
+    } else {
+      onAddTimetableClass(payload);
+    }
+  };
+
+  const copyWeekAToWeekB = () => {
+    if (timetableSettings.cycle !== "fortnightly") return;
+
+    const weekAClasses = timetableClasses.filter((c) => c.week === "A" && c.periodId);
+
+    for (const classItem of weekAClasses) {
+      const existingB = timetableClasses.find(
+        (c) =>
+          c.week === "B" &&
+          c.periodId === classItem.periodId &&
+          c.dayOfWeek === classItem.dayOfWeek
+      );
+
+      const payload: Omit<TimetableClass, "id"> = {
+        title: classItem.title,
+        subjectId: classItem.subjectId,
+        dayOfWeek: classItem.dayOfWeek,
+        periodId: classItem.periodId,
+        startTime: classItem.startTime,
+        endTime: classItem.endTime,
+        week: "B",
+        location: classItem.location,
+        teacher: classItem.teacher,
+        notes: classItem.notes,
+        createdAt: existingB?.createdAt ?? new Date(),
+      };
+
+      if (existingB) {
+        onUpdateTimetableClass(existingB.id, payload);
+      } else {
+        onAddTimetableClass(payload);
+      }
+    }
+  };
+
+  const clearSchoolGrid = (week?: "A" | "B") => {
+    timetableClasses
+      .filter((c) => c.periodId)
+      .filter((c) => {
+        if (timetableSettings.cycle === "weekly") return true;
+        if (!week) return true;
+        return c.week === week;
+      })
+      .forEach((c) => onDeleteTimetableClass(c.id));
+  };
+
+  const resetManualClassForm = () => {
+    setManualClassForm({
+      title: "",
+      subjectId: "",
+      dayOfWeek: 1,
+      startTime: "09:00",
+      endTime: "10:00",
+      week: "both",
+      location: "",
+      teacher: "",
+    });
+    setManualClassError("");
+    setEditingManualClassId(null);
+  };
+
+  const openNewManualClass = () => {
+    resetManualClassForm();
+    setShowManualClassForm(true);
+  };
+
+  const openEditManualClass = (item: TimetableClass) => {
+    setEditingManualClassId(item.id);
+    setManualClassError("");
+    setShowManualClassForm(true);
+    setManualClassForm({
+      title: item.title,
+      subjectId: item.subjectId ?? "",
+      dayOfWeek: item.dayOfWeek,
+      startTime: item.startTime ?? "09:00",
+      endTime: item.endTime ?? "10:00",
+      week: item.week,
+      location: item.location ?? "",
+      teacher: item.teacher ?? "",
+    });
+  };
+
+  const saveManualClass = () => {
+    const title = manualClassForm.title.trim();
+
+    if (!title) {
+      setManualClassError("Please enter a class name.");
+      return;
+    }
+
+    if (!manualClassForm.startTime || !manualClassForm.endTime) {
+      setManualClassError("Start and end time are required.");
+      return;
+    }
+
+    if (manualClassForm.startTime >= manualClassForm.endTime) {
+      setManualClassError("End time must be after start time.");
+      return;
+    }
+
+    const payload: Omit<TimetableClass, "id"> = {
+      title,
+      subjectId: manualClassForm.subjectId || undefined,
+      dayOfWeek: manualClassForm.dayOfWeek,
+      startTime: manualClassForm.startTime,
+      endTime: manualClassForm.endTime,
+      week: timetableSettings.cycle === "weekly" ? "both" : manualClassForm.week,
+      location: manualClassForm.location.trim() || undefined,
+      teacher: manualClassForm.teacher.trim() || undefined,
+      createdAt: editingManualClassId
+        ? timetableClasses.find((c) => c.id === editingManualClassId)?.createdAt
+        : new Date(),
+    };
+
+    if (editingManualClassId) {
+      onUpdateTimetableClass(editingManualClassId, payload);
+    } else {
+      onAddTimetableClass(payload);
+    }
+
+    setShowManualClassForm(false);
+    resetManualClassForm();
   };
 
   const handleExportBackup = () => {
@@ -791,6 +859,8 @@ export function Settings({
       tasks: tasks.map((t) => ({
         ...t,
         dueDate: t.dueDate instanceof Date ? t.dueDate.toISOString() : t.dueDate,
+        scheduledDate:
+          t.scheduledDate instanceof Date ? t.scheduledDate.toISOString() : t.scheduledDate,
       })),
       studySessions: studySessions.map((s) => ({
         ...s,
@@ -798,6 +868,7 @@ export function Settings({
       })),
       reminders: [],
       timetableSettings,
+      timetablePeriods,
       timetableClasses,
     };
 
@@ -839,15 +910,17 @@ export function Settings({
         return;
       }
 
-      const next: BackupV1 = {
+      setPendingBackup({
         version: 1,
         exportedAt: String(parsed.exportedAt ?? new Date().toISOString()),
-        appMode: parsed.appMode === "demo" || parsed.appMode === "app" ? parsed.appMode : appMode,
+        appMode:
+          parsed.appMode === "demo" || parsed.appMode === "app"
+            ? parsed.appMode
+            : appMode,
         data: parsed.data,
         periods: Array.isArray(parsed.periods) ? parsed.periods : undefined,
-      };
+      });
 
-      setPendingBackup(next);
       setShowImportConfirm(true);
     } catch {
       setImportError("Couldn’t read that file. Make sure it’s a valid .json backup.");
@@ -874,73 +947,15 @@ export function Settings({
     }
   };
 
-  const importCounts = useMemo(() => {
-    const d = pendingBackup?.data;
-    const getLen = (x: any) => (Array.isArray(x) ? x.length : 0);
+  const clearButtonLabel = appMode === "demo" ? "Reset demo" : "Clear all data";
 
-    return {
-      subjects: getLen(d?.subjects),
-      tasks: getLen(d?.tasks),
-      studySessions: getLen(d?.studySessions),
-      reminders: getLen(d?.reminders),
-      timetableClasses: getLen(d?.timetableClasses),
-      periods: Array.isArray(pendingBackup?.periods) ? pendingBackup.periods.length : 0,
-    };
-  }, [pendingBackup]);
-
-  const handleStartCheckout = async (interval: BillingInterval) => {
-    if (appMode !== "app" || currentPlan === "premium" || isOpeningPortal) return;
-
-    setCheckoutError("");
-    setSelectedInterval(interval);
-    setIsStartingCheckout(true);
-
+  const handleConfirmClear = () => {
     try {
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ interval }),
-      });
+      localStorage.removeItem(PERIODS_STORAGE_KEY);
+    } catch {}
 
-      const data = (await response.json()) as { url?: string; error?: string };
-
-      if (!response.ok || !data.url) {
-        throw new Error(data.error || "Failed to start checkout.");
-      }
-
-      window.location.href = data.url;
-    } catch (error) {
-      console.error("Failed to start checkout:", error);
-      setCheckoutError("Couldn’t open checkout right now. Please try again.");
-      setIsStartingCheckout(false);
-    }
-  };
-
-  const handleOpenPortal = async () => {
-    if (appMode !== "app" || currentPlan !== "premium") return;
-
-    setCheckoutError("");
-    setIsOpeningPortal(true);
-
-    try {
-      const response = await fetch("/api/stripe/portal", {
-        method: "POST",
-      });
-
-      const data = (await response.json()) as { url?: string; error?: string };
-
-      if (!response.ok || !data.url) {
-        throw new Error(data.error || "Failed to open billing portal.");
-      }
-
-      window.location.href = data.url;
-    } catch (error) {
-      console.error("Failed to open billing portal:", error);
-      setCheckoutError("Couldn’t open billing settings right now. Please try again.");
-      setIsOpeningPortal(false);
-    }
+    onClearAllData();
+    setShowClearConfirm(false);
   };
 
   return (
@@ -953,167 +968,6 @@ export function Settings({
       </div>
 
       <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
-        <div className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Sparkles className="h-4 w-4" />
-                Plan
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                Manage your current plan and see what Premium unlocks.
-              </div>
-            </div>
-
-            <div className="inline-flex items-center rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-medium text-foreground">
-              {currentPlanLabel}
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {["Marks", "Insights", "Custom widgets"].map((name) => (
-              <div key={name} className="rounded-2xl border border-border bg-background/60 p-4">
-                <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                  {name}
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {name === "Marks"
-                    ? "Log results across the year and keep all your marks in one place."
-                    : name === "Insights"
-                      ? "Unlock more advanced analytics and stronger study trends."
-                      : "Personalise your dashboard and insights layout later."}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {appMode === "demo" ? (
-            <div className="mt-4 rounded-2xl border border-border bg-muted/20 px-4 py-4">
-              <div className="text-sm font-semibold text-foreground">
-                Premium is included in preview mode
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                Demo mode includes Premium features so people can try them.
-              </div>
-            </div>
-          ) : currentPlan === "premium" ? (
-            <div className="mt-4 rounded-2xl border border-border bg-muted/20 px-4 py-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground">
-                    You are on Premium
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Manage your subscription and billing details.
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleOpenPortal}
-                  disabled={isOpeningPortal}
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isOpeningPortal ? "Opening billing..." : "Manage billing"}
-                </button>
-              </div>
-
-              {checkoutError ? (
-                <div className="mt-3 rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                  {checkoutError}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-4 space-y-4">
-              <div className="rounded-2xl border border-border bg-muted/20 px-4 py-4">
-                <div className="text-sm font-semibold text-foreground">Upgrade to Premium</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Unlock Marks, Insights, and future Premium features with a subscription.
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
-                {PLAN_OPTIONS.map((plan) => {
-                  const isSelected = selectedInterval === plan.interval;
-                  const isLoading = isStartingCheckout && selectedInterval === plan.interval;
-
-                  return (
-                    <div
-                      key={plan.interval}
-                      className={[
-                        "flex h-full flex-col rounded-2xl border p-5 shadow-sm transition",
-                        plan.interval === "yearly"
-                          ? "border-[#7A9B7F] bg-[#F8FBF8]"
-                          : "border-border bg-card",
-                        isSelected ? "ring-2 ring-[#7A9B7F]/20" : "",
-                      ].join(" ")}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-base font-semibold text-foreground">
-                              {plan.name}
-                            </div>
-                            {plan.badge ? (
-                              <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
-                                {plan.badge}
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="mt-1 text-sm text-muted-foreground">
-                            {plan.description}
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-right">
-                          <div className="text-2xl font-semibold text-foreground">
-                            {plan.price}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {plan.periodLabel}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex-1 space-y-3">
-                        {PREMIUM_FEATURES.map((feature) => (
-                          <div key={`${plan.interval}-${feature}`} className="flex items-start gap-3">
-                            <span className="mt-0.5 rounded-full bg-[#E8F0E9] p-1 text-[#7A9B7F]">
-                              <Check className="h-3.5 w-3.5" />
-                            </span>
-                            <span className="text-sm text-foreground/90">{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-4 min-h-[20px] text-xs font-medium text-[#5E7A63]">
-                        {plan.helperText ?? ""}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleStartCheckout(plan.interval)}
-                        disabled={isStartingCheckout || isOpeningPortal}
-                        className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isLoading ? "Opening checkout..." : `Choose ${plan.interval}`}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {checkoutError ? (
-                <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                  {checkoutError}
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-
         <div ref={subjectsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <button
             type="button"
@@ -1135,53 +989,31 @@ export function Settings({
             />
           </button>
 
-          {subjectsOpen && (
+          {subjectsOpen ? (
             <div className="space-y-4 px-5 pb-5">
               <div className="flex items-center justify-end">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSubjectsOpen(true);
-                    setShowAddForm(true);
-                    setEditingId(null);
-                    setDeletingSubjectId(null);
-                    ensureNewSubjectDefaults();
-                    requestAnimationFrame(() => subjectNameInputRef.current?.focus());
-                  }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  onClick={openNewSubject}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                 >
                   <Plus className="h-4 w-4" />
                   Add subject
                 </button>
               </div>
 
-              {(showAddForm || editingId) && (
+              {showAddSubjectForm ? (
                 <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-sm font-semibold text-foreground">
-                      {editingId ? "Edit subject" : "New subject"}
-                    </div>
-
-                    <div className="inline-flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Preview</span>
-                      <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: formData.color }}
-                        />
-                        <span className="text-foreground/90">
-                          {formData.name.trim() || "Subject"}
-                        </span>
-                      </span>
-                    </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {editingSubjectId ? "Edit subject" : "New subject"}
                   </div>
 
                   <input
                     ref={subjectNameInputRef}
                     type="text"
                     placeholder="Subject name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={subjectForm.name}
+                    onChange={(e) => setSubjectForm((p) => ({ ...p, name: e.target.value }))}
                     className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     autoFocus
                   />
@@ -1191,67 +1023,39 @@ export function Settings({
 
                     <div className="grid grid-cols-8 gap-2 sm:grid-cols-10 md:grid-cols-12">
                       {SUBJECT_COLOR_PALETTE.map((color) => {
-                        const selected = normalizeHex(formData.color) === normalizeHex(color);
+                        const selected = normalizeHex(subjectForm.color) === normalizeHex(color);
 
                         return (
                           <button
                             type="button"
                             key={color}
-                            onClick={() => setFormData({ ...formData, color })}
+                            onClick={() => setSubjectForm((p) => ({ ...p, color }))}
                             className={[
                               "h-9 w-9 rounded-xl border transition-transform md:h-10 md:w-10",
-                              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                               selected
                                 ? "scale-105 border-border ring-2 ring-primary"
                                 : "border-border hover:scale-105",
                             ].join(" ")}
                             style={{ backgroundColor: color }}
                             aria-label={`Pick ${color}`}
-                            title={color}
                           />
                         );
                       })}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((p) => ({
-                            ...p,
-                            color: pickNextColor(usedSubjectColors),
-                          }))
-                        }
-                        className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                      >
-                        Pick a new colour
-                      </button>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Custom</span>
-                        <input
-                          type="color"
-                          value={formData.color}
-                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                          className="h-10 w-16 cursor-pointer rounded-xl border border-border bg-card"
-                          aria-label="Pick custom color"
-                        />
-                      </div>
                     </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
                     <button
-                      onClick={handleSubmit}
-                      disabled={!formData.name.trim()}
+                      onClick={saveSubject}
+                      disabled={!subjectForm.name.trim()}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                       type="button"
                     >
-                      {editingId ? "Save" : "Add"}
+                      {editingSubjectId ? "Save" : "Add"}
                     </button>
 
                     <button
-                      onClick={handleCancel}
+                      onClick={cancelSubjectForm}
                       className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
                       type="button"
                     >
@@ -1259,14 +1063,14 @@ export function Settings({
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
 
               <div className="space-y-2">
                 {subjects.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                     <div className="text-sm font-medium text-foreground">No subjects yet</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Add your first subject to start planning.
+                      Add subjects before filling your timetable grid.
                     </div>
                   </div>
                 ) : (
@@ -1288,8 +1092,8 @@ export function Settings({
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleEdit(subject)}
-                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          onClick={() => openEditSubject(subject)}
+                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted"
                           aria-label="Edit subject"
                         >
                           <Edit2 className="h-4 w-4 text-foreground" />
@@ -1298,7 +1102,7 @@ export function Settings({
                         <button
                           type="button"
                           onClick={() => setDeletingSubjectId(subject.id)}
-                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted"
                           aria-label="Delete subject"
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -1309,14 +1113,14 @@ export function Settings({
                 )}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div ref={termsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <button
             type="button"
             onClick={() => setPeriodsOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Terms</div>
@@ -1333,13 +1137,13 @@ export function Settings({
             />
           </button>
 
-          {periodsOpen && (
+          {periodsOpen ? (
             <div className="space-y-4 px-5 pb-5">
               <div className="flex items-center justify-end">
                 <button
                   type="button"
-                  onClick={openNewPeriod}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  onClick={openNewTerm}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                 >
                   <Plus className="h-4 w-4" />
                   Add term
@@ -1405,7 +1209,7 @@ export function Settings({
                   <div className="flex gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={savePeriod}
+                      onClick={saveTerm}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                     >
                       {editingPeriodId ? "Save" : "Add"}
@@ -1413,7 +1217,7 @@ export function Settings({
 
                     <button
                       type="button"
-                      onClick={cancelPeriodForm}
+                      onClick={cancelTermForm}
                       className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
                     >
                       Cancel
@@ -1441,15 +1245,15 @@ export function Settings({
                           {period.name}
                         </div>
                         <div className="mt-0.5 text-xs text-muted-foreground">
-                          {formatRange(period)}
+                          {formatTermRange(period)}
                         </div>
                       </div>
 
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => openEditPeriod(period)}
-                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          onClick={() => openEditTerm(period)}
+                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted"
                           aria-label="Edit term"
                         >
                           <Edit2 className="h-4 w-4 text-foreground" />
@@ -1458,7 +1262,7 @@ export function Settings({
                         <button
                           type="button"
                           onClick={() => setDeletingPeriodId(period.id)}
-                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted"
                           aria-label="Delete term"
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -1469,14 +1273,14 @@ export function Settings({
                 )}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div ref={timetableCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <button
             type="button"
             onClick={() => setTimetableOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
           >
             <div className="text-left">
               <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -1484,7 +1288,7 @@ export function Settings({
                 Timetable
               </div>
               <div className="text-xs text-muted-foreground">
-                Add recurring classes, lectures, tutorials, labs, or school periods.
+                School grid builder, Week A/B, period times, and custom classes.
               </div>
             </div>
 
@@ -1496,8 +1300,8 @@ export function Settings({
             />
           </button>
 
-          {timetableOpen && (
-            <div className="space-y-4 px-5 pb-5">
+          {timetableOpen ? (
+            <div className="space-y-5 px-5 pb-5">
               <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <div>
@@ -1514,7 +1318,7 @@ export function Settings({
                       }
                       className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
-                      <option value="school">School</option>
+                      <option value="school">School grid</option>
                       <option value="university">University</option>
                       <option value="custom">Custom</option>
                     </select>
@@ -1572,299 +1376,649 @@ export function Settings({
                 </div>
 
                 <div className="mt-3 text-[11px] leading-5 text-muted-foreground">
-                  Month view will stay clean and will not show normal timetable classes.
-                  Week and day view will show them in the hourly calendar.
+                  School mode uses a grid so you can fill 6 periods × 5 days quickly.
+                  Week and day calendar views show classes. Month view stays clean.
                 </div>
               </div>
 
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={openNewTimetableClass}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add class
-                </button>
-              </div>
-
-              {showAddTimetableForm ? (
-                <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="text-sm font-semibold text-foreground">
-                    {editingTimetableClassId ? "Edit class" : "New class"}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        Class name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={
-                          timetableSettings.mode === "university"
-                            ? "e.g. Economics Tutorial"
-                            : "e.g. Maths"
-                        }
-                        value={timetableForm.title}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({ ...p, title: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        autoFocus
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        Subject
-                      </label>
-                      <select
-                        value={timetableForm.subjectId}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({ ...p, subjectId: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      >
-                        <option value="">No subject / custom</option>
-                        {subjects.map((subject) => (
-                          <option key={subject.id} value={subject.id}>
-                            {subject.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        Day
-                      </label>
-                      <select
-                        value={String(timetableForm.dayOfWeek)}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({
-                            ...p,
-                            dayOfWeek: Number(e.target.value) as TimetableDayOfWeek,
-                          }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      >
-                        {DAY_LABELS.map((day) => (
-                          <option key={day.value} value={day.value}>
-                            {day.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {timetableSettings.cycle === "fortnightly" ? (
+              {timetableSettings.mode === "school" ? (
+                <>
+                  <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                          Week
-                        </label>
-                        <select
-                          value={timetableForm.week}
-                          onChange={(e) =>
-                            setTimetableForm((p) => ({
-                              ...p,
-                              week: e.target.value as TimetableWeek,
-                            }))
-                          }
-                          className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        >
-                          <option value="both">Both weeks</option>
-                          <option value="A">Week A only</option>
-                          <option value="B">Week B only</option>
-                        </select>
+                        <div className="text-sm font-semibold text-foreground">Period times</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Set these once, then fill the timetable grid below.
+                        </div>
                       </div>
-                    ) : null}
 
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        Start time
-                      </label>
-                      <input
-                        type="time"
-                        value={timetableForm.startTime}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({ ...p, startTime: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        End time
-                      </label>
-                      <input
-                        type="time"
-                        value={timetableForm.endTime}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({ ...p, endTime: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        Location
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Room, campus, building, field"
-                        value={timetableForm.location}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({ ...p, location: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                        Teacher / tutor
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Optional"
-                        value={timetableForm.teacher}
-                        onChange={(e) =>
-                          setTimetableForm((p) => ({ ...p, teacher: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </div>
-                  </div>
-
-                  {timetableFormError ? (
-                    <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                      {timetableFormError}
-                    </div>
-                  ) : null}
-
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={saveTimetableClass}
-                      className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    >
-                      {editingTimetableClassId ? "Save" : "Add"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={cancelTimetableForm}
-                      className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="space-y-2">
-                {sortedTimetableClasses.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
-                    <div className="text-sm font-medium text-foreground">
-                      No timetable classes yet
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Add your normal weekly classes, lectures, labs, tutorials, or school periods.
-                    </div>
-                  </div>
-                ) : (
-                  sortedTimetableClasses.map((item) => {
-                    const subjectColor = getSubjectColor(item.subjectId);
-                    const dayName =
-                      DAY_LABELS.find((d) => d.value === item.dayOfWeek)?.label ?? "Day";
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-border bg-background/50 px-4 py-3 shadow-sm"
-                        style={{ borderLeftWidth: 4, borderLeftColor: subjectColor }}
+                      <button
+                        type="button"
+                        onClick={openPeriodEditor}
+                        className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
                       >
-                        <div className="flex items-center justify-between gap-4">
+                        Edit period times
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {sortedTimetablePeriods.map((period) => (
+                        <div
+                          key={period.id}
+                          className="flex items-center justify-between rounded-xl border border-border bg-background/50 px-3 py-2"
+                        >
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-foreground">
-                              {item.title}
+                            <div className="truncate text-sm font-medium text-foreground">
+                              {period.name}
                             </div>
-
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              <span>{dayName}</span>
-                              <span>•</span>
-                              <span>
-                                {formatTimetableTime(item.startTime)} –{" "}
-                                {formatTimetableTime(item.endTime)}
-                              </span>
-                              <span>•</span>
-                              <span>
-                                {timetableSettings.cycle === "weekly"
-                                  ? "Every week"
-                                  : item.week === "both"
-                                    ? "Both weeks"
-                                    : `Week ${item.week}`}
-                              </span>
-
-                              {item.subjectId ? (
-                                <>
-                                  <span>•</span>
-                                  <span>{getSubjectName(item.subjectId)}</span>
-                                </>
-                              ) : null}
-
-                              {item.location ? (
-                                <>
-                                  <span>•</span>
-                                  <span>{item.location}</span>
-                                </>
-                              ) : null}
-
-                              {item.teacher ? (
-                                <>
-                                  <span>•</span>
-                                  <span>{item.teacher}</span>
-                                </>
-                              ) : null}
+                            <div className="text-xs text-muted-foreground">
+                              {period.type === "break" ? "Break" : "Class period"}
                             </div>
                           </div>
 
-                          <div className="flex shrink-0 items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => openEditTimetableClass(item)}
-                              className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                              aria-label="Edit class"
+                          <div className="shrink-0 text-xs font-medium text-muted-foreground">
+                            {formatTimetableTime(period.startTime)} –{" "}
+                            {formatTimetableTime(period.endTime)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {showPeriodEditor ? (
+                    <div className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground">
+                            Edit period times
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Add class periods, recess, lunch, study periods, or sport blocks.
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={addTimetablePeriod}
+                          className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add period
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {periodDrafts.map((period) => (
+                          <div
+                            key={period.id}
+                            className="grid grid-cols-1 gap-2 rounded-xl border border-border bg-background/50 p-3 md:grid-cols-[1fr_130px_130px_130px_44px]"
+                          >
+                            <input
+                              type="text"
+                              value={period.name}
+                              onChange={(e) =>
+                                updateTimetablePeriodDraft(period.id, {
+                                  name: e.target.value,
+                                })
+                              }
+                              className="rounded-xl border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              placeholder="Period name"
+                            />
+
+                            <input
+                              type="time"
+                              value={period.startTime}
+                              onChange={(e) =>
+                                updateTimetablePeriodDraft(period.id, {
+                                  startTime: e.target.value,
+                                })
+                              }
+                              className="rounded-xl border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+
+                            <input
+                              type="time"
+                              value={period.endTime}
+                              onChange={(e) =>
+                                updateTimetablePeriodDraft(period.id, {
+                                  endTime: e.target.value,
+                                })
+                              }
+                              className="rounded-xl border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+
+                            <select
+                              value={period.type}
+                              onChange={(e) =>
+                                updateTimetablePeriodDraft(period.id, {
+                                  type: e.target.value as TimetablePeriodType,
+                                })
+                              }
+                              className="rounded-xl border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             >
-                              <Edit2 className="h-4 w-4 text-foreground" />
-                            </button>
+                              <option value="class">Class</option>
+                              <option value="break">Break</option>
+                            </select>
 
                             <button
                               type="button"
-                              onClick={() => setDeletingTimetableClassId(item.id)}
-                              className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                              aria-label="Delete class"
+                              onClick={() => deleteTimetablePeriodDraft(period.id)}
+                              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition hover:bg-muted"
+                              aria-label="Delete period"
                             >
                               <Trash2 className="h-4 w-4 text-muted-foreground" />
                             </button>
                           </div>
+                        ))}
+                      </div>
+
+                      {periodEditorError ? (
+                        <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                          {periodEditorError}
+                        </div>
+                      ) : null}
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={saveTimetablePeriods}
+                          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                        >
+                          Save period times
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowPeriodEditor(false)}
+                          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">
+                          Timetable grid
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Pick a subject in each cell. Empty means no class.
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {timetableSettings.cycle === "fortnightly" ? (
+                          <>
+                            <div className="flex rounded-xl border border-border bg-muted/20 p-1">
+                              <button
+                                type="button"
+                                onClick={() => setActiveTimetableWeek("A")}
+                                className={[
+                                  "rounded-lg px-3 py-1.5 text-sm font-medium transition",
+                                  activeTimetableWeek === "A"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground hover:bg-muted",
+                                ].join(" ")}
+                              >
+                                Week A
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setActiveTimetableWeek("B")}
+                                className={[
+                                  "rounded-lg px-3 py-1.5 text-sm font-medium transition",
+                                  activeTimetableWeek === "B"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground hover:bg-muted",
+                                ].join(" ")}
+                              >
+                                Week B
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={copyWeekAToWeekB}
+                              className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted"
+                            >
+                              Copy A → B
+                            </button>
+                          </>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            clearSchoolGrid(
+                              timetableSettings.cycle === "fortnightly"
+                                ? activeTimetableWeek
+                                : undefined
+                            )
+                          }
+                          className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted"
+                        >
+                          Clear grid
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto">
+                      <div className="min-w-[900px] rounded-2xl border border-border">
+                        <div className="grid grid-cols-[150px_repeat(5,minmax(0,1fr))] border-b border-border bg-muted/20">
+                          <div className="border-r border-border px-3 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Period
+                          </div>
+                          {SCHOOL_DAYS.map((day) => (
+                            <div
+                              key={day.value}
+                              className="border-r border-border px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground last:border-r-0"
+                            >
+                              {day.short}
+                            </div>
+                          ))}
+                        </div>
+
+                        {sortedTimetablePeriods.map((period) => {
+                          if (period.type === "break") {
+                            return (
+                              <div
+                                key={period.id}
+                                className="grid grid-cols-[150px_repeat(5,minmax(0,1fr))] border-b border-border bg-muted/[0.08] last:border-b-0"
+                              >
+                                <div className="border-r border-border px-3 py-3">
+                                  <div className="text-sm font-semibold text-foreground">
+                                    {period.name}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    {formatTimetableTime(period.startTime)} –{" "}
+                                    {formatTimetableTime(period.endTime)}
+                                  </div>
+                                </div>
+
+                                <div className="col-span-5 px-3 py-3 text-center text-xs text-muted-foreground">
+                                  Break
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={period.id}
+                              className="grid grid-cols-[150px_repeat(5,minmax(0,1fr))] border-b border-border last:border-b-0"
+                            >
+                              <div className="border-r border-border bg-background/50 px-3 py-3">
+                                <div className="text-sm font-semibold text-foreground">
+                                  {period.name}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {formatTimetableTime(period.startTime)} –{" "}
+                                  {formatTimetableTime(period.endTime)}
+                                </div>
+                              </div>
+
+                              {SCHOOL_DAYS.map((day) => {
+                                const current = getGridClass(
+                                  day.value,
+                                  period.id,
+                                  timetableSettings.cycle === "weekly"
+                                    ? "both"
+                                    : activeTimetableWeek
+                                );
+
+                                const subjectColor = getSubjectColor(current?.subjectId);
+
+                                return (
+                                  <div
+                                    key={`${period.id}-${day.value}`}
+                                    className="border-r border-border p-2 last:border-r-0"
+                                    style={{
+                                      backgroundColor: current?.subjectId
+                                        ? `${subjectColor}0D`
+                                        : undefined,
+                                    }}
+                                  >
+                                    <select
+                                      value={current?.subjectId ?? ""}
+                                      onChange={(e) =>
+                                        setGridClass(
+                                          day.value,
+                                          period,
+                                          e.target.value,
+                                          timetableSettings.cycle === "weekly"
+                                            ? "both"
+                                            : activeTimetableWeek
+                                        )
+                                      }
+                                      className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                      style={{
+                                        borderLeftWidth: current?.subjectId ? 4 : 1,
+                                        borderLeftColor: current?.subjectId
+                                          ? subjectColor
+                                          : undefined,
+                                      }}
+                                    >
+                                      <option value="">Empty</option>
+                                      {subjects.map((subject) => (
+                                        <option key={subject.id} value={subject.id}>
+                                          {subject.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {subjects.length === 0 ? (
+                      <div className="mt-3 rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                        Add subjects first, then you can fill the timetable grid.
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">
+                        Manual classes
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Best for uni lectures, tutorials, labs, sport, work, or custom events.
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={openNewManualClass}
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add class
+                    </button>
+                  </div>
+
+                  {showManualClassForm ? (
+                    <div className="mt-4 space-y-4 rounded-2xl border border-border bg-background/50 p-4">
+                      <div className="text-sm font-semibold text-foreground">
+                        {editingManualClassId ? "Edit class" : "New class"}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Class name
+                          </label>
+                          <input
+                            type="text"
+                            value={manualClassForm.title}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({ ...p, title: e.target.value }))
+                            }
+                            placeholder="e.g. Economics Tutorial"
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            autoFocus
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Subject
+                          </label>
+                          <select
+                            value={manualClassForm.subjectId}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({ ...p, subjectId: e.target.value }))
+                            }
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          >
+                            <option value="">No subject / custom</option>
+                            {subjects.map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Day
+                          </label>
+                          <select
+                            value={String(manualClassForm.dayOfWeek)}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({
+                                ...p,
+                                dayOfWeek: Number(e.target.value) as TimetableDayOfWeek,
+                              }))
+                            }
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          >
+                            {ALL_DAYS.map((day) => (
+                              <option key={day.value} value={day.value}>
+                                {day.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {timetableSettings.cycle === "fortnightly" ? (
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              Week
+                            </label>
+                            <select
+                              value={manualClassForm.week}
+                              onChange={(e) =>
+                                setManualClassForm((p) => ({
+                                  ...p,
+                                  week: e.target.value as TimetableWeek,
+                                }))
+                              }
+                              className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            >
+                              <option value="both">Both weeks</option>
+                              <option value="A">Week A only</option>
+                              <option value="B">Week B only</option>
+                            </select>
+                          </div>
+                        ) : null}
+
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Start time
+                          </label>
+                          <input
+                            type="time"
+                            value={manualClassForm.startTime}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({ ...p, startTime: e.target.value }))
+                            }
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            End time
+                          </label>
+                          <input
+                            type="time"
+                            value={manualClassForm.endTime}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({ ...p, endTime: e.target.value }))
+                            }
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Location
+                          </label>
+                          <input
+                            type="text"
+                            value={manualClassForm.location}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({ ...p, location: e.target.value }))
+                            }
+                            placeholder="Room, campus, building"
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Teacher / tutor
+                          </label>
+                          <input
+                            type="text"
+                            value={manualClassForm.teacher}
+                            onChange={(e) =>
+                              setManualClassForm((p) => ({ ...p, teacher: e.target.value }))
+                            }
+                            placeholder="Optional"
+                            className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+                      </div>
+
+                      {manualClassError ? (
+                        <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                          {manualClassError}
+                        </div>
+                      ) : null}
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={saveManualClass}
+                          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                        >
+                          {editingManualClassId ? "Save" : "Add"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowManualClassForm(false);
+                            resetManualClassForm();
+                          }}
+                          className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground transition hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 space-y-2">
+                    {sortedManualClasses.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+                        <div className="text-sm font-medium text-foreground">
+                          No manual classes yet
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Add lectures, tutorials, labs, sport, work, or custom timetable items.
+                        </div>
+                      </div>
+                    ) : (
+                      sortedManualClasses.map((item) => {
+                        const subjectColor = getSubjectColor(item.subjectId);
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="rounded-2xl border border-border bg-background/50 px-4 py-3 shadow-sm"
+                            style={{ borderLeftWidth: 4, borderLeftColor: subjectColor }}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-foreground">
+                                  {item.title}
+                                </div>
+
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                  <span>{getDayLabel(item.dayOfWeek)}</span>
+                                  <span>•</span>
+                                  <span>
+                                    {formatTimetableTime(item.startTime)} –{" "}
+                                    {formatTimetableTime(item.endTime)}
+                                  </span>
+
+                                  {timetableSettings.cycle === "fortnightly" ? (
+                                    <>
+                                      <span>•</span>
+                                      <span>
+                                        {item.week === "both"
+                                          ? "Both weeks"
+                                          : `Week ${item.week}`}
+                                      </span>
+                                    </>
+                                  ) : null}
+
+                                  {item.subjectId ? (
+                                    <>
+                                      <span>•</span>
+                                      <span>{getSubjectName(item.subjectId)}</span>
+                                    </>
+                                  ) : null}
+
+                                  {item.location ? (
+                                    <>
+                                      <span>•</span>
+                                      <span>{item.location}</span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditManualClass(item)}
+                                  className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted"
+                                  aria-label="Edit class"
+                                >
+                                  <Edit2 className="h-4 w-4 text-foreground" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingTimetableClassId(item.id)}
+                                  className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted"
+                                  aria-label="Delete class"
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div ref={backupCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <button
             type="button"
             onClick={() => setBackupOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
           >
             <div className="text-left">
               <div className="text-sm font-semibold text-foreground">Backup & data</div>
@@ -1881,7 +2035,7 @@ export function Settings({
             />
           </button>
 
-          {backupOpen && (
+          {backupOpen ? (
             <div className="space-y-4 px-5 pb-5">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <button
@@ -1937,13 +2091,16 @@ export function Settings({
                 </div>
               ) : null}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
       {deletingSubject ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingSubjectId(null)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setDeletingSubjectId(null)}
+          />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
@@ -1985,7 +2142,10 @@ export function Settings({
 
               <button
                 type="button"
-                onClick={confirmDelete}
+                onClick={() => {
+                  onDeleteSubject(deletingSubject.id);
+                  setDeletingSubjectId(null);
+                }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
               >
                 Delete
@@ -1995,14 +2155,17 @@ export function Settings({
         </>
       ) : null}
 
-      {deletingPeriod ? (
+      {deletingTerm ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingPeriodId(null)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setDeletingPeriodId(null)}
+          />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
               <div className="text-sm font-semibold text-foreground">
-                Delete “{deletingPeriod.name}”?
+                Delete “{deletingTerm.name}”?
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 This removes the term from Settings.
@@ -2020,7 +2183,10 @@ export function Settings({
 
               <button
                 type="button"
-                onClick={confirmDeletePeriod}
+                onClick={() => {
+                  setPeriods((prev) => prev.filter((p) => p.id !== deletingTerm.id));
+                  setDeletingPeriodId(null);
+                }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
               >
                 Delete
@@ -2032,7 +2198,10 @@ export function Settings({
 
       {deletingTimetableClass ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDeletingTimetableClassId(null)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setDeletingTimetableClassId(null)}
+          />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
@@ -2040,7 +2209,7 @@ export function Settings({
                 Delete “{deletingTimetableClass.title}”?
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                This will remove the recurring class from your timetable.
+                This removes it from your timetable.
               </div>
             </div>
 
@@ -2070,7 +2239,10 @@ export function Settings({
 
       {showClearConfirm ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowClearConfirm(false)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setShowClearConfirm(false)}
+          />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
@@ -2105,7 +2277,10 @@ export function Settings({
 
       {showImportConfirm && pendingBackup ? (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowImportConfirm(false)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setShowImportConfirm(false)}
+          />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="border-b border-border px-5 py-4">
@@ -2137,8 +2312,16 @@ export function Settings({
                 <span className="font-medium text-foreground">{importCounts.periods}</span>
               </div>
               <div className="flex items-center justify-between">
+                <span>Timetable periods</span>
+                <span className="font-medium text-foreground">
+                  {importCounts.timetablePeriods}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span>Timetable classes</span>
-                <span className="font-medium text-foreground">{importCounts.timetableClasses}</span>
+                <span className="font-medium text-foreground">
+                  {importCounts.timetableClasses}
+                </span>
               </div>
             </div>
 

@@ -40,11 +40,21 @@ export type TimetableWeek = "A" | "B" | "both";
 
 export type TimetableDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+export type TimetablePeriodType = "class" | "break";
+
 /**
  * Main timetable settings.
  *
+ * school:
+ * - best for high school / fixed daily periods.
+ * - uses TimetablePeriod + grid cells.
+ *
+ * university/custom:
+ * - best for lectures, tutorials, labs, work, sport, etc.
+ * - can use direct startTime/endTime classes.
+ *
  * weekly:
- * - the same timetable repeats every week.
+ * - same timetable every week.
  *
  * fortnightly:
  * - Week A / Week B cycle.
@@ -66,12 +76,51 @@ export interface TimetableSettingsStored {
 }
 
 /**
+ * A reusable period row for school timetable grids.
+ *
+ * Example:
+ * - Period 1: 08:40–09:35
+ * - Period 2: 09:35–10:30
+ * - Recess: 10:30–10:50
+ * - Lunch: 12:40–13:20
+ *
+ * Break periods are shown in the grid setup but do not need subject classes.
+ */
+export interface TimetablePeriod {
+  id: string;
+  name: string;
+  startTime: string; // "HH:MM" 24h
+  endTime: string; // "HH:MM" 24h
+  type: TimetablePeriodType;
+  order: number;
+}
+
+/**
+ * LocalStorage-safe TimetablePeriod shape.
+ */
+export interface TimetablePeriodStored {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  type: TimetablePeriodType;
+  order: number;
+}
+
+/**
  * A recurring class / lesson / lecture / tutorial / lab.
  *
  * Works for:
- * - school classes
+ * - school timetable grid cells
  * - uni lectures/tutorials/labs
  * - custom repeating timetable items
+ *
+ * School grid classes should usually use:
+ * - periodId
+ *
+ * Uni/custom classes should usually use:
+ * - startTime
+ * - endTime
  *
  * Month view should usually hide these to avoid clutter.
  * Week/day view should display them in the hourly grid.
@@ -81,8 +130,8 @@ export interface TimetableClass {
 
   /**
    * Optional subject link.
-   * Most timetable classes should have this, but it is optional so users can add
-   * things like Assembly, Chapel, Sport, Free Period, Lunch, Work, etc.
+   * Most class items should have this, but it is optional so users can add
+   * things like Assembly, Chapel, Sport, Free Period, Work, etc.
    */
   subjectId?: string;
 
@@ -99,8 +148,18 @@ export interface TimetableClass {
 
   dayOfWeek: TimetableDayOfWeek; // 0 Sun, 1 Mon, 2 Tue, etc.
 
-  startTime: string; // "HH:MM" 24h
-  endTime: string; // "HH:MM" 24h
+  /**
+   * For school timetable grid classes.
+   * If periodId exists, Calendar can get start/end time from TimetablePeriod.
+   */
+  periodId?: string;
+
+  /**
+   * For university/custom classes.
+   * Also used as fallback if periodId is missing.
+   */
+  startTime?: string; // "HH:MM" 24h
+  endTime?: string; // "HH:MM" 24h
 
   /**
    * For weekly timetables, this can just be "both".
@@ -129,8 +188,10 @@ export interface TimetableClassStored {
 
   dayOfWeek: TimetableDayOfWeek;
 
-  startTime: string;
-  endTime: string;
+  periodId?: string;
+
+  startTime?: string;
+  endTime?: string;
 
   week: TimetableWeek;
 
@@ -164,7 +225,7 @@ export interface Task {
    * - dueDate = when it is due.
    * - scheduledDate/startTime/duration = when the student plans to do it.
    *
-   * Future timetable logic can use:
+   * Timetable logic can use:
    * - subjectId
    * - dueDate
    * to infer the actual class/period where the homework is due.
