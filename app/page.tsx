@@ -5,7 +5,6 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  Bell,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -13,6 +12,7 @@ import {
   Clock3,
   LineChart,
   BarChart3,
+  School,
 } from "lucide-react";
 
 type Feature = {
@@ -33,35 +33,43 @@ type Testimonial = {
 };
 
 const featurePills = [
-  "Assessments",
+  "Classes",
+  "Timetable",
   "Assignments",
-  "Homework",
+  "Exams",
   "Study sessions",
   "Marks",
-  "Insights",
 ] as const;
 
 const features: Feature[] = [
   {
-    icon: CalendarDays,
+    icon: School,
     iconBgClassName: "bg-[#E6F0DD]",
     iconClassName: "text-[#517535]",
-    title: "Calendar view",
+    title: "Timetable + classes",
     description:
-      "See assignments, exams, and study sessions colour-coded by subject at a glance.",
+      "Build your recurring school or uni timetable so classes appear beside assignments, exams, and study sessions.",
+  },
+  {
+    icon: CalendarDays,
+    iconBgClassName: "bg-[#E4EEF9]",
+    iconClassName: "text-[#336CB3]",
+    title: "One calendar view",
+    description:
+      "See classes, tasks, assignments, exams, study sessions, and reminders together on a real time-grid calendar.",
   },
   {
     icon: CheckCircle2,
-    iconBgClassName: "bg-[#E4EEF9]",
-    iconClassName: "text-[#336CB3]",
+    iconBgClassName: "bg-[#F5EAD6]",
+    iconClassName: "text-[#A66A12]",
     title: "Tasks & deadlines",
     description:
       "Assignments, homework, and exams grouped together so nothing gets buried or forgotten.",
   },
   {
     icon: Clock3,
-    iconBgClassName: "bg-[#F5EAD6]",
-    iconClassName: "text-[#A66A12]",
+    iconBgClassName: "bg-[#F8E7EE]",
+    iconClassName: "text-[#B14573]",
     title: "Study log",
     description:
       "Log sessions fast and link them to the assignment you're working on.",
@@ -83,14 +91,6 @@ const features: Feature[] = [
     description:
       "Track streaks, daily averages, and your strongest subjects without leaving the app.",
     premium: true,
-  },
-  {
-    icon: Bell,
-    iconBgClassName: "bg-[#F8E7EE]",
-    iconClassName: "text-[#B14573]",
-    title: "Reminders",
-    description:
-      "Quick notes for life stuff, not assignments. Pack your bag, email a teacher, buy new pens.",
   },
 ];
 
@@ -173,7 +173,7 @@ const softwareApplicationSchema = {
   operatingSystem: "Web",
   url: "https://mystudyplanner.co",
   description:
-    "MyStudyPlanner is a web-based study planner for high school and university students. Track assignments, exams, homework, study sessions, marks, and reminders in one calm, simple planner.",
+    "MyStudyPlanner is a web-based study planner for high school and university students. Build your timetable, track classes, assignments, exams, homework, study sessions, marks, and reminders in one calm student calendar.",
   offers: [
     {
       "@type": "Offer",
@@ -212,7 +212,7 @@ const softwareApplicationSchema = {
 export async function generateMetadata(): Promise<Metadata> {
   const title = "MyStudyPlanner";
   const description =
-    "A calm study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.";
+    "A calm study planner for students. Build your timetable and track classes, assignments, exams, homework, study sessions, marks, and reminders in one calendar.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -228,6 +228,10 @@ export async function generateMetadata(): Promise<Metadata> {
       "homework planner",
       "marks tracker for students",
       "study log",
+      "student timetable planner",
+      "class timetable planner",
+      "school timetable planner",
+      "university timetable planner",
       "planner for university students",
       "planner for high school students",
     ],
@@ -303,14 +307,14 @@ export default async function Page() {
               Trusted by over 10,000 students
             </div>
 
-            <h1 className="mx-auto mt-5 max-w-[12ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
-              The study planner built for real student life.
+            <h1 className="mx-auto mt-5 max-w-[13ch] text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95]">
+              Your classes, deadlines, study sessions, and marks on one student calendar.
             </h1>
 
             <p className="mx-auto mt-4 max-w-[52rem] text-[15px] leading-7 text-muted-foreground md:text-lg md:leading-8">
-              MyStudyPlanner is a calm study planner for students who want one
-              place to track assignments, exams, homework, study sessions,
-              marks, and reminders without using five different tools.
+              MyStudyPlanner brings your recurring timetable, assignments, exams,
+              homework, study sessions, marks, and reminders into one calm time-grid
+              calendar made for high school and university students.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -345,6 +349,103 @@ export default async function Page() {
               <span className="font-medium text-foreground">US$2.99/month</span>.
             </p>
 
+            <div className="mt-10 w-full max-w-5xl rounded-[2rem] border border-border bg-card p-3 shadow-xl">
+              <div className="overflow-hidden rounded-[1.5rem] border border-border bg-background">
+                <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-3">
+                  <span className="h-3 w-3 rounded-full bg-red-300" />
+                  <span className="h-3 w-3 rounded-full bg-yellow-300" />
+                  <span className="h-3 w-3 rounded-full bg-green-300" />
+                  <span className="ml-3 text-xs font-medium text-muted-foreground">
+                    MyStudyPlanner calendar preview
+                  </span>
+                </div>
+
+                <div className="relative grid min-h-[340px] grid-cols-[72px_repeat(5,minmax(0,1fr))] bg-background text-left text-xs md:min-h-[420px]">
+                  <div className="border-r border-border bg-muted/20" />
+
+                  {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => (
+                    <div
+                      key={day}
+                      className="border-r border-border bg-muted/20 px-3 py-3 font-semibold text-foreground last:border-r-0"
+                    >
+                      {day}
+                    </div>
+                  ))}
+
+                  {["8am", "9am", "10am", "11am", "12pm"].map((time) => (
+                    <div key={time} className="contents">
+                      <div className="border-r border-t border-border px-3 py-4 text-muted-foreground">
+                        {time}
+                      </div>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <div
+                          key={`${time}-${index}`}
+                          className="border-r border-t border-border p-2 last:border-r-0"
+                        />
+                      ))}
+                    </div>
+                  ))}
+
+                  <div className="pointer-events-none absolute inset-x-8 bottom-8 hidden rounded-2xl border border-border bg-card/95 p-4 shadow-lg md:block">
+                    <div className="grid grid-cols-4 gap-3 text-left">
+                      <div className="rounded-xl bg-[#E6F0DD] p-3">
+                        <div className="text-xs font-semibold text-[#517535]">
+                          Class
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">
+                          Maths Ext 1
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          9:00–10:00
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-[#E4EEF9] p-3">
+                        <div className="text-xs font-semibold text-[#336CB3]">
+                          Assignment
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">
+                          English essay
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Due Friday
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-[#F5EAD6] p-3">
+                        <div className="text-xs font-semibold text-[#A66A12]">
+                          Exam
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">
+                          Economics test
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          11:30
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-[#ECE8FB] p-3">
+                        <div className="text-xs font-semibold text-[#6E5ACF]">
+                          Study
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">
+                          Physics revision
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          45 min
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="px-3 pb-2 pt-4 text-center text-xs text-muted-foreground md:text-sm">
+                Replace this preview with your real calendar screenshot: recurring
+                classes, tasks, exams, study sessions, and marks all in one view.
+              </p>
+            </div>
+
             <a
               href="#features-section"
               className="mt-7 inline-flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
@@ -367,12 +468,12 @@ export default async function Page() {
                 Features
               </div>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Everything students actually need.
+                Your timetable and study workload in one place.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                A simple student planner app and online study planner for high
-                school and university students who want the essentials done
-                well.
+                A student planner for high school and university students who
+                want their classes, deadlines, exams, study sessions, and marks
+                organised on one calendar.
               </p>
             </div>
 
@@ -620,11 +721,11 @@ export default async function Page() {
                   What is the best study planner for students?
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  The best study planner for students is one that keeps
-                  assignments, homework, exams, study sessions, and reminders in
-                  one place without feeling cluttered. MyStudyPlanner is built
-                  for students who want a calm, simple planner that is easy to
-                  keep using.
+                  The best study planner for students is one that keeps your
+                  timetable, classes, assignments, homework, exams, study
+                  sessions, and reminders in one place without feeling cluttered.
+                  MyStudyPlanner is built for students who want a calm, simple
+                  planner that is easy to keep using.
                 </p>
               </div>
 
@@ -635,8 +736,9 @@ export default async function Page() {
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   Yes. MyStudyPlanner works for both high school and university
-                  students who want one place to organise deadlines, homework,
-                  study sessions, exams, and marks without using multiple tools.
+                  students who want one place to organise their timetable,
+                  classes, deadlines, homework, study sessions, exams, and marks
+                  without using multiple tools.
                 </p>
               </div>
 
@@ -654,12 +756,14 @@ export default async function Page() {
 
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-foreground">
-                  Does MyStudyPlanner track assignments, exams, and marks?
+                  Does MyStudyPlanner track classes, assignments, exams, and
+                  marks?
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Yes. MyStudyPlanner helps students track assignments, exam
-                  dates, homework, study sessions, and reminders in one place.
-                  Marks tracking and insights are available as premium features.
+                  Yes. MyStudyPlanner helps students track recurring classes,
+                  assignments, exam dates, homework, study sessions, and reminders
+                  in one place. Marks tracking and insights are available as
+                  premium features.
                 </p>
               </div>
             </div>
