@@ -2,8 +2,9 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, X, CheckCircle2, Link2 } from "lucide-react";
+import { Plus, Edit2, Trash2, X, CheckCircle2, Link2, Lock, Sparkles } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
+import { StudyInsights } from "./studyinsights";
 
 /* -------------------- Small form helpers -------------------- */
 type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime", string>>;
@@ -129,6 +130,8 @@ interface StudyPlannerProps {
   onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession: (id: string) => void;
   onToggleSessionCompleted: (id: string) => void;
+  hasPremium?: boolean;
+  onGoToSettings?: () => void;
 }
 
 export function StudyPlanner({
@@ -139,8 +142,11 @@ export function StudyPlanner({
   onUpdateStudySession,
   onDeleteStudySession,
   onToggleSessionCompleted,
+  hasPremium = false,
+  onGoToSettings,
 }: StudyPlannerProps) {
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [studyView, setStudyView] = useState<"log" | "insights">("log");
+  const [activeSubject, setActiveSubject] = useState<string>("all");
   const [showCompleted, setShowCompleted] = useState(false);
 
   const [panelOpen, setPanelOpen] = useState(false);
@@ -190,7 +196,7 @@ export function StudyPlanner({
   const resetForm = (preset?: Partial<typeof sessionForm>) => {
     setSessionForm({
       title: "",
-      subjectId: activeTab !== "all" ? activeTab : "",
+      subjectId: activeSubject !== "all" ? activeSubject : "",
       date: "",
       startTime: "",
       duration: "60 min",
@@ -216,10 +222,10 @@ export function StudyPlanner({
   }, [sessionForm.linkedTaskId, tasks]);
 
   const visibleSessions = useMemo(() => {
-    const base = activeTab === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeTab);
+    const base = activeSubject === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeSubject);
     const filtered = showCompleted ? base : base.filter((s) => !s.completed);
     return filtered.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [studySessions, activeTab, showCompleted]);
+  }, [studySessions, activeSubject, showCompleted]);
 
   const weeklySummary = useMemo(() => {
     const now = new Date();
@@ -300,13 +306,15 @@ export function StudyPlanner({
     setDeletingId(null);
   };
 
+  const showPremiumInsightsLock = studyView === "insights" && !hasPremium;
+
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
+    <div className="app-page space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Study Log</h1>
-          <p className="text-sm text-muted-foreground">Plan, log, and review your study sessions.</p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="app-page-title">Study</h1>
+          <p className="app-page-subtitle">Log study sessions and review your study analytics.</p>
 
           <div className="pt-2">
             <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
@@ -324,33 +332,57 @@ export function StudyPlanner({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCompleted((v) => !v)}
-            className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            type="button"
-          >
-            {showCompleted ? "Hide completed" : "Show completed"}
-          </button>
+        {studyView === "log" ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCompleted((v) => !v)}
+              className="app-btn-secondary h-9 px-3"
+              type="button"
+            >
+              {showCompleted ? "Hide completed" : "Show completed"}
+            </button>
 
-          <button
-            onClick={openNew}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            type="button"
-          >
-            <Plus className="w-4 h-4" />
-            Log session
-          </button>
-        </div>
+            <button
+              onClick={openNew}
+              className="app-btn-primary h-9 px-4"
+              type="button"
+            >
+              <Plus className="w-4 h-4" />
+              Log session
+            </button>
+          </div>
+        ) : null}
       </div>
 
+      <div className="app-switch w-fit">
+        <button
+          type="button"
+          onClick={() => setStudyView("log")}
+          className={["app-switch-item", studyView === "log" ? "app-switch-item-active" : ""].join(" ")}
+        >
+          Log
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStudyView("insights")}
+          className={["app-switch-item", studyView === "insights" ? "app-switch-item-active" : ""].join(" ")}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Insights
+          {!hasPremium ? <Lock className="h-3.5 w-3.5" /> : null}
+        </button>
+      </div>
+
+      {studyView === "log" ? (
+        <>
       {/* Subject tabs */}
       <div className="rounded-full border border-border bg-card p-1 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab("all")}
+          onClick={() => setActiveSubject("all")}
           className={[
             "px-3 py-1.5 rounded-full text-sm transition",
-            activeTab === "all" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+            activeSubject === "all" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
           ].join(" ")}
           type="button"
         >
@@ -358,11 +390,11 @@ export function StudyPlanner({
         </button>
 
         {subjects.map((s) => {
-          const active = activeTab === s.id;
+          const active = activeSubject === s.id;
           return (
             <button
               key={s.id}
-              onClick={() => setActiveTab(s.id)}
+              onClick={() => setActiveSubject(s.id)}
               className={[
                 "px-3 py-1.5 rounded-full text-sm transition",
                 active ? "bg-muted text-foreground" : "text-foreground hover:bg-muted",
@@ -480,8 +512,42 @@ export function StudyPlanner({
         )}
       </div>
 
+        </>
+      ) : showPremiumInsightsLock ? (
+        <div className="app-card p-8">
+          <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+            <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-softer text-primary">
+              <Lock className="h-6 w-6" />
+            </div>
+
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Study insights are Premium
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Keep logging sessions for free. Upgrade to unlock streaks, subject breakdowns,
+              busiest days, and assessment-linked study analytics.
+            </p>
+
+            <button
+              type="button"
+              onClick={onGoToSettings}
+              className="app-btn-primary mt-6"
+            >
+              View Premium
+            </button>
+          </div>
+        </div>
+      ) : (
+        <StudyInsights
+          subjects={subjects}
+          tasks={tasks}
+          studySessions={studySessions}
+        />
+      )}
+
       {/* Add / Edit panel */}
-      {panelOpen && (
+      {studyView === "log" && panelOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closePanel} />
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">

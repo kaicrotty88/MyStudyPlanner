@@ -7,7 +7,6 @@ import { Calendar } from "./calendar";
 import { Tasks } from "./tasks";
 import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
-import { Insights } from "./insights";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
 
@@ -59,7 +58,6 @@ type Tab =
   | "calendar"
   | "tasks"
   | "study"
-  | "insights"
   | "marks"
   | "settings";
 
@@ -1136,17 +1134,36 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
   const hasPremium = plan === "premium";
-  const isPremiumTab = (tab: Tab | string) => tab === "insights" || tab === "marks";
-  const shouldShowTimetableSetupBanner =
-    mode === "app" &&
-    timetableClasses.length === 0 &&
-    activeTab === "calendar";
+  const isPremiumTab = (tab: Tab | string) => tab === "marks";
+  const setupItems = [
+    {
+      id: "subjects",
+      label: "Subjects",
+      missing: subjects.length === 0,
+      body: "Add subjects so tasks, marks, study sessions, and calendar items can use subject colours.",
+    },
+    {
+      id: "terms",
+      label: "Terms",
+      missing: periods.length === 0,
+      body: "Add term dates so tasks, marks, and assessments can be grouped properly.",
+    },
+    {
+      id: "timetable",
+      label: "Timetable",
+      missing: timetableClasses.length === 0,
+      body: "Add your timetable so Calendar can show classes and match homework due dates to lessons.",
+    },
+  ] as const;
+
+  const missingSetupItems = setupItems.filter((item) => item.missing);
+  const shouldShowSetupBanner =
+    mode === "app" && activeTab !== "settings" && missingSetupItems.length > 0;
 
   const tabs = [
     { id: "calendar", label: "Calendar" },
     { id: "tasks", label: "Tasks" },
-    { id: "study", label: "Study Planner" },
-    { id: "insights", label: "Insights" },
+    { id: "study", label: "Study" },
     { id: "marks", label: "Marks" },
     { id: "settings", label: "Settings" },
   ] satisfies Array<{ id: Tab; label: string }>;
@@ -1856,25 +1873,31 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         </div>
       ) : null}
 
-      {shouldShowTimetableSetupBanner ? (
+      {shouldShowSetupBanner ? (
         <div className="app-banner">
           <div className="app-banner-inner">
-            <div>
+            <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">
-                Set up your timetable so homework due dates can match your classes.
+                Finish setting up MyStudyPlanner
               </div>
-              <div className="text-xs text-muted-foreground">
-                This is a new feature, so existing planners may not have timetable classes filled out yet.
+              <div className="text-xs leading-5 text-muted-foreground">
+                {missingSetupItems.map((item) => item.label).join(", ")} still need setup.
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => openSettingsSection("timetable")}
-              className="app-btn-primary h-9"
-            >
-              Set up timetable
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {missingSetupItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => openSettingsSection(item.id)}
+                  className="app-btn-secondary h-9 px-3"
+                  title={item.body}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
@@ -1896,7 +1919,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateStudySession={handleUpdateStudySession}
             onDeleteStudySession={handleDeleteStudySession}
             onToggleStudySessionCompleted={handleToggleSessionCompleted}
-            onOpenTimetableSettings={() => openSettingsSection("timetable")}
           />
         ) : null}
 
@@ -1921,22 +1943,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateStudySession={handleUpdateStudySession}
             onDeleteStudySession={handleDeleteStudySession}
             onToggleSessionCompleted={handleToggleSessionCompleted}
+            hasPremium={hasPremium}
+            onGoToSettings={() => setActiveTab("settings")}
           />
-        ) : null}
-
-        {activeTab === "insights" ? (
-          hasPremium ? (
-            <Insights
-              tasks={tasks}
-              studySessions={studySessions}
-              subjects={subjects}
-            />
-          ) : (
-            <LockedPremiumView
-              feature="insights"
-              onGoToSettings={() => setActiveTab("settings")}
-            />
-          )
         ) : null}
 
         {activeTab === "marks" ? (
