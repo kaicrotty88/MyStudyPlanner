@@ -63,7 +63,7 @@ type Tab =
 
 type AppMode = "demo" | "app";
 type Plan = "free" | "premium";
-type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | null;
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | "premium" | null;
 
 const defaultSubjects: Subject[] = [
   { id: "1", name: "Mathematics", color: "#6B9BC3" },
@@ -1078,7 +1078,7 @@ function LockedPremiumView({
             </div>
 
             <div className="mt-6 rounded-2xl border border-border bg-muted/20 px-4 py-3 text-xs leading-5 text-muted-foreground">
-              Billing is not connected yet, so this feature is locked for now in the app and open in demo mode.
+              Upgrade from Settings to unlock this feature on your account. Demo mode stays open so visitors can test the full product.
             </div>
           </div>
         </div>
@@ -1521,6 +1521,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
     setTasks((prev) =>
       prev.filter((task) => {
+        if (task.result) return true;
         if (!task.completed || !task.completedAt) return true;
         return task.completedAt.getTime() >= completedCutoff;
       })
@@ -1666,6 +1667,15 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
+
+  const handleUpdatePeriods = (nextPeriods: Period[]) => {
+    const sorted = [...nextPeriods].sort(
+      (a, b) => a.startDate.getTime() - b.startDate.getTime()
+    );
+
+    setPeriods(sorted);
+    seedPeriodsStorage(sorted);
+  };
 
   const handleUpdateTimetableSettings = (settings: TimetableSettings) => {
     setTimetableSettings(settings);
@@ -1958,7 +1968,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           ) : (
             <LockedPremiumView
               feature="marks"
-              onGoToSettings={() => setActiveTab("settings")}
+              onGoToSettings={() => openSettingsSection("premium")}
             />
           )
         ) : null}
@@ -1967,15 +1977,18 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           <Settings
             appMode={mode}
             subjects={subjects}
+            periods={periods}
             tasks={tasks}
             studyItems={[]}
             studySessions={studySessions}
+            plan={plan}
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}
             onAddSubject={handleAddSubject}
             onUpdateSubject={handleUpdateSubject}
             onDeleteSubject={handleDeleteSubject}
+            onUpdatePeriods={handleUpdatePeriods}
             onUpdateTimetableSettings={handleUpdateTimetableSettings}
             onUpdateTimetablePeriods={handleUpdateTimetablePeriods}
             onAddTimetableClass={handleAddTimetableClass}

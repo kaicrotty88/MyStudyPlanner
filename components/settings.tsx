@@ -34,6 +34,7 @@ interface StudyItem {
 }
 
 type AppMode = "demo" | "app";
+type Plan = "free" | "premium";
 
 type Period = {
   id: string;
@@ -68,6 +69,7 @@ const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 
 interface SettingsProps {
   subjects: Subject[];
+  periods: Period[];
   tasks: Task[];
   studyItems: StudyItem[];
   studySessions: StudySession[];
@@ -89,7 +91,10 @@ interface SettingsProps {
   onUpdateSubject: (id: string, name: string, color: string) => void;
   onDeleteSubject: (id: string) => void;
 
+  onUpdatePeriods: (periods: Period[]) => void;
+
   appMode: AppMode;
+  plan?: Plan;
   onClearAllData: () => void;
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
@@ -231,6 +236,7 @@ function sortPeriods(periods: TimetablePeriod[]) {
 
 export function Settings({
   subjects,
+  periods: appPeriods,
   tasks,
   studyItems,
   studySessions,
@@ -245,7 +251,9 @@ export function Settings({
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
+  onUpdatePeriods,
   appMode,
+  plan = "free",
   onClearAllData,
   openSection,
   onOpenSectionHandled,
@@ -266,7 +274,7 @@ export function Settings({
     color: pickNextColor([]),
   });
 
-  const [periods, setPeriods] = useState<Period[]>([]);
+  const [periods, setPeriods] = useState<Period[]>(appPeriods);
   const [showAddPeriodForm, setShowAddPeriodForm] = useState(false);
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
@@ -301,6 +309,9 @@ export function Settings({
   const [importError, setImportError] = useState("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
 
   const subjectsCardRef = useRef<HTMLDivElement>(null);
   const termsCardRef = useRef<HTMLDivElement>(null);
@@ -383,17 +394,27 @@ export function Settings({
     };
   }, [pendingBackup]);
 
+  const commitPeriods = (nextPeriods: Period[]) => {
+    const sorted = [...nextPeriods].sort(
+      (a, b) => a.startDate.getTime() - b.startDate.getTime()
+    );
+
+    setPeriods(sorted);
+    onUpdatePeriods(sorted);
+  };
+
   useEffect(() => {
+    setPeriods(appPeriods);
+  }, [appPeriods]);
+
+  useEffect(() => {
+    if (appPeriods.length > 0) return;
+
     try {
       const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
-
-      if (!raw) {
-        setPeriods([]);
-        return;
-      }
+      if (!raw) return;
 
       const parsed = JSON.parse(raw) as PeriodStored[];
-
       const hydrated: Period[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
         id: p.id,
         name: p.name,
@@ -401,11 +422,11 @@ export function Settings({
         endDate: new Date(p.endDate),
       }));
 
-      hydrated.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-      setPeriods(hydrated);
+      if (hydrated.length > 0) commitPeriods(hydrated);
     } catch {
-      setPeriods([]);
+      // ignore bad local term cache
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -582,19 +603,13 @@ export function Settings({
     }
 
     if (editingPeriodId) {
-      setPeriods((prev) =>
-        prev
-          .map((p) =>
-            p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
-          )
-          .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-      );
-    } else {
-      setPeriods((prev) =>
-        [...prev, { id: safeUUID(), name, startDate: start, endDate: end }].sort(
-          (a, b) => a.startDate.getTime() - b.startDate.getTime()
+      commitPeriods(
+        periods.map((p) =>
+          p.id === editingPeriodId ? { ...p, name, startDate: start, endDate: end } : p
         )
       );
+    } else {
+      commitPeriods([...periods, { id: safeUUID(), name, startDate: start, endDate: end }]);
     }
 
     cancelTermForm();
@@ -962,6 +977,35 @@ export function Settings({
       setImportError("Import failed. Your browser may be blocking storage.");
       setShowImportConfirm(false);
       setPendingBackup(null);
+    }
+  };
+
+  const currentPlanLabel = appMode === "demo" ? "Preview Premium" : plan === "premium" ? "Premium" : "Free plan";
+
+  const startPremiumCheckout = async () => {
+    if (appMode === "demo") return;
+
+    setBillingError("");
+    setBillingLoading(true);
+
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interval: billingInterval }),
+      });
+
+      const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
+
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error ?? "Could not start checkout.");
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : "Could not start checkout.");
+    } finally {
+      setBillingLoading(false);
     }
   };
 
@@ -2139,12 +2183,14 @@ export function Settings({
                     <div className="mt-1 text-xs text-muted-foreground">
                       {appMode === "demo"
                         ? "Preview mode shows Premium features so visitors can test the full product."
-                        : "You are currently on the Free plan unless billing is connected in your account."}
+                        : plan === "premium"
+                          ? "Premium is active on this account."
+                          : "You are currently on the Free plan."}
                     </div>
                   </div>
 
                   <span className="inline-flex w-fit rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-                    {appMode === "demo" ? "Preview Premium" : "Free plan"}
+                    {currentPlanLabel}
                   </span>
                 </div>
               </div>
@@ -2153,7 +2199,7 @@ export function Settings({
                 <div className="rounded-2xl border border-border bg-background/50 p-4">
                   <div className="text-sm font-semibold text-foreground">Free plan</div>
                   <ul className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
-                    <li>• Subjects, tasks, study sessions, reminders, and calendar.</li>
+                    <li>• Subjects, tasks, personal tasks, study sessions, and calendar.</li>
                     <li>• Timetable setup with school, university, or custom modes.</li>
                     <li>• Backup and data export/import.</li>
                   </ul>
@@ -2172,15 +2218,59 @@ export function Settings({
               <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <div className="text-sm font-semibold text-foreground">Insights and Marks are locked on Free</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                  The buttons are already shown in the top navigation so users can see what exists, but free accounts get a locked screen until Premium is enabled. Billing does not need to work yet — this section just makes the feature feel intentional.
+                  Upgrade to unlock Study Insights, Marks tracking, trends, and progress tools on your account.
                 </div>
 
-                <button
-                  type="button"
-                  className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-                >
-                  Upgrade to Premium
-                </button>
+                {plan !== "premium" ? (
+                  <>
+                    <div className="mt-4 flex w-fit rounded-xl border border-border bg-muted/20 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setBillingInterval("monthly")}
+                        className={[
+                          "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                          billingInterval === "monthly"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted",
+                        ].join(" ")}
+                      >
+                        Monthly
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setBillingInterval("yearly")}
+                        className={[
+                          "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                          billingInterval === "yearly"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted",
+                        ].join(" ")}
+                      >
+                        Yearly
+                      </button>
+                    </div>
+
+                    {billingError ? (
+                      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+                        {billingError}
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={startPremiumCheckout}
+                      disabled={billingLoading || appMode === "demo"}
+                      className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {billingLoading ? "Opening checkout..." : "Upgrade to Premium"}
+                    </button>
+                  </>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                    Premium is active. Billing management can be added through the Stripe portal next.
+                  </div>
+                )}
               </div>
             </div>
           ) : null}
@@ -2276,7 +2366,7 @@ export function Settings({
               <button
                 type="button"
                 onClick={() => {
-                  setPeriods((prev) => prev.filter((p) => p.id !== deletingTerm.id));
+                  commitPeriods(periods.filter((p) => p.id !== deletingTerm.id));
                   setDeletingPeriodId(null);
                 }}
                 className="rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
