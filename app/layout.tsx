@@ -1,9 +1,14 @@
 // app/layout.tsx
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/react";
+import GoogleAnalyticsPageView from "@/components/GoogleAnalyticsPageView";
 import "./globals.css";
+
+const GA_MEASUREMENT_ID = "G-1ZLJMK2TLL";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,6 +63,20 @@ export default function RootLayout({
   return (
     <html lang="en-AU">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            window.gtag = gtag;
+            gtag('js', new Date());
+          `}
+        </Script>
+
         <ClerkProvider
           appearance={{
             variables: {
@@ -91,6 +110,10 @@ export default function RootLayout({
             },
           }}
         >
+          <Suspense fallback={null}>
+            <GoogleAnalyticsPageView />
+          </Suspense>
+
           {children}
           <Analytics />
         </ClerkProvider>
