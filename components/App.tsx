@@ -9,6 +9,7 @@ import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
+import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 
 import type {
   Reminder,
@@ -33,7 +34,11 @@ import {
   upsertPlannerState,
   clearPlannerState,
 } from "@/lib/plannerStateSupabase";
-import { fetchUserPlan } from "@/lib/profileSupabase";
+import {
+  ensureProfile,
+  completeUserOnboarding,
+  type ProfileRow,
+} from "@/lib/profileSupabase";
 
 import WhatsNewModal from "@/components/WhatsNewModal";
 
@@ -1130,6 +1135,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [showMobileDesktopHint, setShowMobileDesktopHint] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [plan, setPlan] = useState<Plan>(mode === "demo" ? "premium" : "free");
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(mode === "demo");
 
   const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
 
@@ -1330,6 +1337,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   useEffect(() => {
     if (mode === "demo") {
       setPlan("premium");
+      setProfile(null);
+      setProfileLoaded(true);
       return;
     }
 
@@ -1337,18 +1346,31 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
     if (!isSignedIn || !supabase || !user?.id) {
       setPlan("free");
+      setProfile(null);
+      setProfileLoaded(true);
       return;
     }
 
     let cancelled = false;
+    setProfileLoaded(false);
 
     (async () => {
       try {
-        const nextPlan = await fetchUserPlan(supabase, user.id);
-        if (!cancelled) setPlan(nextPlan);
+        const nextProfile = await ensureProfile(supabase, user.id);
+
+        if (cancelled) return;
+
+        setProfile(nextProfile);
+        setPlan(nextProfile.plan);
+        setProfileLoaded(true);
       } catch (error) {
-        console.error("Failed to fetch user plan:", error);
-        if (!cancelled) setPlan("free");
+        console.error("Failed to fetch user profile:", error);
+
+        if (cancelled) return;
+
+        setPlan("free");
+        setProfile(null);
+        setProfileLoaded(true);
       }
     })();
 
@@ -1713,7 +1735,67 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setActiveTab(tab);
   };
 
-  if (!isReady) return <LoadingScreen />;
+  const handleCompleteOnboarding = async () => {
+    if (mode !== "app" || !isSignedIn || !supabase || !user?.id) {
+      setActiveTab("calendar");
+      return;
+    }
+
+    try {
+      await completeUserOnboarding(supabase, user.id);
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              has_completed_onboarding: true,
+              onboarding_completed_at: new Date().toISOString(),
+            }
+          : prev
+      );
+
+      setActiveTab("calendar");
+    } catch (error) {
+      console.error("Failed to complete onboarding:", error);
+    }
+  };
+
+  if (!isReady || !profileLoaded) return <LoadingScreen />;
+
+  if (
+    mode === "app" &&
+    Boolean(isSignedIn) &&
+    profile &&
+    !profile.has_completed_onboarding
+  ) {
+    return (
+      <OnboardingFlow
+        subjects={subjects}
+        periods={periods}
+        tasks={tasks}
+        studySessions={studySessions}
+        timetableSettings={timetableSettings}
+        timetablePeriods={timetablePeriods}
+        timetableClasses={timetableClasses}
+        plan={plan}
+        onAddSubject={handleAddSubject}
+        onUpdateSubject={handleUpdateSubject}
+        onDeleteSubject={handleDeleteSubject}
+        onUpdatePeriods={handleUpdatePeriods}
+        onUpdateTimetableSettings={handleUpdateTimetableSettings}
+        onUpdateTimetablePeriods={handleUpdateTimetablePeriods}
+        onAddTimetableClass={handleAddTimetableClass}
+        onUpdateTimetableClass={handleUpdateTimetableClass}
+        onDeleteTimetableClass={handleDeleteTimetableClass}
+        onAddTask={handleAddTask}
+        onUpdateTask={handleUpdateTask}
+        onDeleteTask={handleDeleteTask}
+        onToggleTaskCompleted={toggleTaskCompleted}
+        onClearAllData={handleClearAllData}
+        onComplete={handleCompleteOnboarding}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
