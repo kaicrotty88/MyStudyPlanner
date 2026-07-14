@@ -1021,10 +1021,10 @@ export function Settings({
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-6 py-8 md:px-10">
+    <div className="app-page app-scroll-page max-w-6xl space-y-5">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="app-page-title">Settings</h1>
+        <p className="app-page-subtitle">
           Manage your subjects, terms, timetable, and backups.
         </p>
       </div>
@@ -2274,6 +2274,24 @@ export function Settings({
               </div>
             </div>
           ) : null}
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Support</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                Need help or found a bug? We’re happy to help.
+              </div>
+            </div>
+
+            <a
+              href="mailto:mystudyplanner.studio@gmail.com"
+              className="app-btn-secondary shrink-0"
+            >
+              mystudyplanner.studio@gmail.com
+            </a>
+          </div>
         </div>
       </div>
 

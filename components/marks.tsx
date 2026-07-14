@@ -309,10 +309,10 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 md:px-10 py-8 space-y-6">
+    <div className="app-page app-scroll-page space-y-5">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Marks</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="app-page-title">Marks</h1>
+        <p className="app-page-subtitle">
           Track your assessment results, spot trends, and see where you are improving.
         </p>
       </div>

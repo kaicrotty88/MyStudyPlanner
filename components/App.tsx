@@ -1050,7 +1050,7 @@ function LockedPremiumView({
 
   return (
     <div className="min-h-[calc(100vh-68px)] bg-background">
-      <div className="mx-auto flex min-h-[calc(100vh-68px)] max-w-4xl items-center justify-center px-6 py-12">
+      <div className="flex h-full min-h-0 items-center justify-center px-6 py-12">
         <div className="app-card w-full p-8">
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
             <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft">
@@ -1798,7 +1798,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="app-shell bg-background text-foreground">
       <WhatsNewModal
         open={mode === "app" && Boolean(isSignedIn) && showWhatsNew}
         onClose={markWhatsNewSeen}
@@ -1806,21 +1806,21 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         updates={WHATS_NEW_UPDATES}
       />
 
-      <nav className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <nav className="app-shell-header z-30 border-b border-border bg-card/90 backdrop-blur-xl">
+        <div className="app-shell-header-grid">
           <Link
-            href={mode === "demo" ? "/preview" : "/app"}
+            href={mode === "demo" ? "/demo" : "/app"}
             className="flex items-center gap-3"
           >
             <div className="leading-tight">
               <div className="text-base font-semibold tracking-tight text-foreground">MyStudyPlanner</div>
               <div className="text-[11px] text-muted-foreground">
-                {mode === "demo" ? "Sample data preview" : "Calendar workspace"}
+                Made by students, for students
               </div>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-1 lg:flex">
+          <div className="hidden items-center justify-center gap-1 lg:flex">
             {tabs.map((tab) => {
               const locked = mode === "app" && isPremiumTab(tab.id) && !hasPremium;
 
@@ -1994,7 +1994,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         </div>
       ) : null}
 
-      <main>
+      <main className="app-shell-content">
         {activeTab === "calendar" ? (
           <Calendar
             studySessions={studySessions}

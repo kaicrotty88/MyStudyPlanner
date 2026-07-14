@@ -285,11 +285,16 @@
 
 @layer components {
   .app-page {
-    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 md:px-8;
+    @apply mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 md:px-8;
   }
 
   .app-page-wide {
-    @apply mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 md:px-8;
+    @apply mx-auto w-full max-w-[1500px] px-4 py-5 sm:px-6 md:px-8;
+  }
+
+  .app-scroll-page {
+    min-height: 100%;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
 
   .app-page-title {
@@ -508,4 +513,77 @@
 
 .cl-userButtonAvatarBox svg {
   background-color: var(--primary) !important;
+}
+
+/* ============================================================
+   Application shell
+   ============================================================ */
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-shell-header {
+  flex: 0 0 auto;
+}
+
+.app-shell-header-grid {
+  display: grid;
+  width: 100%;
+  max-width: 96rem;
+  height: 68px;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding-inline: 1rem;
+}
+
+.app-shell-header-grid > :first-child {
+  justify-self: start;
+}
+
+.app-shell-header-grid > :nth-child(2) {
+  justify-self: center;
+}
+
+.app-shell-header-grid > :last-child {
+  justify-self: end;
+}
+
+.app-shell-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 640px) {
+  .app-shell-header-grid { padding-inline: 1.5rem; }
+}
+
+@media (min-width: 1024px) {
+  .app-shell-header-grid { padding-inline: 2rem; }
+}
+
+@media (max-width: 1023px) {
+  .app-shell-header-grid {
+    display: flex;
+    justify-content: space-between;
+  }
 }

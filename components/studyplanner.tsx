@@ -309,7 +309,7 @@ export function StudyPlanner({
   const showPremiumInsightsLock = studyView === "insights" && !hasPremium;
 
   return (
-    <div className="app-page space-y-6">
+    <div className="app-page app-scroll-page space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
