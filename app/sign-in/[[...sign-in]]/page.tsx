@@ -9,17 +9,17 @@ export default function Page() {
         <SignIn
           appearance={{
             elements: {
-              rootBox: "w-full",
-              card: "!bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full",
+              rootBox: "w-full !overflow-visible",
+              card: "!bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full !overflow-visible",
               cardBox:
-                "!bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full",
-              main: "w-full",
+                "!bg-transparent !shadow-none !border-0 !p-0 !m-0 !rounded-none w-full !overflow-visible",
+              main: "w-full !overflow-visible",
 
               headerTitle: "hidden",
               headerSubtitle: "hidden",
 
               socialButtonsBlockButton:
-                "!h-10 !rounded-xl !border !border-gray-200 !bg-white hover:!bg-gray-50 transition",
+                "!h-10 !rounded-xl !border !border-gray-200 !bg-white hover:!bg-gray-50 transition !overflow-visible !pr-20",
               socialButtonsBlockButtonText: "text-sm text-gray-700",
 
               dividerLine: "bg-gray-200",
@@ -38,24 +38,22 @@ export default function Page() {
           }}
         />
 
-        {/* Switch */}
         <div className="mt-6 text-center text-sm text-muted-foreground">
           New here?{" "}
           <Link
             href="/sign-up"
-            className="font-medium text-[#7A9B7F] hover:opacity-90 transition"
+            className="font-medium text-[#7A9B7F] transition hover:opacity-90"
           >
             Create an account
           </Link>
         </div>
 
-        {/* Small legit footer */}
         <div className="mt-3 flex items-center justify-center gap-3 text-xs text-muted-foreground/80">
-          <Link href="/privacy" className="hover:text-muted-foreground transition">
+          <Link href="/privacy" className="transition hover:text-muted-foreground">
             Privacy
           </Link>
           <span className="opacity-60">•</span>
-          <Link href="/terms" className="hover:text-muted-foreground transition">
+          <Link href="/terms" className="transition hover:text-muted-foreground">
             Terms
           </Link>
         </div>
