@@ -487,11 +487,18 @@ const getTimetableWeekForDate = (
   return safeMod === 0 ? "A" : "B";
 };
 
+const isDateInsideConfiguredTerm = (
+  date: Date,
+  periods: PeriodHydrated[]
+) => periods.some((period) => inRangeInclusive(date, period.startDate, period.endDate));
+
 const isTimetableClassOnDate = (
   date: Date,
   item: TimetableClass,
-  settings: TimetableSettings
+  settings: TimetableSettings,
+  periods: PeriodHydrated[]
 ) => {
+  if (!isDateInsideConfiguredTerm(date, periods)) return false;
   if (item.dayOfWeek !== date.getDay()) return false;
   if (settings.cycle === "weekly") return true;
   if (item.week === "both") return true;
@@ -743,7 +750,7 @@ function CalendarView({
 
     return timetableClasses
       .filter((item) => item.subjectId === task.subjectId)
-      .filter((item) => isTimetableClassOnDate(task.dueDate, item, timetableSettings))
+      .filter((item) => isTimetableClassOnDate(task.dueDate, item, timetableSettings, periods))
       .sort((a, b) => {
         const aTimes = getTimetableClassTimes(a);
         const bTimes = getTimetableClassTimes(b);
@@ -876,11 +883,11 @@ function CalendarView({
 
       return a.start.getTime() - b.start.getTime();
     });
-  }, [activeTasks, activeSessions, timetableClasses, timetableSettings, timetablePeriodById]);
+  }, [activeTasks, activeSessions, timetableClasses, timetableSettings, timetablePeriodById, periods]);
 
   const getTimetableItemsForDate = (date: Date): CalendarItem[] => {
     return timetableClasses
-      .filter((item) => isTimetableClassOnDate(date, item, timetableSettings))
+      .filter((item) => isTimetableClassOnDate(date, item, timetableSettings, periods))
       .map((item): CalendarItem | null => {
         const { startTime, endTime, period } = getTimetableClassTimes(item);
 
@@ -899,7 +906,7 @@ function CalendarView({
           subjectId: item.subjectId,
           start: dateWithMinutes(date, startMins),
           end: dateWithMinutes(date, safeEndMins),
-          timeLabel: `${displayTime(startTime)} – ${displayTime(endTime)}`,
+          timeLabel: `${displayTime(startTime)} - ${displayTime(endTime)}`,
           durationLabel:
             period?.name ??
             (timetableSettings.cycle === "fortnightly"
@@ -984,7 +991,7 @@ function CalendarView({
       return `${s.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
-      })} – ${e.toLocaleDateString("en-US", {
+      })} - ${e.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -2308,7 +2315,7 @@ function CalendarView({
 
                           return (
                             <option key={t.id} value={t.id}>
-                              {typeLabel(t.type)} • {t.title} — {subjName} (due {due})
+                              {typeLabel(t.type)} • {t.title} - {subjName} (due {due})
                             </option>
                           );
                         })

@@ -168,6 +168,18 @@ const DEMO_PERIODS: Period[] = [
     startDate: new Date(2026, 3, 28),
     endDate: new Date(2026, 6, 3),
   },
+  {
+    id: "p3",
+    name: "Term 3",
+    startDate: new Date(2026, 6, 20),
+    endDate: new Date(2026, 8, 25),
+  },
+  {
+    id: "p4",
+    name: "Term 4",
+    startDate: new Date(2026, 9, 12),
+    endDate: new Date(2026, 11, 11),
+  },
 ];
 
 const DEMO_TIMETABLE_SETTINGS: TimetableSettings = {
@@ -192,7 +204,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
   const createdAt = new Date(2026, 0, 26);
 
   const slots: DemoTimetableSlot[] = [
-    // Week A — Monday
+    // Week A - Monday
     {
       week: "A",
       dayOfWeek: 1,
@@ -242,7 +254,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mrs Patel",
     },
 
-    // Week A — Tuesday
+    // Week A - Tuesday
     {
       week: "A",
       dayOfWeek: 2,
@@ -292,7 +304,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr Foster",
     },
 
-    // Week A — Wednesday
+    // Week A - Wednesday
     {
       week: "A",
       dayOfWeek: 3,
@@ -342,7 +354,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Ms Wright",
     },
 
-    // Week A — Thursday
+    // Week A - Thursday
     {
       week: "A",
       dayOfWeek: 4,
@@ -392,7 +404,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Ms Taylor",
     },
 
-    // Week A — Friday
+    // Week A - Friday
     {
       week: "A",
       dayOfWeek: 5,
@@ -442,7 +454,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr Lewis",
     },
 
-    // Week B — Monday
+    // Week B - Monday
     {
       week: "B",
       dayOfWeek: 1,
@@ -492,7 +504,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr O'Brien",
     },
 
-    // Week B — Tuesday
+    // Week B - Tuesday
     {
       week: "B",
       dayOfWeek: 2,
@@ -542,7 +554,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Ms Chen",
     },
 
-    // Week B — Wednesday
+    // Week B - Wednesday
     {
       week: "B",
       dayOfWeek: 3,
@@ -592,7 +604,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Dr Harris",
     },
 
-    // Week B — Thursday
+    // Week B - Thursday
     {
       week: "B",
       dayOfWeek: 4,
@@ -642,7 +654,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr Foster",
     },
 
-    // Week B — Friday
+    // Week B - Friday
     {
       week: "B",
       dayOfWeek: 5,
