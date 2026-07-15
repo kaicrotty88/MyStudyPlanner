@@ -168,18 +168,6 @@ const DEMO_PERIODS: Period[] = [
     startDate: new Date(2026, 3, 28),
     endDate: new Date(2026, 6, 3),
   },
-  {
-    id: "p3",
-    name: "Term 3",
-    startDate: new Date(2026, 6, 20),
-    endDate: new Date(2026, 8, 25),
-  },
-  {
-    id: "p4",
-    name: "Term 4",
-    startDate: new Date(2026, 9, 12),
-    endDate: new Date(2026, 11, 11),
-  },
 ];
 
 const DEMO_TIMETABLE_SETTINGS: TimetableSettings = {
@@ -204,7 +192,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
   const createdAt = new Date(2026, 0, 26);
 
   const slots: DemoTimetableSlot[] = [
-    // Week A - Monday
+    // Week A — Monday
     {
       week: "A",
       dayOfWeek: 1,
@@ -254,7 +242,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mrs Patel",
     },
 
-    // Week A - Tuesday
+    // Week A — Tuesday
     {
       week: "A",
       dayOfWeek: 2,
@@ -304,7 +292,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr Foster",
     },
 
-    // Week A - Wednesday
+    // Week A — Wednesday
     {
       week: "A",
       dayOfWeek: 3,
@@ -354,7 +342,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Ms Wright",
     },
 
-    // Week A - Thursday
+    // Week A — Thursday
     {
       week: "A",
       dayOfWeek: 4,
@@ -404,7 +392,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Ms Taylor",
     },
 
-    // Week A - Friday
+    // Week A — Friday
     {
       week: "A",
       dayOfWeek: 5,
@@ -454,7 +442,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr Lewis",
     },
 
-    // Week B - Monday
+    // Week B — Monday
     {
       week: "B",
       dayOfWeek: 1,
@@ -504,7 +492,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr O'Brien",
     },
 
-    // Week B - Tuesday
+    // Week B — Tuesday
     {
       week: "B",
       dayOfWeek: 2,
@@ -554,7 +542,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Ms Chen",
     },
 
-    // Week B - Wednesday
+    // Week B — Wednesday
     {
       week: "B",
       dayOfWeek: 3,
@@ -604,7 +592,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Dr Harris",
     },
 
-    // Week B - Thursday
+    // Week B — Thursday
     {
       week: "B",
       dayOfWeek: 4,
@@ -654,7 +642,7 @@ const makeDemoTimetableClasses = (): TimetableClass[] => {
       teacher: "Mr Foster",
     },
 
-    // Week B - Friday
+    // Week B — Friday
     {
       week: "B",
       dayOfWeek: 5,
@@ -1150,7 +1138,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(mode === "demo");
 
-  const storageKey = mode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
+  const storageKey =
+    mode === "demo"
+      ? DEMO_STORAGE_KEY
+      : user?.id
+        ? `${REAL_STORAGE_KEY}:${user.id}`
+        : `${REAL_STORAGE_KEY}:guest`;
 
   const hasPremium = plan === "premium";
   const isPremiumTab = (tab: Tab | string) => tab === "marks";
@@ -1200,16 +1193,17 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const applyParsedState = (parsed: any) => {
     setSubjects(Array.isArray(parsed?.subjects) ? parsed.subjects : []);
 
-    setPeriods(
-      Array.isArray(parsed?.periods)
-        ? parsed.periods.map((p: any) => ({
-            id: String(p?.id ?? Date.now()),
-            name: String(p?.name ?? "Term"),
-            startDate: hydrateDate(p?.startDate),
-            endDate: hydrateDate(p?.endDate),
-          }))
-        : []
-    );
+    const parsedPeriods: Period[] = Array.isArray(parsed?.periods)
+      ? parsed.periods.map((p: any) => ({
+          id: String(p?.id ?? Date.now()),
+          name: String(p?.name ?? "Term"),
+          startDate: hydrateDate(p?.startDate),
+          endDate: hydrateDate(p?.endDate),
+        }))
+      : [];
+
+    setPeriods(parsedPeriods);
+    seedPeriodsStorage(parsedPeriods);
 
     const parsedTasks: Task[] = Array.isArray(parsed?.tasks)
       ? parsed.tasks.map((t: any) => ({
@@ -1479,20 +1473,22 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           return;
         }
 
-        const localLoaded = loadLocalFallback();
+        const emptyState = {
+          subjects: [],
+          periods: [],
+          tasks: [],
+          studySessions: [],
+          timetableSettings: DEFAULT_TIMETABLE_SETTINGS,
+          timetablePeriods: DEFAULT_SCHOOL_TIMETABLE_PERIODS,
+          timetableClasses: [],
+        };
 
-        if (localLoaded) {
-          const snapshotFromLocal = JSON.parse(localStorage.getItem(storageKey) || "{}");
-          await upsertPlannerState(supabase, snapshotFromLocal);
-        } else {
-          setSubjects([]);
-          setPeriods([]);
-          setTasks([]);
-          setStudySessions([]);
-          setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
-          setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
-          setTimetableClasses([]);
-        }
+        applyParsedState(emptyState);
+
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(emptyState));
+          localStorage.removeItem(REAL_STORAGE_KEY);
+        } catch {}
 
         finishLoading();
       } catch (error) {
@@ -1509,7 +1505,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, userLoaded, isSignedIn, supabase, storageKey]);
+  }, [mode, userLoaded, isSignedIn, supabase, storageKey, user?.id]);
 
   const saveRemoteDebounced = useMemo(
     () =>
@@ -1594,6 +1590,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const handleClearAllData = async () => {
     try {
       localStorage.removeItem(storageKey);
+      localStorage.removeItem(REAL_STORAGE_KEY);
       localStorage.removeItem(PERIODS_STORAGE_KEY);
     } catch {}
 
