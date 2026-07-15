@@ -1644,7 +1644,7 @@ function CalendarView({
                 role="button"
                 tabIndex={0}
                 className={[
-                  "min-h-[128px] cursor-pointer border-r border-b border-border p-1.5 text-left transition",
+                  "min-h-[112px] cursor-pointer border-r border-b border-border p-1.5 text-left transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                   isOtherMonth ? "bg-muted/10 text-muted-foreground" : "bg-card hover:bg-muted/25",
                   isToday ? "bg-primary/[0.04]" : "",
@@ -2025,7 +2025,7 @@ function CalendarView({
 
   return (
     <div className="app-page-wide app-scroll-page space-y-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="app-page-header flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="app-page-title">Calendar</h1>
           <p className="app-page-subtitle">

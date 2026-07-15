@@ -309,7 +309,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   };
 
   return (
-    <div className="app-page app-scroll-page space-y-5">
+    <div className="app-page app-scroll-page space-y-4">
       <div className="space-y-1">
         <h1 className="app-page-title">Marks</h1>
         <p className="app-page-subtitle">

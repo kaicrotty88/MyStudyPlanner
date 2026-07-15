@@ -289,7 +289,20 @@
   }
 
   .app-page-wide {
-    @apply mx-auto w-full max-w-[1500px] px-4 py-5 sm:px-6 md:px-8;
+    @apply mx-auto w-full max-w-[1500px] px-5 py-5 sm:px-7 md:px-9;
+  }
+
+  .app-page-header {
+    @apply mx-auto w-full max-w-7xl;
+  }
+
+  .app-filter-strip {
+    @apply flex w-full items-center gap-2 overflow-x-auto rounded-2xl border border-border bg-card p-2 shadow-app-card;
+    scrollbar-width: none;
+  }
+
+  .app-filter-strip::-webkit-scrollbar {
+    display: none;
   }
 
   .app-scroll-page {
@@ -323,6 +336,10 @@
 
   .app-section {
     @apply rounded-2xl border border-border bg-muted/20 p-4 md:p-5;
+  }
+
+  .app-section-plain {
+    @apply p-0;
   }
 
   .app-divider {

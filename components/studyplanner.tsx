@@ -309,7 +309,7 @@ export function StudyPlanner({
   const showPremiumInsightsLock = studyView === "insights" && !hasPremium;
 
   return (
-    <div className="app-page app-scroll-page space-y-6">
+    <div className="app-page app-scroll-page space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -354,7 +354,7 @@ export function StudyPlanner({
         ) : null}
       </div>
 
-      <div className="app-switch w-fit">
+      <div className="app-switch w-fit -mt-1">
         <button
           type="button"
           onClick={() => setStudyView("log")}
@@ -377,7 +377,7 @@ export function StudyPlanner({
       {studyView === "log" ? (
         <>
       {/* Subject tabs */}
-      <div className="rounded-full border border-border bg-card p-1 flex flex-wrap gap-1">
+      <div className="app-filter-strip rounded-full py-1">
         <button
           onClick={() => setActiveSubject("all")}
           className={[

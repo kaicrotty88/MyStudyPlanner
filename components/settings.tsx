@@ -1021,15 +1021,15 @@ export function Settings({
   };
 
   return (
-    <div className="app-page app-scroll-page max-w-6xl space-y-5">
+    <div className="app-page app-scroll-page space-y-4">
       <div className="space-y-1">
         <h1 className="app-page-title">Settings</h1>
         <p className="app-page-subtitle">
-          Manage your subjects, terms, timetable, and backups.
+          Manage your subjects, terms, timetable, data, and support.
         </p>
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4 md:p-5">
+      <div className="space-y-3">
         <div ref={subjectsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <button
             type="button"
@@ -2285,12 +2285,17 @@ export function Settings({
               </div>
             </div>
 
-            <a
-              href="mailto:mystudyplanner.studio@gmail.com"
-              className="app-btn-secondary shrink-0"
-            >
-              mystudyplanner.studio@gmail.com
-            </a>
+            <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+              <a
+                href="mailto:mystudyplanner.studio@gmail.com"
+                className="app-btn-secondary h-9 px-3"
+              >
+                Email support
+              </a>
+              <span className="text-[11px] text-muted-foreground">
+                mystudyplanner.studio@gmail.com
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -942,7 +942,7 @@ export function Tasks({
   };
 
   return (
-    <div className="app-page app-scroll-page space-y-5">
+    <div className="app-page app-scroll-page space-y-4">
       <div>
         <h1 className="app-page-title">Tasks</h1>
         <p className="app-page-subtitle">
@@ -950,7 +950,7 @@ export function Tasks({
         </p>
       </div>
 
-      <div className="app-card flex flex-wrap gap-2 p-2">
+      <div className="app-filter-strip">
         <button
           type="button"
           onClick={() => setSelectedSubject("all")}
@@ -1007,7 +1007,7 @@ export function Tasks({
         })}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pt-0.5">
         <div className="text-xs text-muted-foreground">
           {filteredTasks.length} showing{selectedSubject !== "all" ? " (filtered)" : ""}
         </div>
@@ -1021,12 +1021,12 @@ export function Tasks({
         </button>
       </div>
 
-      <div className="app-section">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="app-section-plain">
+        <div className="mb-2 flex items-center justify-between">
           <div className="text-xs font-medium text-muted-foreground">Workboard</div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {renderSection(tasksByType.homework, "homework")}
           {renderSection(tasksByType.assignment, "assignment")}
           {renderSection(tasksByType.exam, "exam")}
