@@ -311,73 +311,61 @@ export function StudyPlanner({
   return (
     <div className="app-page app-scroll-page space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="app-page-title">Study</h1>
-          <p className="app-page-subtitle">Log study sessions and review your study analytics.</p>
+      <div>
+        <h1 className="app-page-title">Study</h1>
+        <p className="app-page-subtitle">Log study sessions and review your study analytics.</p>
+      </div>
 
-          <div className="pt-2">
-            <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
-              <span className="text-foreground/90 font-medium">This week</span>
-              <span className="opacity-40">•</span>
-              <span>{weeklySummary.label}</span>
-              <span className="opacity-40">•</span>
-              <span>
-                {weeklySummary.count} session{weeklySummary.count === 1 ? "" : "s"}
-              </span>
-              <span className="opacity-40">•</span>
-              <span className="text-foreground font-semibold">{formatMinutes(weeklySummary.minutes)}</span>
-            </div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="app-switch">
+            <button
+              type="button"
+              onClick={() => setStudyView("log")}
+              className={["app-switch-item", studyView === "log" ? "app-switch-item-active" : ""].join(" ")}
+            >
+              Log
+            </button>
+            <button
+              type="button"
+              onClick={() => setStudyView("insights")}
+              className={["app-switch-item", studyView === "insights" ? "app-switch-item-active" : ""].join(" ")}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Insights
+              {!hasPremium ? <Lock className="h-3.5 w-3.5" /> : null}
+            </button>
+          </div>
+
+          <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">This week</span>
+            <span className="opacity-40">•</span>
+            <span>{weeklySummary.label}</span>
+            <span className="opacity-40">•</span>
+            <span>{weeklySummary.count} session{weeklySummary.count === 1 ? "" : "s"}</span>
+            <span className="opacity-40">•</span>
+            <span className="font-semibold text-foreground">{formatMinutes(weeklySummary.minutes)}</span>
           </div>
         </div>
 
-        {/* Actions */}
         {studyView === "log" ? (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCompleted((v) => !v)}
-              className="app-btn-secondary h-9 px-3"
-              type="button"
-            >
+            <button onClick={() => setShowCompleted((v) => !v)} className="app-btn-secondary h-9 px-3" type="button">
               {showCompleted ? "Hide completed" : "Show completed"}
             </button>
-
-            <button
-              onClick={openNew}
-              className="app-btn-primary h-9 px-4"
-              type="button"
-            >
-              <Plus className="w-4 h-4" />
+            <button onClick={openNew} className="app-btn-primary h-9 px-4" type="button">
+              <Plus className="h-4 w-4" />
               Log session
             </button>
           </div>
         ) : null}
       </div>
 
-      <div className="app-switch w-fit -mt-1">
-        <button
-          type="button"
-          onClick={() => setStudyView("log")}
-          className={["app-switch-item", studyView === "log" ? "app-switch-item-active" : ""].join(" ")}
-        >
-          Log
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStudyView("insights")}
-          className={["app-switch-item", studyView === "insights" ? "app-switch-item-active" : ""].join(" ")}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Insights
-          {!hasPremium ? <Lock className="h-3.5 w-3.5" /> : null}
-        </button>
-      </div>
-
       {studyView === "log" ? (
         <>
       {/* Subject tabs */}
-      <div className="app-filter-strip rounded-full py-1">
+      <div className="app-filter-scroll">
+        <div className="app-filter-scroll-track">
         <button
           onClick={() => setActiveSubject("all")}
           className={[
@@ -409,6 +397,7 @@ export function StudyPlanner({
             </button>
           );
         })}
+        </div>
       </div>
 
       {/* Sessions list */}
@@ -437,7 +426,7 @@ export function StudyPlanner({
                 <div
                   key={s.id}
                   className={[
-                    "group flex items-start justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition",
+                    "group flex items-start justify-between gap-4 px-4 py-2.5 hover:bg-muted/40 transition",
                     s.completed ? "opacity-80" : "",
                   ].join(" ")}
                 >
@@ -456,7 +445,7 @@ export function StudyPlanner({
                       title={s.completed ? "Completed" : "Mark as completed"}
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      {s.completed ? "Completed" : "Complete"}
+                      {s.completed ? "Completed" : "Mark complete"}
                     </button>
 
                     <div className="min-w-0">
@@ -677,7 +666,7 @@ export function StudyPlanner({
                   )}
                 </select>
 
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-[11px] text-muted-foreground/90">
                   Only shows active (not completed) tasks. Linking helps Insights understand what you studied.
                 </div>
               </div>

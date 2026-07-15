@@ -318,12 +318,12 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <Target className="h-4 w-4" />
             Overall average
           </div>
-          <div className="mt-3 text-2xl font-semibold text-foreground">
+          <div className="mt-2.5 text-2xl font-semibold text-foreground">
             {overallAverage === null ? "—" : formatPercent(overallAverage)}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
@@ -331,12 +331,12 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <Award className="h-4 w-4" />
             Best subject
           </div>
-          <div className="mt-3 text-lg font-semibold text-foreground truncate">
+          <div className="mt-2.5 text-lg font-semibold text-foreground truncate">
             {strongestSubject ? strongestSubject.subjectName : "—"}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
@@ -344,12 +344,12 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <TrendingUp className="h-4 w-4" />
-            Recent trend
+            Recent change
           </div>
-          <div className="mt-3 text-2xl font-semibold text-foreground">
+          <div className="mt-2.5 text-2xl font-semibold text-foreground">
             {momentum === null ? "—" : `${momentum >= 0 ? "+" : ""}${Math.round(momentum)}%`}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
@@ -361,12 +361,12 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <Clock3 className="h-4 w-4" />
             Pending results
           </div>
-          <div className="mt-3 text-2xl font-semibold text-foreground">{pendingCount}</div>
+          <div className="mt-2.5 text-2xl font-semibold text-foreground">{pendingCount}</div>
           <div className="mt-1 text-xs text-muted-foreground">
             {recordedCount} recorded {recordedCount === 1 ? "assessment" : "assessments"} so far.
           </div>

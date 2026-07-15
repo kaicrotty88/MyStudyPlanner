@@ -485,7 +485,7 @@
   }
 
   .calendar-month-chip {
-    @apply flex h-6 min-w-0 items-center gap-1.5 rounded-lg px-1.5 text-left text-[11px] leading-none transition;
+    @apply flex h-6 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-left text-[11px] leading-none transition;
     @apply hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
   }
 
@@ -499,6 +499,33 @@
 
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25;
+  }
+
+
+  .app-filter-scroll {
+    @apply relative overflow-hidden rounded-2xl border border-border bg-card shadow-app-card;
+  }
+
+  .app-filter-scroll-track {
+    @apply flex items-center gap-2 overflow-x-auto px-2 py-2 pr-12;
+    scrollbar-width: none;
+  }
+
+  .app-filter-scroll-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-filter-scroll::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 3rem;
+    background: linear-gradient(to right, transparent, var(--card) 72%);
+  }
+
+  .settings-row-icon {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-muted/35 text-muted-foreground;
   }
 }
 

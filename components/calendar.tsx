@@ -1644,7 +1644,7 @@ function CalendarView({
                 role="button"
                 tabIndex={0}
                 className={[
-                  "min-h-[112px] cursor-pointer border-r border-b border-border p-1.5 text-left transition",
+                  "min-h-[96px] cursor-pointer border-r border-b border-border p-1.5 text-left transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                   isOtherMonth ? "bg-muted/10 text-muted-foreground" : "bg-card hover:bg-muted/25",
                   isToday ? "bg-primary/[0.04]" : "",
@@ -1654,7 +1654,7 @@ function CalendarView({
                   <span
                     className={[
                       "grid h-6 w-6 place-items-center rounded-full text-xs",
-                      isToday ? "bg-primary text-primary-foreground font-semibold" : "text-foreground",
+                      isToday ? "bg-primary text-primary-foreground font-semibold" : "font-medium text-foreground/85",
                       isOtherMonth && !isToday ? "text-muted-foreground" : "",
                     ].join(" ")}
                   >

@@ -950,66 +950,56 @@ export function Tasks({
         </p>
       </div>
 
-      <div className="app-filter-strip">
-        <button
-          type="button"
-          onClick={() => setSelectedSubject("all")}
-          className={[
-            "app-pill",
-            selectedSubject === "all" ? "app-pill-active" : "",
-          ].join(" ")}
-        >
-          All
-        </button>
+      <div className="app-filter-scroll">
+        <div className="app-filter-scroll-track">
+          <button
+            type="button"
+            onClick={() => setSelectedSubject("all")}
+            className={["app-pill", selectedSubject === "all" ? "app-pill-active" : ""].join(" ")}
+          >
+            All
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setSelectedSubject("school")}
-          className={[
-            "app-pill",
-            selectedSubject === "school" ? "app-pill-active" : "",
-          ].join(" ")}
-        >
-          School
-        </button>
+          <button
+            type="button"
+            onClick={() => setSelectedSubject("school")}
+            className={["app-pill", selectedSubject === "school" ? "app-pill-active" : ""].join(" ")}
+          >
+            School
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setSelectedSubject("personal")}
-          className={[
-            "app-pill",
-            selectedSubject === "personal" ? "app-pill-active" : "",
-          ].join(" ")}
-        >
-          Personal
-        </button>
+          <button
+            type="button"
+            onClick={() => setSelectedSubject("personal")}
+            className={["app-pill", selectedSubject === "personal" ? "app-pill-active" : ""].join(" ")}
+          >
+            Personal
+          </button>
 
-        {subjects.map((s) => {
-          const active = selectedSubject === s.id;
-
-          return (
-            <button
-              type="button"
-              key={s.id}
-              onClick={() => setSelectedSubject(s.id)}
-              className={[
-                "app-pill",
-                active ? "app-pill-active" : "",
-              ].join(" ")}
-              style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
-            >
-              <span className="inline-flex min-w-0 items-center gap-2">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                <span className="truncate text-foreground">{s.name}</span>
-              </span>
-            </button>
-          );
-        })}
+          {subjects.map((s) => {
+            const active = selectedSubject === s.id;
+            return (
+              <button
+                type="button"
+                key={s.id}
+                onClick={() => setSelectedSubject(s.id)}
+                className={["app-pill shrink-0", active ? "app-pill-active" : ""].join(" ")}
+                style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
+              >
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                  <span className="text-foreground">{s.name}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="flex items-center justify-between pt-0.5">
+      <div className="flex items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">
-          {filteredTasks.length} showing{selectedSubject !== "all" ? " (filtered)" : ""}
+          {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"}
+          {selectedSubject !== "all" ? " in this filter" : " showing"}
         </div>
 
         <button
@@ -1021,17 +1011,11 @@ export function Tasks({
         </button>
       </div>
 
-      <div className="app-section-plain">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-xs font-medium text-muted-foreground">Workboard</div>
-        </div>
-
-        <div className="space-y-3">
-          {renderSection(tasksByType.homework, "homework")}
-          {renderSection(tasksByType.assignment, "assignment")}
-          {renderSection(tasksByType.exam, "exam")}
-          {renderSection(tasksByType.personal, "personal")}
-        </div>
+      <div className="space-y-2.5">
+        {renderSection(tasksByType.homework, "homework")}
+        {renderSection(tasksByType.assignment, "assignment")}
+        {renderSection(tasksByType.exam, "exam")}
+        {renderSection(tasksByType.personal, "personal")}
       </div>
 
       {deletingId ? (

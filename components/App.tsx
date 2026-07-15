@@ -1813,8 +1813,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             className="flex items-center gap-3"
           >
             <div className="leading-tight">
-              <div className="text-base font-semibold tracking-tight text-foreground">MyStudyPlanner</div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-[17px] font-semibold tracking-[-0.02em] text-foreground">MyStudyPlanner</div>
+              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground/90">
                 Made by students, for students
               </div>
             </div>

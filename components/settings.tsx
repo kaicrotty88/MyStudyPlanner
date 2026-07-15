@@ -7,6 +7,12 @@ import {
   Trash2,
   Trash,
   ChevronDown,
+  BookOpen,
+  CalendarRange,
+  Clock3,
+  Database,
+  Sparkles,
+  LifeBuoy,
 } from "lucide-react";
 
 import type {
@@ -1034,12 +1040,13 @@ export function Settings({
           <button
             type="button"
             onClick={() => setSubjectsOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Subjects</div>
-              <div className="text-xs text-muted-foreground">
-                Add, edit, and organise your subjects.
+            <div className="flex items-center gap-3 text-left">
+              <span className="settings-row-icon"><BookOpen className="h-4 w-4" /></span>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Subjects</div>
+                <div className="text-xs text-muted-foreground">Add, edit, and organise your subjects.</div>
               </div>
             </div>
 
@@ -1182,12 +1189,13 @@ export function Settings({
           <button
             type="button"
             onClick={() => setPeriodsOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
+            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
-            <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Terms</div>
-              <div className="text-xs text-muted-foreground">
-                Add school terms, semesters, or exam periods.
+            <div className="flex items-center gap-3 text-left">
+              <span className="settings-row-icon"><CalendarRange className="h-4 w-4" /></span>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Terms</div>
+                <div className="text-xs text-muted-foreground">Add school terms, semesters, or exam periods.</div>
               </div>
             </div>
 
@@ -1342,12 +1350,13 @@ export function Settings({
           <button
             type="button"
             onClick={() => setTimetableOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
+            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
-            <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Timetable</div>
-              <div className="text-xs text-muted-foreground">
-                School grid builder, Week A/B, period times, and custom classes.
+            <div className="flex items-center gap-3 text-left">
+              <span className="settings-row-icon"><Clock3 className="h-4 w-4" /></span>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Timetable</div>
+                <div className="text-xs text-muted-foreground">School grid builder, Week A/B, period times, and custom classes.</div>
               </div>
             </div>
 
@@ -2077,12 +2086,13 @@ export function Settings({
           <button
             type="button"
             onClick={() => setBackupOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
+            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
-            <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Backup & data</div>
-              <div className="text-xs text-muted-foreground">
-                Export, import, reset, or clear your planner data.
+            <div className="flex items-center gap-3 text-left">
+              <span className="settings-row-icon"><Database className="h-4 w-4" /></span>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Backup & data</div>
+                <div className="text-xs text-muted-foreground">Export, import, reset, or clear your planner data.</div>
               </div>
             </div>
 
@@ -2157,12 +2167,13 @@ export function Settings({
           <button
             type="button"
             onClick={() => setPremiumOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-muted/40"
+            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
-            <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Premium</div>
-              <div className="text-xs text-muted-foreground">
-                See what is included in Free and what Premium unlocks.
+            <div className="flex items-center gap-3 text-left">
+              <span className="settings-row-icon"><Sparkles className="h-4 w-4" /></span>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Premium</div>
+                <div className="text-xs text-muted-foreground">See what is included in Free and what Premium unlocks.</div>
               </div>
             </div>
 
@@ -2277,25 +2288,16 @@ export function Settings({
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">Support</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                Need help or found a bug? We’re happy to help.
+          <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="settings-row-icon"><LifeBuoy className="h-4 w-4" /></span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">Support</div>
+                <div className="text-xs leading-5 text-muted-foreground">Need help or found a bug? We’re happy to help.</div>
+                <div className="truncate text-[11px] font-medium text-muted-foreground/90">mystudyplanner.studio@gmail.com</div>
               </div>
             </div>
-
-            <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-              <a
-                href="mailto:mystudyplanner.studio@gmail.com"
-                className="app-btn-secondary h-9 px-3"
-              >
-                Email support
-              </a>
-              <span className="text-[11px] text-muted-foreground">
-                mystudyplanner.studio@gmail.com
-              </span>
-            </div>
+            <a href="mailto:mystudyplanner.studio@gmail.com" className="app-btn-secondary h-9 shrink-0 px-3">Email support</a>
           </div>
         </div>
       </div>
