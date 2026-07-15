@@ -309,7 +309,7 @@ export function StudyPlanner({
   const showPremiumInsightsLock = studyView === "insights" && !hasPremium;
 
   return (
-    <div className="app-page app-scroll-page space-y-4">
+    <div className="app-page app-scroll-page page-accent-study space-y-4">
       {/* Header */}
       <div>
         <h1 className="app-page-title">Study</h1>
@@ -384,10 +384,18 @@ export function StudyPlanner({
               key={s.id}
               onClick={() => setActiveSubject(s.id)}
               className={[
-                "px-3 py-1.5 rounded-full text-sm transition",
-                active ? "bg-muted text-foreground" : "text-foreground hover:bg-muted",
+                "shrink-0 rounded-full border px-2.5 py-1.5 text-sm transition",
+                active ? "text-foreground" : "border-transparent text-foreground hover:bg-muted",
               ].join(" ")}
-              style={active ? { boxShadow: `0 0 0 2px ${s.color}22` } : undefined}
+              style={
+                active
+                  ? {
+                      boxShadow: `0 0 0 1px ${s.color}55`,
+                      backgroundColor: `${s.color}14`,
+                      borderColor: `${s.color}55`,
+                    }
+                  : undefined
+              }
               type="button"
             >
               <span className="inline-flex items-center gap-2 min-w-0">
@@ -431,23 +439,6 @@ export function StudyPlanner({
                   ].join(" ")}
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <button
-                      type="button"
-                      onClick={() => onToggleSessionCompleted(s.id)}
-                      className={[
-                        "mt-0.5 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium border transition shrink-0",
-                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                        s.completed
-                          ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/15"
-                          : "bg-card text-foreground border-border hover:bg-muted",
-                      ].join(" ")}
-                      aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
-                      title={s.completed ? "Completed" : "Mark as completed"}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      {s.completed ? "Completed" : "Mark complete"}
-                    </button>
-
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{s.title}</div>
 
@@ -476,7 +467,23 @@ export function StudyPlanner({
                     </div>
                   </div>
 
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <div className="flex shrink-0 items-center gap-1 opacity-75 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => onToggleSessionCompleted(s.id)}
+                      className={[
+                        "mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                        s.completed
+                          ? "border-primary/20 bg-primary/10 text-primary hover:bg-primary/15"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ].join(" ")}
+                      aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
+                      title={s.completed ? "Completed" : "Mark as completed"}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {s.completed ? "Completed" : "Mark complete"}
+                    </button>
                     <button
                       onClick={() => openEdit(s)}
                       className="h-9 w-9 grid place-items-center rounded-xl hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"

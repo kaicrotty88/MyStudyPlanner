@@ -802,7 +802,7 @@ export function Tasks({
     return (
       <div
         className={[
-          "group rounded-2xl border px-4 py-3 shadow-app-card transition hover:bg-background/40 hover:shadow-app-card-hover",
+          "group rounded-2xl border px-4 py-3 shadow-sm transition hover:bg-background/40 hover:shadow-app-card",
           toneBorder,
           toneWash,
           task.completed ? "opacity-75" : "",
@@ -885,7 +885,7 @@ export function Tasks({
               {dueChip(task.dueDate)}
             </span>
 
-            <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+            <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 group-focus-within:opacity-100">
               <button
                 type="button"
                 onClick={() => handleEdit(task)}
@@ -920,7 +920,7 @@ export function Tasks({
         <SectionHeader type={type} label={label} count={sortedTasks.length} />
 
         {isExpanded ? (
-          <div className="ml-3 space-y-3 border-l border-border/60 pl-3 sm:ml-5 sm:pl-4">
+          <div className="space-y-2.5 px-1 sm:px-2">
             {showAddForm === type ? renderAddForm(type) : null}
 
             {sortedTasks.length ? (
@@ -942,7 +942,7 @@ export function Tasks({
   };
 
   return (
-    <div className="app-page app-scroll-page space-y-4">
+    <div className="app-page app-scroll-page page-accent-tasks space-y-4">
       <div>
         <h1 className="app-page-title">Tasks</h1>
         <p className="app-page-subtitle">
@@ -984,7 +984,11 @@ export function Tasks({
                 key={s.id}
                 onClick={() => setSelectedSubject(s.id)}
                 className={["app-pill shrink-0", active ? "app-pill-active" : ""].join(" ")}
-                style={{ boxShadow: active ? `0 0 0 2px ${s.color}33` : undefined }}
+                style={{
+                  boxShadow: active ? `0 0 0 1px ${s.color}55` : undefined,
+                  backgroundColor: active ? `${s.color}14` : undefined,
+                  borderColor: active ? `${s.color}55` : undefined,
+                }}
               >
                 <span className="inline-flex items-center gap-2 whitespace-nowrap">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />

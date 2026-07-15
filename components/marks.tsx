@@ -309,7 +309,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
   };
 
   return (
-    <div className="app-page app-scroll-page space-y-4">
+    <div className="app-page app-scroll-page page-accent-marks space-y-4">
       <div className="space-y-1">
         <h1 className="app-page-title">Marks</h1>
         <p className="app-page-subtitle">
@@ -318,9 +318,9 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+        <div className="metric-card" style={{ "--metric-accent": "#5f7f68", "--metric-soft": "var(--primary-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Target className="h-4 w-4" />
+            <span className="metric-icon"><Target className="h-4 w-4" /></span>
             Overall average
           </div>
           <div className="mt-2.5 text-2xl font-semibold text-foreground">
@@ -331,9 +331,9 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+        <div className="metric-card" style={{ "--metric-accent": "#b78655", "--metric-soft": "var(--amber-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Award className="h-4 w-4" />
+            <span className="metric-icon"><Award className="h-4 w-4" /></span>
             Best subject
           </div>
           <div className="mt-2.5 text-lg font-semibold text-foreground truncate">
@@ -344,9 +344,9 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+        <div className="metric-card" style={{ "--metric-accent": "#6686a8", "--metric-soft": "var(--info-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
+            <span className="metric-icon"><TrendingUp className="h-4 w-4" /></span>
             Recent change
           </div>
           <div className="mt-2.5 text-2xl font-semibold text-foreground">
@@ -361,14 +361,14 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-4">
+        <div className="metric-card" style={{ "--metric-accent": "#8a72a0", "--metric-soft": "var(--violet-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Clock3 className="h-4 w-4" />
+            <span className="metric-icon"><Clock3 className="h-4 w-4" /></span>
             Pending results
           </div>
           <div className="mt-2.5 text-2xl font-semibold text-foreground">{pendingCount}</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {recordedCount} recorded {recordedCount === 1 ? "assessment" : "assessments"} so far.
+            {pendingCount === 1 ? "1 assessment is" : `${pendingCount} assessments are`} still waiting for a result.
           </div>
         </div>
       </div>

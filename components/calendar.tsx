@@ -1868,14 +1868,7 @@ function CalendarView({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => openAddMenuForDate(currentDate)}
-              className="app-btn-secondary h-9 px-3"
-            >
-              <Plus className="h-4 w-4" />
-              Add item
-            </button>
+
           </div>
         </div>
 
@@ -2024,7 +2017,7 @@ function CalendarView({
   );
 
   return (
-    <div className="app-page-wide app-scroll-page space-y-5">
+    <div className="app-page-wide app-scroll-page page-accent-calendar space-y-5">
       <div className="app-page-header flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="app-page-title">Calendar</h1>

@@ -10,6 +10,7 @@ import {
   BookOpen,
   CalendarRange,
   Clock3,
+  CalendarDays,
   Database,
   Sparkles,
   LifeBuoy,
@@ -1027,7 +1028,7 @@ export function Settings({
   };
 
   return (
-    <div className="app-page app-scroll-page space-y-4">
+    <div className="app-page app-scroll-page page-accent-settings space-y-4">
       <div className="space-y-1">
         <h1 className="app-page-title">Settings</h1>
         <p className="app-page-subtitle">
@@ -1036,14 +1037,14 @@ export function Settings({
       </div>
 
       <div className="space-y-3">
-        <div ref={subjectsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div ref={subjectsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <button
             type="button"
             onClick={() => setSubjectsOpen((v) => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
             <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon"><BookOpen className="h-4 w-4" /></span>
+              <span className="settings-row-icon settings-icon-subjects"><BookOpen className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Subjects</div>
                 <div className="text-xs text-muted-foreground">Add, edit, and organise your subjects.</div>
@@ -1185,14 +1186,14 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={termsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div ref={termsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <button
             type="button"
             onClick={() => setPeriodsOpen((v) => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
             <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon"><CalendarRange className="h-4 w-4" /></span>
+              <span className="settings-row-icon settings-icon-terms"><CalendarRange className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Terms</div>
                 <div className="text-xs text-muted-foreground">Add school terms, semesters, or exam periods.</div>
@@ -1346,14 +1347,14 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={timetableCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div ref={timetableCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <button
             type="button"
             onClick={() => setTimetableOpen((v) => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
             <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon"><Clock3 className="h-4 w-4" /></span>
+              <span className="settings-row-icon settings-icon-timetable"><CalendarDays className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Timetable</div>
                 <div className="text-xs text-muted-foreground">School grid builder, Week A/B, period times, and custom classes.</div>
@@ -2082,14 +2083,14 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={backupCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div ref={backupCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <button
             type="button"
             onClick={() => setBackupOpen((v) => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
             <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon"><Database className="h-4 w-4" /></span>
+              <span className="settings-row-icon settings-icon-data"><Database className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Backup & data</div>
                 <div className="text-xs text-muted-foreground">Export, import, reset, or clear your planner data.</div>
@@ -2163,14 +2164,14 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={premiumCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div ref={premiumCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <button
             type="button"
             onClick={() => setPremiumOpen((v) => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
           >
             <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon"><Sparkles className="h-4 w-4" /></span>
+              <span className="settings-row-icon settings-icon-premium"><Sparkles className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Premium</div>
                 <div className="text-xs text-muted-foreground">See what is included in Free and what Premium unlocks.</div>
@@ -2287,14 +2288,13 @@ export function Settings({
           ) : null}
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="settings-row-icon"><LifeBuoy className="h-4 w-4" /></span>
+              <span className="settings-row-icon settings-icon-support"><LifeBuoy className="h-4 w-4" /></span>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">Support</div>
                 <div className="text-xs leading-5 text-muted-foreground">Need help or found a bug? We’re happy to help.</div>
-                <div className="truncate text-[11px] font-medium text-muted-foreground/90">mystudyplanner.studio@gmail.com</div>
               </div>
             </div>
             <a href="mailto:mystudyplanner.studio@gmail.com" className="app-btn-secondary h-9 shrink-0 px-3">Email support</a>
