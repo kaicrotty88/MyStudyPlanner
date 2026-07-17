@@ -150,26 +150,51 @@ const DEFAULT_SCHOOL_TIMETABLE_PERIODS: TimetablePeriod[] = [
   },
 ];
 
-const DEMO_PERIODS: Period[] = [
-  {
-    id: "p1",
-    name: "Term 1",
-    startDate: new Date(2026, 0, 29),
-    endDate: new Date(2026, 3, 11),
-  },
-  {
-    id: "p2",
-    name: "Term 2",
-    startDate: new Date(2026, 3, 28),
-    endDate: new Date(2026, 6, 3),
-  },
-];
+const startOfMonday = (date: Date) => {
+  const day = date.getDay();
+  const diff = (day + 6) % 7;
+  const monday = new Date(date);
+  monday.setDate(monday.getDate() - diff);
+  return new Date(monday.getFullYear(), monday.getMonth(), monday.getDate());
+};
 
-const DEMO_TIMETABLE_SETTINGS: TimetableSettings = {
+const shiftDemoDate = (date: Date, days: number) => {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + days);
+  return new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate());
+};
+
+const makeDemoPeriods = (now = new Date()): Period[] => {
+  const activeStart = shiftDemoDate(now, -35);
+  const activeEnd = shiftDemoDate(now, 56);
+
+  return [
+    {
+      id: "p1",
+      name: "Previous Term",
+      startDate: shiftDemoDate(activeStart, -84),
+      endDate: shiftDemoDate(activeStart, -15),
+    },
+    {
+      id: "p2",
+      name: "Current Term",
+      startDate: activeStart,
+      endDate: activeEnd,
+    },
+    {
+      id: "p3",
+      name: "Next Term",
+      startDate: shiftDemoDate(activeEnd, 15),
+      endDate: shiftDemoDate(activeEnd, 84),
+    },
+  ];
+};
+
+const makeDemoTimetableSettings = (now = new Date()): TimetableSettings => ({
   mode: "school",
   cycle: "fortnightly",
-  cycleStartDate: new Date(2026, 0, 26),
-};
+  cycleStartDate: startOfMonday(shiftDemoDate(now, -14)),
+});
 
 type DemoTimetableSlot = {
   week: Exclude<TimetableWeek, "both">;
@@ -184,7 +209,7 @@ const subjectNameById = (subjectId: string) =>
   defaultSubjects.find((subject) => subject.id === subjectId)?.name ?? "Class";
 
 const makeDemoTimetableClasses = (): TimetableClass[] => {
-  const createdAt = new Date(2026, 0, 26);
+  const createdAt = shiftDemoDate(new Date(), -14);
 
   const slots: DemoTimetableSlot[] = [
     // Week A — Monday
@@ -752,7 +777,7 @@ const makeDemoData = () => {
       scheduledDate: today,
       startTime: "16:00",
       duration: "60 min",
-      periodId: "p1",
+      periodId: "p2",
       completed: false,
     },
     {
@@ -764,7 +789,7 @@ const makeDemoData = () => {
       scheduledDate: tomorrow,
       startTime: "16:30",
       duration: "1h 30m",
-      periodId: "p1",
+      periodId: "p2",
       completed: false,
     },
     {
@@ -776,7 +801,7 @@ const makeDemoData = () => {
       scheduledDate: in10,
       startTime: "09:00",
       duration: "2h",
-      periodId: "p1",
+      periodId: "p2",
       completed: false,
     },
     {
@@ -788,7 +813,7 @@ const makeDemoData = () => {
       scheduledDate: twoDaysAgo,
       startTime: "18:00",
       duration: "45 min",
-      periodId: "p1",
+      periodId: "p2",
       completed: false,
     },
     {
@@ -800,7 +825,7 @@ const makeDemoData = () => {
       scheduledDate: fiveWeeksAgo,
       startTime: "09:20",
       duration: "45 min",
-      periodId: "p1",
+      periodId: "p2",
       completed: true,
       completedAt: fiveWeeksAgo,
       result: {
@@ -820,7 +845,7 @@ const makeDemoData = () => {
       scheduledDate: fourWeeksAgo,
       startTime: "11:45",
       duration: "1h",
-      periodId: "p1",
+      periodId: "p2",
       completed: true,
       completedAt: fourWeeksAgo,
       result: {
@@ -840,7 +865,7 @@ const makeDemoData = () => {
       scheduledDate: threeWeeksAgo,
       startTime: "14:15",
       duration: "1h",
-      periodId: "p1",
+      periodId: "p2",
       completed: true,
       completedAt: threeWeeksAgo,
       result: {
@@ -860,7 +885,7 @@ const makeDemoData = () => {
       scheduledDate: twoWeeksAgo,
       startTime: "10:50",
       duration: "55 min",
-      periodId: "p1",
+      periodId: "p2",
       completed: true,
       completedAt: twoWeeksAgo,
       result: {
@@ -880,7 +905,7 @@ const makeDemoData = () => {
       scheduledDate: lastWeek,
       startTime: "17:00",
       duration: "1h 30m",
-      periodId: "p1",
+      periodId: "p2",
       completed: true,
       completedAt: lastWeek,
       result: {
@@ -900,7 +925,7 @@ const makeDemoData = () => {
       scheduledDate: in2,
       startTime: "17:30",
       duration: "45 min",
-      periodId: "p1",
+      periodId: "p2",
       completed: false,
     },
   ];
@@ -958,10 +983,10 @@ const makeDemoData = () => {
 
   return {
     subjects: defaultSubjects,
-    periods: DEMO_PERIODS,
+    periods: makeDemoPeriods(now),
     tasks,
     studySessions,
-    timetableSettings: DEMO_TIMETABLE_SETTINGS,
+    timetableSettings: makeDemoTimetableSettings(now),
     timetablePeriods: DEFAULT_SCHOOL_TIMETABLE_PERIODS,
     timetableClasses: DEMO_TIMETABLE_CLASSES,
   };
@@ -1115,7 +1140,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     mode === "demo" ? defaultSubjects : []
   );
   const [periods, setPeriods] = useState<Period[]>(
-    mode === "demo" ? DEMO_PERIODS : []
+    mode === "demo" ? makeDemoPeriods() : []
   );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
@@ -1125,7 +1150,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const reminders: Reminder[] = [];
 
   const [timetableSettings, setTimetableSettings] = useState<TimetableSettings>(
-    mode === "demo" ? DEMO_TIMETABLE_SETTINGS : DEFAULT_TIMETABLE_SETTINGS
+    mode === "demo" ? makeDemoTimetableSettings() : DEFAULT_TIMETABLE_SETTINGS
   );
   const [timetablePeriods, setTimetablePeriods] = useState<TimetablePeriod[]>(
     DEFAULT_SCHOOL_TIMETABLE_PERIODS
