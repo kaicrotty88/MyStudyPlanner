@@ -1037,6 +1037,7 @@ function LockedPremiumView({
   feature: "insights" | "marks";
   onGoToSettings: () => void;
 }) {
+  const pageTitle = feature === "insights" ? "Insights" : "Marks";
   const title = feature === "insights" ? "Insights are Premium" : "Marks are Premium";
   const body =
     feature === "insights"
@@ -1044,8 +1045,17 @@ function LockedPremiumView({
       : "Upgrade to track assessment results, marks, and performance over time.";
 
   return (
-    <div className="min-h-[calc(100vh-68px)] bg-background">
-      <div className="flex h-full min-h-0 items-center justify-center px-6 py-12">
+    <div className="app-page app-scroll-page page-accent-marks space-y-4">
+      <div className="space-y-1">
+        <h1 className="app-page-title">{pageTitle}</h1>
+        <p className="app-page-subtitle">
+          {feature === "insights"
+            ? "Review deeper study analytics, trends, and progress."
+            : "Track assessment results, marks, and performance over time."}
+        </p>
+      </div>
+
+      <div className="flex min-h-[430px] items-center justify-center">
         <div className="app-card w-full p-8">
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
             <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft">
@@ -1166,7 +1176,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
   const missingSetupItems = setupItems.filter((item) => item.missing);
   const completedSetupCount = setupItems.length - missingSetupItems.length;
-  const nextSetupItem = missingSetupItems[0] ?? null;
   const shouldShowSetupBanner =
     mode === "app" && activeTab !== "settings" && missingSetupItems.length > 0;
 
@@ -1940,56 +1949,47 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       {shouldShowSetupBanner ? (
         <section className="app-setup-panel" aria-label="Planner setup progress">
           <div className="app-setup-panel-inner">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
                 <div className="text-sm font-semibold text-foreground">
                   Complete your planner setup
                 </div>
-                <span className="app-pill">
-                  {completedSetupCount} of {setupItems.length} complete
-                </span>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Add these once so your calendar, tasks, marks, and timetable work properly.
+                </p>
               </div>
 
-              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-                Add these once so your calendar, tasks, marks, and timetable work properly.
-              </p>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {setupItems.map((item) => {
-                  const complete = !item.missing;
-
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        if (!complete) openSettingsSection(item.id);
-                      }}
-                      className={[
-                        "app-setup-step",
-                        complete ? "app-setup-step-complete" : "app-setup-step-missing",
-                      ].join(" ")}
-                      aria-label={`${item.label}: ${complete ? "complete" : "needs setup"}`}
-                    >
-                      <span className="font-semibold">{item.label}</span>
-                      <span className="text-[11px]">
-                        {complete ? "Complete" : "Set up now"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <span className="app-pill w-fit">
+                {completedSetupCount} of {setupItems.length} complete
+              </span>
             </div>
 
-            {nextSetupItem ? (
-              <button
-                type="button"
-                onClick={() => openSettingsSection(nextSetupItem.id)}
-                className="app-btn-primary h-10 shrink-0 px-4"
-              >
-                Set up {nextSetupItem.label}
-              </button>
-            ) : null}
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {setupItems.map((item) => {
+                const complete = !item.missing;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (!complete) openSettingsSection(item.id);
+                    }}
+                    disabled={complete}
+                    className={[
+                      "app-setup-step",
+                      complete ? "app-setup-step-complete" : "app-setup-step-missing",
+                    ].join(" ")}
+                    aria-label={`${item.label}: ${complete ? "complete" : "needs setup"}`}
+                  >
+                    <span className="font-semibold">{item.label}</span>
+                    <span className="text-[11px] font-medium">
+                      {complete ? "Complete" : "Set up now"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </section>
       ) : null}
