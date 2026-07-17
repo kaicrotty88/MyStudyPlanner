@@ -1786,7 +1786,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     mode === "app" &&
     Boolean(isSignedIn) &&
     profile &&
-    !profile.has_completed_onboarding
+    (showOnboardingReplay || !profile.has_completed_onboarding)
   ) {
     return (
       <OnboardingFlow
