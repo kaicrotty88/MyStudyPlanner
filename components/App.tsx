@@ -9,7 +9,6 @@ import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
-import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 
 import type {
   Reminder,
@@ -36,7 +35,6 @@ import {
 } from "@/lib/plannerStateSupabase";
 import {
   ensureProfile,
-  completeUserOnboarding,
   type ProfileRow,
 } from "@/lib/profileSupabase";
 
@@ -47,16 +45,13 @@ const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 
-const WHATS_NEW_VERSION_KEY = "2026-02-21";
-const WHATS_NEW_VERSION_LABEL = "Update";
+const WHATS_NEW_VERSION_KEY = "2026-07-17-core-update";
+const WHATS_NEW_VERSION_LABEL = "July update";
 const WHATS_NEW_UPDATES = [
-  "Sync across devices for signed-in users.",
-  "Added further colour options.",
-  "You can now delete marks.",
-  "Fixed onboarding / sync issues.",
-  "Required fields now show a red asterisk for clarity.",
-  "Calendar is now larger so items truncate less.",
-  "Feedback: go to Settings → bottom email.",
+  "New accounts now open directly in the planner with clearer setup guidance.",
+  "Account storage, saving feedback, validation, and destructive actions are safer.",
+  "Premium pricing is clearer, with monthly and best-value yearly options.",
+  "Settings, empty states, mobile behaviour, and page alignment have been refined.",
 ];
 
 type Tab =
@@ -1137,7 +1132,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [plan, setPlan] = useState<Plan>(mode === "demo" ? "premium" : "free");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(mode === "demo");
-  const [showOnboardingReplay, setShowOnboardingReplay] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const storageKey =
     mode === "demo"
@@ -1170,6 +1165,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   ] as const;
 
   const missingSetupItems = setupItems.filter((item) => item.missing);
+  const completedSetupCount = setupItems.length - missingSetupItems.length;
+  const nextSetupItem = missingSetupItems[0] ?? null;
   const shouldShowSetupBanner =
     mode === "app" && activeTab !== "settings" && missingSetupItems.length > 0;
 
@@ -1512,7 +1509,16 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     () =>
       debounce(async (snapshot: Record<string, unknown>) => {
         if (!supabase) return;
-        await upsertPlannerState(supabase, snapshot);
+
+        setSaveStatus("saving");
+
+        try {
+          await upsertPlannerState(supabase, snapshot);
+          setSaveStatus("saved");
+        } catch (error) {
+          console.error("Failed to save planner state:", error);
+          setSaveStatus("error");
+        }
       }, 700),
     [supabase]
   );
@@ -1745,77 +1751,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setActiveTab(tab);
   };
 
-  const handleCompleteOnboarding = async () => {
-    if (mode !== "app" || !isSignedIn || !supabase || !user?.id) {
-      setActiveTab("calendar");
-      return;
-    }
-
-    try {
-      await completeUserOnboarding(supabase, user.id);
-
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              has_completed_onboarding: true,
-              onboarding_completed_at: new Date().toISOString(),
-            }
-          : prev
-      );
-
-      setActiveTab("calendar");
-    } catch (error) {
-      console.error("Failed to complete onboarding:", error);
-    }
-  };
-
-  const handleExitOnboarding = async () => {
-    if (showOnboardingReplay) {
-      setShowOnboardingReplay(false);
-      setActiveTab("settings");
-      return;
-    }
-
-    await handleCompleteOnboarding();
-  };
-
   if (!isReady || !profileLoaded) return <LoadingScreen />;
-
-  if (
-    mode === "app" &&
-    Boolean(isSignedIn) &&
-    (showOnboardingReplay ||
-      Boolean(profile && !profile.has_completed_onboarding))
-  ) {
-    return (
-      <OnboardingFlow
-        subjects={subjects}
-        periods={periods}
-        tasks={tasks}
-        studySessions={studySessions}
-        timetableSettings={timetableSettings}
-        timetablePeriods={timetablePeriods}
-        timetableClasses={timetableClasses}
-        plan={plan}
-        onAddSubject={handleAddSubject}
-        onUpdateSubject={handleUpdateSubject}
-        onDeleteSubject={handleDeleteSubject}
-        onUpdatePeriods={handleUpdatePeriods}
-        onUpdateTimetableSettings={handleUpdateTimetableSettings}
-        onUpdateTimetablePeriods={handleUpdateTimetablePeriods}
-        onAddTimetableClass={handleAddTimetableClass}
-        onUpdateTimetableClass={handleUpdateTimetableClass}
-        onDeleteTimetableClass={handleDeleteTimetableClass}
-        onAddTask={handleAddTask}
-        onUpdateTask={handleUpdateTask}
-        onDeleteTask={handleDeleteTask}
-        onToggleTaskCompleted={toggleTaskCompleted}
-        onClearAllData={handleClearAllData}
-        onComplete={handleExitOnboarding}
-      />
-    );
-  }
 
   return (
     <div className="app-shell bg-background text-foreground">
@@ -1867,6 +1803,22 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             {mode === "demo" ? (
               <span className="app-pill hidden sm:inline-flex">
                 Preview Mode
+              </span>
+            ) : null}
+
+            {mode === "app" && Boolean(isSignedIn) && saveStatus !== "idle" ? (
+              <span
+                className={[
+                  "hidden text-[11px] font-medium sm:inline",
+                  saveStatus === "error" ? "text-destructive" : "text-muted-foreground",
+                ].join(" ")}
+                role={saveStatus === "error" ? "alert" : undefined}
+              >
+                {saveStatus === "saving"
+                  ? "Saving..."
+                  : saveStatus === "saved"
+                    ? "Saved"
+                    : "Could not save"}
               </span>
             ) : null}
 
@@ -1986,32 +1938,60 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       ) : null}
 
       {shouldShowSetupBanner ? (
-        <div className="app-banner">
-          <div className="app-banner-inner">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">
-                Finish setting up MyStudyPlanner
+        <section className="app-setup-panel" aria-label="Planner setup progress">
+          <div className="app-setup-panel-inner">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold text-foreground">
+                  Complete your planner setup
+                </div>
+                <span className="app-pill">
+                  {completedSetupCount} of {setupItems.length} complete
+                </span>
               </div>
-              <div className="text-xs leading-5 text-muted-foreground">
-                {missingSetupItems.map((item) => item.label).join(", ")} still need setup.
+
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+                Add these once so your calendar, tasks, marks, and timetable work properly.
+              </p>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {setupItems.map((item) => {
+                  const complete = !item.missing;
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        if (!complete) openSettingsSection(item.id);
+                      }}
+                      className={[
+                        "app-setup-step",
+                        complete ? "app-setup-step-complete" : "app-setup-step-missing",
+                      ].join(" ")}
+                      aria-label={`${item.label}: ${complete ? "complete" : "needs setup"}`}
+                    >
+                      <span className="font-semibold">{item.label}</span>
+                      <span className="text-[11px]">
+                        {complete ? "Complete" : "Set up now"}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {missingSetupItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => openSettingsSection(item.id)}
-                  className="app-btn-secondary h-9 px-3"
-                  title={item.body}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+            {nextSetupItem ? (
+              <button
+                type="button"
+                onClick={() => openSettingsSection(nextSetupItem.id)}
+                className="app-btn-primary h-10 shrink-0 px-4"
+              >
+                Set up {nextSetupItem.label}
+              </button>
+            ) : null}
           </div>
-        </div>
+        </section>
       ) : null}
 
       <main className="app-shell-content">
@@ -2097,7 +2077,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTimetableClass={handleUpdateTimetableClass}
             onDeleteTimetableClass={handleDeleteTimetableClass}
             onClearAllData={handleClearAllData}
-            onReplayOnboarding={() => setShowOnboardingReplay(true)}
             openSection={settingsOpenSection}
             onOpenSectionHandled={() => setSettingsOpenSection(null)}
           />

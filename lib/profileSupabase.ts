@@ -48,8 +48,8 @@ export async function ensureProfile(
         user_id: userId,
         plan: "free",
         subscription_status: "inactive",
-        has_completed_onboarding: false,
-        onboarding_completed_at: null,
+        has_completed_onboarding: true,
+        onboarding_completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }
@@ -70,22 +70,6 @@ export async function fetchUserPlan(
   return profile.plan;
 }
 
-export async function completeUserOnboarding(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<void> {
-  const { error } = await supabase.from(TABLE).upsert(
-    {
-      user_id: userId,
-      has_completed_onboarding: true,
-      onboarding_completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
-
-  if (error) throw error;
-}
 
 export async function updateUserPlan(
   supabase: SupabaseClient,

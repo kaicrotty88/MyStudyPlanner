@@ -702,3 +702,68 @@ body {
     justify-content: space-between;
   }
 }
+
+/* Setup guidance */
+.app-setup-panel {
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary-soft) 86%, transparent), transparent 72%),
+    var(--card);
+}
+
+.app-setup-panel-inner {
+  margin-inline: auto;
+  display: flex;
+  width: 100%;
+  max-width: 88rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.app-setup-step {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.app-setup-step-complete {
+  cursor: default;
+  background: color-mix(in srgb, var(--primary-soft) 72%, var(--card));
+  color: var(--muted-foreground);
+}
+
+.app-setup-step-missing {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.app-setup-step-missing:hover {
+  border-color: var(--border-strong);
+  background: var(--primary-softer);
+}
+
+/* Keep non-calendar page headings visually aligned with the calendar toolbar. */
+.app-page:not(.page-accent-calendar) {
+  padding-inline-start: clamp(0.75rem, 1.5vw, 1.25rem);
+  padding-inline-end: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+@media (max-width: 640px) {
+  .app-setup-panel-inner {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0.875rem 1rem;
+  }
+
+  .app-setup-panel-inner > .app-btn-primary {
+    width: 100%;
+  }
+}
