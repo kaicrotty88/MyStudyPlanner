@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Clock3,
   BarChart3,
+  Layers3,
 } from "lucide-react";
 
 type Feature = {
@@ -46,7 +47,7 @@ const features: Feature[] = [
     icon: BarChart3,
     title: "Marks and study progress in one place",
     description:
-      "Track results, log study sessions, and see where your time is going before it is already too late to fix the subject falling behind.",
+      "Track results, log study sessions, and see which subjects are receiving your time so you can adjust earlier instead of guessing.",
   },
 ];
 
@@ -139,9 +140,9 @@ const softwareApplicationSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "MyStudyPlanner";
+  const title = "MyStudyPlanner | Timetable, Assignments and Study Planner";
   const description =
-    "A calm study planner for students. Track assignments, exams, homework, study sessions, marks, and reminders in one place.";
+    "Plan your timetable, classes, assignments, exams, study sessions, marks, and reminders in one calm calendar built for students.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -223,54 +224,46 @@ export default async function Page() {
 
       <main>
         <section className="overflow-hidden">
-          <div className="mx-auto max-w-7xl px-6 pb-14 pt-20 text-center md:px-10 md:pb-20 md:pt-28">
+          <div className="mx-auto max-w-7xl px-6 pb-14 pt-16 text-center md:px-10 md:pb-20 md:pt-24">
             <p className="mx-auto max-w-2xl text-sm font-medium text-[#5E7A63] md:text-base">
               Stop letting school live across five different apps.
             </p>
 
-            <h1 className="mx-auto mt-5 max-w-5xl text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.95] lg:text-8xl">
-              A study planner for students who are tired of missing deadlines.
+            <h1 className="mx-auto mt-5 max-w-5xl text-5xl font-semibold tracking-tight text-foreground md:text-7xl md:leading-[0.98] lg:text-8xl">
+              Your timetable, deadlines and study plan in one calendar.
             </h1>
 
             <p className="mx-auto mt-7 max-w-3xl text-base leading-8 text-muted-foreground md:text-xl md:leading-9">
-              MyStudyPlanner brings your timetable, classes, assignments,
-              exams, study sessions, marks, and reminders into one calm
-              calendar made for high school and university students.
+              Plan recurring classes, assignments, exams, study sessions, marks,
+              and reminders in one calm workspace built for high school and
+              university students.
             </p>
 
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href="/demo"
-                className="inline-flex h-12 min-w-[200px] items-center justify-center rounded-xl bg-primary px-7 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
+                href="/sign-up"
+                className="inline-flex h-12 min-w-[210px] items-center justify-center rounded-xl bg-primary px-7 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
               >
-                Try the demo first
+                Create free account
               </Link>
 
               <Link
-                href="/sign-up"
-                className="inline-flex h-12 min-w-[200px] items-center justify-center rounded-xl border border-border bg-background px-7 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
+                href="/demo"
+                className="inline-flex h-12 min-w-[210px] items-center justify-center rounded-xl border border-border bg-background px-7 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/60"
               >
-                Create free account
+                Try the live demo
               </Link>
             </div>
 
             <p className="mt-5 text-sm text-muted-foreground">
-              Free account available. Premium from{" "}
-              <span className="font-medium text-foreground">US$2.99/month</span>.
+              Free to start. Premium from{" "}
+              <span className="font-medium text-foreground">
+                US$19.99 per year
+              </span>
+              .
             </p>
 
-            <div className="mx-auto mt-7 flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-              {featurePills.map((feature, index) => (
-                <span key={feature} className="inline-flex items-center gap-3">
-                  <span>{feature}</span>
-                  {index < featurePills.length - 1 ? (
-                    <span className="text-border">/</span>
-                  ) : null}
-                </span>
-              ))}
-            </div>
-
-            <div className="mx-auto mt-14 max-w-6xl md:mt-20">
+            <div className="mx-auto mt-10 max-w-6xl md:mt-14">
               <Image
                 src="/images/calendar-preview.png"
                 alt="MyStudyPlanner calendar showing classes, assignments, exams, and study sessions in one time-grid view"
@@ -280,16 +273,16 @@ export default async function Page() {
                 className="h-auto w-full rounded-[2rem] border border-border shadow-2xl"
               />
               <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-muted-foreground">
-                A real time-grid calendar for recurring classes, deadlines,
-                study sessions, reminders, and everything else students need to
-                remember.
+                A real time-grid calendar where recurring classes, deadlines,
+                study sessions, reminders, and assessments stay visible
+                together.
               </p>
             </div>
           </div>
         </section>
 
         <section className="border-t border-border">
-          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 px-6 py-20 md:px-10 md:py-28 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:px-10 md:py-24 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#517535]">
                 Why it exists
@@ -297,25 +290,42 @@ export default async function Page() {
               <h2 className="mt-4 max-w-xl text-4xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-tight">
                 School planning gets messy fast.
               </h2>
+              <p className="mt-5 max-w-lg text-base leading-8 text-muted-foreground">
+                MyStudyPlanner gives every class, deadline, study block, mark,
+                and reminder one obvious place to live.
+              </p>
             </div>
 
-            <div className="space-y-8 text-xl leading-9 text-muted-foreground md:text-2xl md:leading-10">
-              <p>
-                Your timetable is in one place. Assignments are somewhere else.
-                Exam dates live in your notes. Study sessions get planned in
-                your head, then forgotten when the week gets busy.
-              </p>
-              <p className="text-foreground">
-                MyStudyPlanner puts the whole student workload onto one calendar
-                so every class, deadline, exam, study block, mark, and reminder
-                has somewhere obvious to live.
-              </p>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="rounded-[1.75rem] border border-border bg-muted/20 p-6">
+                <div className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Before
+                </div>
+                <ul className="mt-5 space-y-4 text-sm leading-6 text-muted-foreground">
+                  <li>Timetable in one app</li>
+                  <li>Assignments in notes or screenshots</li>
+                  <li>Exam dates hidden in messages</li>
+                  <li>Study plans kept in your head</li>
+                </ul>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-[#9DB49F] bg-[#F4F8F4] p-6">
+                <div className="text-sm font-semibold uppercase tracking-[0.12em] text-[#5E7A63]">
+                  With MyStudyPlanner
+                </div>
+                <ul className="mt-5 space-y-4 text-sm leading-6 text-foreground">
+                  <li>Everything visible in one weekly calendar</li>
+                  <li>Deadlines attached to the right subject</li>
+                  <li>Study sessions actually scheduled</li>
+                  <li>Marks and progress kept connected</li>
+                </ul>
+              </div>
             </div>
           </div>
         </section>
 
         <section id="features-section" className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
+          <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-24">
             <div className="max-w-3xl">
               <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#517535]">
                 Features
@@ -324,13 +334,12 @@ export default async function Page() {
                 Everything important, without turning planning into another job.
               </h2>
               <p className="mt-5 text-base leading-8 text-muted-foreground md:text-lg">
-                A simple student planner app and online study planner for high
-                school and university students who want the essentials done
-                well.
+                The tools students actually need, kept simple enough to use
+                every day.
               </p>
             </div>
 
-            <div className="mt-16 grid grid-cols-1 gap-x-12 gap-y-12 lg:grid-cols-3">
+            <div className="mt-14 grid grid-cols-1 gap-x-12 gap-y-12 lg:grid-cols-3">
               {features.map((feature) => {
                 const Icon = feature.icon;
 
@@ -353,14 +362,62 @@ export default async function Page() {
         </section>
 
         <section className="border-t border-border">
-          <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
+          <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-24">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#517535]">
+                How it works
+              </p>
+              <h2 className="mt-4 text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+                Set it up once, then plan your week properly.
+              </h2>
+            </div>
+
+            <div className="mt-14 grid gap-5 md:grid-cols-3">
+              {[
+                {
+                  number: "01",
+                  title: "Set up your subjects and timetable",
+                  body: "Add your subjects, term dates, periods, and recurring classes so the calendar reflects your real week.",
+                },
+                {
+                  number: "02",
+                  title: "Add deadlines and study sessions",
+                  body: "Plan assignments, exams, homework, personal tasks, and focused study blocks in the same workspace.",
+                },
+                {
+                  number: "03",
+                  title: "See what needs attention",
+                  body: "Review your week, track completed work, record marks, and adjust before a subject starts falling behind.",
+                },
+              ].map((step) => (
+                <div
+                  key={step.number}
+                  className="rounded-[1.75rem] border border-border bg-card p-7 shadow-sm"
+                >
+                  <div className="text-sm font-semibold text-[#5E7A63]">
+                    {step.number}
+                  </div>
+                  <h3 className="mt-5 text-xl font-semibold tracking-tight text-foreground">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                    {step.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-24">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-tight">
                 Free to start. Premium when you need more.
               </h2>
               <p className="mt-5 text-base leading-8 text-muted-foreground md:text-lg">
-                Start with the core planner for free. Upgrade later for marks,
-                insights, and future advanced features.
+                Use the core planner for free. Upgrade for marks, insights, and
+                deeper progress tracking.
               </p>
             </div>
 
@@ -377,22 +434,17 @@ export default async function Page() {
                 </p>
 
                 <ul className="mt-8 space-y-4 text-sm text-foreground">
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
-                    Timetable and classes
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
-                    Assignments & homework
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
-                    Exam dates & study sessions
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
-                    Reminders
-                  </li>
+                  {[
+                    "Timetable and recurring classes",
+                    "Assignments, homework, and exams",
+                    "Study sessions and reminders",
+                    "Account sync and backups",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#8DB174]" />
+                      {item}
+                    </li>
+                  ))}
                 </ul>
 
                 <Link
@@ -409,32 +461,32 @@ export default async function Page() {
                     Premium
                   </div>
                   <span className="rounded-full bg-[#E8F0E9] px-2.5 py-1 text-[11px] font-semibold text-[#5E7A63]">
-                    Recommended
+                    Best value
                   </span>
                 </div>
 
                 <div className="mt-5 text-5xl font-semibold text-foreground">
-                  US$2.99
+                  US$19.99
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">per month</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  per year, about US$1.67/month
+                </p>
+                <p className="mt-3 text-sm font-medium text-[#5E7A63]">
+                  Save US$15.89, around 44%
+                </p>
 
                 <ul className="mt-8 space-y-4 text-sm text-foreground">
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
-                    Everything in Free
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
-                    Marks tracking
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
-                    Insights & stronger visibility
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
-                    Advanced features as released
-                  </li>
+                  {[
+                    "Everything in Free",
+                    "Marks tracking",
+                    "Study insights",
+                    "Performance summaries",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#7A9B7F]" />
+                      {item}
+                    </li>
+                  ))}
                 </ul>
 
                 <Link
@@ -443,7 +495,37 @@ export default async function Page() {
                 >
                   Start with Premium
                 </Link>
+
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Monthly billing is also available at US$2.99.
+                </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border">
+          <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:px-10 md:py-24 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+            <div className="flex justify-center lg:justify-start">
+              <div className="grid h-24 w-24 place-items-center rounded-[2rem] bg-[#E8F0DD] text-[#517535]">
+                <Layers3 className="h-9 w-9" />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#517535]">
+                Built by a student
+              </p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-tight">
+                Made because the usual student planning setup was not good
+                enough.
+              </h2>
+              <p className="mt-5 max-w-3xl text-base leading-8 text-muted-foreground md:text-lg">
+                MyStudyPlanner was built to replace the mix of calendars,
+                screenshots, notes, reminders, and half-finished to-do lists
+                students rely on. The goal is simple: make the whole school week
+                visible without making the planner itself complicated.
+              </p>
             </div>
           </div>
         </section>
@@ -456,54 +538,43 @@ export default async function Page() {
               </h2>
             </div>
 
-            <div className="mt-10 space-y-6">
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-foreground">
-                  What is the best study planner for students?
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  The best study planner for students is one that keeps
-                  assignments, homework, exams, study sessions, and reminders in
-                  one place without feeling cluttered. MyStudyPlanner is built
-                  for students who want a calm, simple planner that is easy to
-                  keep using.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-foreground">
-                  Is MyStudyPlanner good for high school and university
-                  students?
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Yes. MyStudyPlanner works for both high school and university
-                  students who want one place to organise deadlines, homework,
-                  study sessions, exams, and marks without using multiple tools.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-foreground">
-                  Can I use MyStudyPlanner as a free online study planner?
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Yes. You can start with a free account and use MyStudyPlanner
-                  online to organise subjects, assignments, exams, homework, and
-                  study sessions before deciding whether premium features are
-                  right for you.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-foreground">
-                  Does MyStudyPlanner track assignments, exams, and marks?
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                  Yes. MyStudyPlanner helps students track assignments, exam
-                  dates, homework, study sessions, and reminders in one place.
-                  Marks tracking and insights are available as premium features.
-                </p>
-              </div>
+            <div className="mt-10 divide-y divide-border overflow-hidden rounded-[1.75rem] border border-border bg-card">
+              {[
+                {
+                  question: "Is MyStudyPlanner free?",
+                  answer:
+                    "Yes. The Free plan includes the core calendar, subjects, term dates, timetable, assignments, homework, exams, study sessions, reminders, account sync, and backup tools.",
+                },
+                {
+                  question: "Can I add my school or university timetable?",
+                  answer:
+                    "Yes. You can create recurring weekly or fortnightly classes and place them alongside deadlines and study sessions in the same calendar.",
+                },
+                {
+                  question: "Does MyStudyPlanner work for both high school and university?",
+                  answer:
+                    "Yes. School students can use fixed periods and Week A or Week B cycles, while university students can add lectures, tutorials, labs, work, and other recurring commitments.",
+                },
+                {
+                  question: "Can I track assignments, exams, and marks?",
+                  answer:
+                    "Yes. Assignments, exams, homework, and study sessions can all be planned in the core app. Marks tracking and deeper study insights are Premium features.",
+                },
+                {
+                  question: "Does my planner sync across devices?",
+                  answer:
+                    "Yes. Signed-in accounts save planner data to your account so you can access the same setup and schedule across supported devices.",
+                },
+              ].map((item) => (
+                <div key={item.question} className="p-6 md:p-7">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {item.question}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                    {item.answer}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -512,26 +583,26 @@ export default async function Page() {
           <div className="mx-auto flex max-w-5xl flex-col items-center px-6 py-20 text-center md:px-10 md:py-24">
             <Clock3 className="h-8 w-8 text-[#517535]" />
             <h2 className="mt-6 text-4xl font-semibold tracking-tight text-foreground md:text-5xl md:leading-tight">
-              Plan your school week in one calendar.
+              See your whole school week in one calendar.
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
-              Try the demo first or create your account and start planning
-              properly.
+              Start free, add your timetable, and stop relying on five different
+              places to remember what is coming up.
             </p>
 
             <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
               <Link
-                href="/demo"
-                className="inline-flex h-12 min-w-[200px] items-center justify-center rounded-xl border border-border bg-card px-7 text-sm font-medium text-foreground shadow-sm transition hover:bg-background/70"
+                href="/sign-up"
+                className="inline-flex h-12 min-w-[210px] items-center justify-center rounded-xl bg-primary px-7 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-95"
               >
-                Try the demo first
+                Create free account
               </Link>
 
               <Link
-                href="/sign-up"
-                className="inline-flex h-12 min-w-[200px] items-center justify-center rounded-xl border border-border bg-card px-7 text-sm font-medium text-foreground shadow-sm transition hover:bg-background/70"
+                href="/demo"
+                className="inline-flex h-12 min-w-[210px] items-center justify-center rounded-xl border border-border bg-card px-7 text-sm font-medium text-foreground shadow-sm transition hover:bg-background/70"
               >
-                Create free account
+                Try the live demo
               </Link>
             </div>
           </div>
@@ -541,7 +612,7 @@ export default async function Page() {
           <div className="mx-auto max-w-6xl px-6 py-10 md:px-10">
             <div className="text-center">
               <h2 className="text-lg font-semibold text-foreground">
-                Explore more student planning guides
+                Explore student planning guides
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 Helpful pages for different study needs and student workflows.
@@ -549,7 +620,7 @@ export default async function Page() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {seoLinks.map((link) => (
+              {seoLinks.slice(0, 6).map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -570,28 +641,16 @@ export default async function Page() {
             </div>
 
             <div className="flex items-center gap-4 text-xs">
-              <Link
-                href="/about"
-                className="text-muted-foreground transition hover:text-foreground"
-              >
+              <Link href="/about" className="text-muted-foreground transition hover:text-foreground">
                 About
               </Link>
-              <Link
-                href="/how-it-works"
-                className="text-muted-foreground transition hover:text-foreground"
-              >
+              <Link href="/how-it-works" className="text-muted-foreground transition hover:text-foreground">
                 How it works
               </Link>
-              <Link
-                href="/privacy"
-                className="text-muted-foreground transition hover:text-foreground"
-              >
+              <Link href="/privacy" className="text-muted-foreground transition hover:text-foreground">
                 Privacy
               </Link>
-              <Link
-                href="/terms"
-                className="text-muted-foreground transition hover:text-foreground"
-              >
+              <Link href="/terms" className="text-muted-foreground transition hover:text-foreground">
                 Terms
               </Link>
             </div>
