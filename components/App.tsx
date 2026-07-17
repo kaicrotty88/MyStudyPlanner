@@ -46,7 +46,6 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
-const FORCE_ONBOARDING_PREVIEW = true;
 
 const WHATS_NEW_VERSION_KEY = "2026-02-21";
 const WHATS_NEW_VERSION_LABEL = "Update";
@@ -1138,6 +1137,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [plan, setPlan] = useState<Plan>(mode === "demo" ? "premium" : "free");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(mode === "demo");
+  const [showOnboardingReplay, setShowOnboardingReplay] = useState(false);
 
   const storageKey =
     mode === "demo"
@@ -1770,13 +1770,23 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     }
   };
 
+  const handleExitOnboarding = async () => {
+    if (showOnboardingReplay) {
+      setShowOnboardingReplay(false);
+      setActiveTab("settings");
+      return;
+    }
+
+    await handleCompleteOnboarding();
+  };
+
   if (!isReady || !profileLoaded) return <LoadingScreen />;
 
   if (
     mode === "app" &&
     Boolean(isSignedIn) &&
     profile &&
-    (FORCE_ONBOARDING_PREVIEW || !profile.has_completed_onboarding)
+    !profile.has_completed_onboarding
   ) {
     return (
       <OnboardingFlow
@@ -1802,7 +1812,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         onDeleteTask={handleDeleteTask}
         onToggleTaskCompleted={toggleTaskCompleted}
         onClearAllData={handleClearAllData}
-        onComplete={handleCompleteOnboarding}
+        onComplete={handleExitOnboarding}
       />
     );
   }
@@ -2087,6 +2097,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTimetableClass={handleUpdateTimetableClass}
             onDeleteTimetableClass={handleDeleteTimetableClass}
             onClearAllData={handleClearAllData}
+            onReplayOnboarding={() => setShowOnboardingReplay(true)}
             openSection={settingsOpenSection}
             onOpenSectionHandled={() => setSettingsOpenSection(null)}
           />

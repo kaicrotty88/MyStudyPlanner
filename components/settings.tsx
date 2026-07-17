@@ -14,6 +14,7 @@ import {
   Database,
   Sparkles,
   LifeBuoy,
+  RotateCcw,
 } from "lucide-react";
 
 import type {
@@ -103,6 +104,7 @@ interface SettingsProps {
   appMode: AppMode;
   plan?: Plan;
   onClearAllData: () => void;
+  onReplayOnboarding?: () => void;
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
 }
@@ -262,6 +264,7 @@ export function Settings({
   appMode,
   plan = "free",
   onClearAllData,
+  onReplayOnboarding,
   openSection,
   onOpenSectionHandled,
 }: SettingsProps) {
@@ -2287,6 +2290,34 @@ export function Settings({
             </div>
           ) : null}
         </div>
+
+        {appMode === "app" && onReplayOnboarding ? (
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+            <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="settings-row-icon settings-icon-terms">
+                  <RotateCcw className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-foreground">
+                    Setup guide
+                  </div>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    Replay onboarding using your current subjects, terms, timetable, and tasks.
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onReplayOnboarding}
+                className="app-btn-secondary h-9 shrink-0 px-3"
+              >
+                Replay onboarding
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
           <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
