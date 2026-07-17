@@ -46,6 +46,7 @@ const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
+const FORCE_ONBOARDING_PREVIEW = true;
 
 const WHATS_NEW_VERSION_KEY = "2026-02-21";
 const WHATS_NEW_VERSION_LABEL = "Update";
@@ -1775,7 +1776,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     mode === "app" &&
     Boolean(isSignedIn) &&
     profile &&
-    !profile.has_completed_onboarding
+    (FORCE_ONBOARDING_PREVIEW || !profile.has_completed_onboarding)
   ) {
     return (
       <OnboardingFlow
