@@ -302,16 +302,15 @@
    ============================================================ */
 
 @layer components {
-  .app-page,
+  .app-page {
+    @apply mx-auto w-full max-w-7xl px-5 py-5 sm:px-7 md:px-9;
+  }
+
   .app-page-wide {
     @apply mx-auto w-full max-w-[1500px] px-5 py-5 sm:px-7 md:px-9;
   }
 
   .app-page-header {
-    @apply mx-auto w-full max-w-7xl;
-  }
-
-  .app-page:not(.page-accent-calendar) > :first-child {
     @apply mx-auto w-full max-w-7xl;
   }
 
