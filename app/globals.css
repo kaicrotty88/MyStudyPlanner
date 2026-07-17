@@ -311,6 +311,10 @@
     @apply mx-auto w-full max-w-7xl;
   }
 
+  .app-page:not(.page-accent-calendar) > :first-child {
+    @apply mx-auto w-full max-w-7xl;
+  }
+
   .app-filter-strip {
     @apply flex w-full items-center gap-2 overflow-x-auto rounded-2xl border border-border bg-card p-2 shadow-app-card;
     scrollbar-width: none;
