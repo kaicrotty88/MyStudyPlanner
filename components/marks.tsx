@@ -318,7 +318,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="metric-card" style={{ "--metric-accent": "#5f7f68", "--metric-soft": "var(--primary-soft)" } as React.CSSProperties}>
+        <div className="metric-card metric-card-compact" style={{ "--metric-accent": "#5f7f68", "--metric-soft": "var(--primary-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="metric-icon"><Target className="h-4 w-4" /></span>
             Overall average
@@ -331,7 +331,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="metric-card" style={{ "--metric-accent": "#b78655", "--metric-soft": "var(--amber-soft)" } as React.CSSProperties}>
+        <div className="metric-card metric-card-compact" style={{ "--metric-accent": "#b78655", "--metric-soft": "var(--amber-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="metric-icon"><Award className="h-4 w-4" /></span>
             Best subject
@@ -344,7 +344,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="metric-card" style={{ "--metric-accent": "#6686a8", "--metric-soft": "var(--info-soft)" } as React.CSSProperties}>
+        <div className="metric-card metric-card-compact" style={{ "--metric-accent": "#6686a8", "--metric-soft": "var(--info-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="metric-icon"><TrendingUp className="h-4 w-4" /></span>
             Recent change
@@ -361,7 +361,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
           </div>
         </div>
 
-        <div className="metric-card" style={{ "--metric-accent": "#8a72a0", "--metric-soft": "var(--violet-soft)" } as React.CSSProperties}>
+        <div className="metric-card metric-card-compact" style={{ "--metric-accent": "#8a72a0", "--metric-soft": "var(--violet-soft)" } as React.CSSProperties}>
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="metric-icon"><Clock3 className="h-4 w-4" /></span>
             Pending results
@@ -373,7 +373,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="marks-layout grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-border bg-muted/10">
             <div className="text-sm font-semibold text-foreground">Subject performance</div>

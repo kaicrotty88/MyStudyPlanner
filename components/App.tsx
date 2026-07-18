@@ -1797,7 +1797,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       />
 
       <nav className="app-shell-header z-30 border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="app-shell-header-grid">
+        <div className="app-shell-header-grid app-shell-header-grid-polished">
           <Link
             href={mode === "demo" ? "/demo" : "/app"}
             className="flex items-center gap-3"

@@ -669,7 +669,7 @@ export function Tasks({
                   return copy;
                 });
               }}
-              className="app-btn-secondary h-9 px-3"
+              className="app-btn-tertiary h-9 px-3"
             >
               Clear scheduled time
             </button>
@@ -722,7 +722,7 @@ export function Tasks({
       >
         <button
           onClick={() => toggleSection(type)}
-          className="flex flex-1 items-center gap-3 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="flex flex-1 item-center gap-3 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           type="button"
         >
           <div className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-muted/20">
@@ -810,7 +810,7 @@ export function Tasks({
         style={{ borderLeftWidth: 4, borderLeftColor: subject?.color ?? "#64748b" }}
       >
         <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex min-w-0 flex-1 item-center gap-3">
             <button
               type="button"
               onClick={() => onToggleCompleted(task.id)}
@@ -930,7 +930,7 @@ export function Tasks({
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+              <div className="app-empty-state">
                 <div className="text-sm font-medium text-foreground">No {label.toLowerCase()} yet</div>
                 <div className="mt-1 text-xs text-muted-foreground">Click “Add” to create one.</div>
               </div>
@@ -943,14 +943,14 @@ export function Tasks({
 
   return (
     <div className="app-page app-scroll-page page-accent-tasks space-y-4">
-      <div>
+      <div className="app-page-heading">
         <h1 className="app-page-title">Tasks</h1>
         <p className="app-page-subtitle">
           Organise homework, assignments, exams, and personal tasks.
         </p>
       </div>
 
-      <div className="app-filter-scroll">
+      <div className="app-filter-scroll app-filter-scroll-compact">
         <div className="app-filter-scroll-track">
           <button
             type="button"
@@ -1000,7 +1000,7 @@ export function Tasks({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="app-list-toolbar flex items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">
           {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"}
           {selectedSubject !== "all" ? " in this filter" : " showing"}

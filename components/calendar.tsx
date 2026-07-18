@@ -2025,7 +2025,7 @@ function CalendarView({
 
   return (
     <div className="app-page-wide app-scroll-page page-accent-calendar space-y-5">
-      <div className="app-page-header flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="app-page-header app-page-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="app-page-title">Calendar</h1>
           <p className="app-page-subtitle">
@@ -2036,7 +2036,7 @@ function CalendarView({
         <button
           type="button"
           onClick={() => openAddMenuForDate(currentDate)}
-          className="app-btn-secondary"
+          className="app-btn-primary"
         >
           <Plus className="h-4 w-4" />
           Add item
@@ -2044,7 +2044,7 @@ function CalendarView({
       </div>
 
       <CalendarShell>
-        <div className="calendar-toolbar">
+        <div className="calendar-toolbar calendar-toolbar-polished">
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleNavigate("prev")}
@@ -2064,7 +2064,7 @@ function CalendarView({
               <ChevronRight className="h-4 w-4 text-foreground" />
             </button>
 
-            <div className="ml-2 min-w-[220px]">
+            <div className="calendar-date-context ml-2 min-w-[220px]">
               <div className="text-lg font-semibold text-foreground">{getHeaderLabel()}</div>
               {termWeekLabel ? (
                 <div className="text-xs text-muted-foreground">{termWeekLabel}</div>

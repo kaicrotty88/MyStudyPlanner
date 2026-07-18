@@ -311,12 +311,12 @@ export function StudyPlanner({
   return (
     <div className="app-page app-scroll-page page-accent-study space-y-4">
       {/* Header */}
-      <div>
+      <div className="app-page-heading">
         <h1 className="app-page-title">Study</h1>
         <p className="app-page-subtitle">Log study sessions and review your study analytics.</p>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="app-control-bar flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <div className="app-switch">
             <button
@@ -337,7 +337,7 @@ export function StudyPlanner({
             </button>
           </div>
 
-          <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
+          <div className="app-inline-summary">
             <span className="font-medium text-foreground">This week</span>
             <span className="opacity-40">•</span>
             <span>{weeklySummary.label}</span>
@@ -364,7 +364,7 @@ export function StudyPlanner({
       {studyView === "log" ? (
         <>
       {/* Subject tabs */}
-      <div className="app-filter-scroll">
+      <div className="app-filter-scroll app-filter-scroll-compact">
         <div className="app-filter-scroll-track">
         <button
           onClick={() => setActiveSubject("all")}
@@ -409,8 +409,8 @@ export function StudyPlanner({
       </div>
 
       {/* Sessions list */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-        <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between gap-3">
+      <div className="app-card app-session-list overflow-hidden">
+        <div className="app-card-header flex items-center justify-between gap-3 bg-muted/20">
           <div className="text-sm font-semibold text-foreground">Sessions</div>
           <div className="text-xs text-muted-foreground">
             {visibleSessions.length} session{visibleSessions.length === 1 ? "" : "s"} •{" "}
@@ -419,7 +419,7 @@ export function StudyPlanner({
         </div>
 
         {visibleSessions.length === 0 ? (
-          <div className="p-8 text-center">
+          <div className="app-empty-state border-0">
             <div className="text-sm font-medium text-foreground">No sessions yet</div>
             <div className="mt-1 text-xs text-muted-foreground">Log your first one to start tracking progress.</div>
           </div>
@@ -434,7 +434,7 @@ export function StudyPlanner({
                 <div
                   key={s.id}
                   className={[
-                    "group flex items-start justify-between gap-4 px-4 py-2.5 hover:bg-muted/40 transition",
+                    "app-session-row group flex items-start justify-between gap-4 px-5 py-3.5 transition",
                     s.completed ? "opacity-80" : "",
                   ].join(" ")}
                 >

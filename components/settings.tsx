@@ -1103,7 +1103,7 @@ export function Settings({
       </div>
 
       <div className="space-y-3">
-        <div ref={subjectsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+        <div ref={subjectsCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
             onClick={() => setSubjectsOpen((v) => !v)}
@@ -1113,7 +1113,7 @@ export function Settings({
               <span className="settings-row-icon settings-icon-subjects"><BookOpen className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Subjects</div>
-                <div className="text-xs text-muted-foreground">Add, edit, and organise your subjects.</div>
+                <div className="text-xs text-muted-foreground">{subjects.length} subject{subjects.length === 1 ? "" : "s"} configured.</div>
               </div>
             </div>
 
@@ -1126,7 +1126,7 @@ export function Settings({
           </button>
 
           {subjectsOpen ? (
-            <div className="space-y-4 px-5 pb-5">
+            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
               <div className="flex items-center justify-end">
                 <button
                   type="button"
@@ -1204,7 +1204,7 @@ export function Settings({
 
               <div className="space-y-2">
                 {subjects.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+                  <div className="app-empty-state">
                     <div className="text-sm font-medium text-foreground">No subjects yet</div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       Add subjects before filling your timetable grid.
@@ -1253,17 +1253,17 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={termsCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+        <div ref={termsCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
             onClick={() => setPeriodsOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
+            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
           >
             <div className="flex items-center gap-3 text-left">
               <span className="settings-row-icon settings-icon-terms"><CalendarRange className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Terms</div>
-                <div className="text-xs text-muted-foreground">Add school terms, semesters, or exam periods.</div>
+                <div className="text-xs text-muted-foreground">{periods.length} term{periods.length === 1 ? "" : "s"} configured.</div>
               </div>
             </div>
 
@@ -1276,7 +1276,7 @@ export function Settings({
           </button>
 
           {periodsOpen ? (
-            <div className="space-y-4 px-5 pb-5">
+            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
               <div className="flex items-center justify-end">
                 <button
                   type="button"
@@ -1367,7 +1367,7 @@ export function Settings({
 
               <div className="space-y-2">
                 {periods.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+                  <div className="app-empty-state">
                     <div className="text-sm font-medium text-foreground">No terms yet</div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       Add term dates so tasks can be grouped automatically.
@@ -1415,17 +1415,17 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={timetableCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+        <div ref={timetableCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
             onClick={() => setTimetableOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
+            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
           >
             <div className="flex items-center gap-3 text-left">
               <span className="settings-row-icon settings-icon-timetable"><CalendarDays className="h-4 w-4" /></span>
               <div>
                 <div className="text-sm font-semibold text-foreground">Timetable</div>
-                <div className="text-xs text-muted-foreground">School grid builder, Week A/B, period times, and custom classes.</div>
+                <div className="text-xs text-muted-foreground">{timetableSettings.cycle === "fortnightly" ? "Fortnightly" : "Weekly"} timetable · {timetableClasses.length} class{timetableClasses.length === 1 ? "" : "es"}.</div>
               </div>
             </div>
 
@@ -2063,7 +2063,7 @@ export function Settings({
 
                   <div className="mt-4 space-y-2">
                     {sortedManualClasses.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+                      <div className="app-empty-state">
                         <div className="text-sm font-medium text-foreground">
                           No manual classes yet
                         </div>
@@ -2153,11 +2153,11 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={backupCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+        <div ref={backupCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
             onClick={() => setBackupOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
+            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
           >
             <div className="flex items-center gap-3 text-left">
               <span className="settings-row-icon settings-icon-data"><Database className="h-4 w-4" /></span>
@@ -2176,7 +2176,7 @@ export function Settings({
           </button>
 
           {backupOpen ? (
-            <div className="space-y-4 px-5 pb-5">
+            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <button
                   type="button"
@@ -2234,11 +2234,11 @@ export function Settings({
           ) : null}
         </div>
 
-        <div ref={premiumCardRef} className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+        <div ref={premiumCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
             onClick={() => setPremiumOpen((value) => !value)}
-            className="flex w-full items-center justify-between px-5 py-3.5 transition-colors hover:bg-muted/40"
+            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
           >
             <div className="flex items-center gap-3 text-left">
               <span className="settings-row-icon settings-icon-premium">
@@ -2247,7 +2247,7 @@ export function Settings({
               <div>
                 <div className="text-sm font-semibold text-foreground">Premium</div>
                 <div className="text-xs text-muted-foreground">
-                  Clear pricing, no hidden plan selector.
+                  Compare plans and manage your subscription.
                 </div>
               </div>
             </div>
@@ -2261,7 +2261,7 @@ export function Settings({
           </button>
 
           {premiumOpen ? (
-            <div className="space-y-4 px-5 pb-5">
+            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
               <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold text-foreground">Current plan</div>
@@ -2368,7 +2368,7 @@ export function Settings({
           ) : null}
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-app-card">
+        <div className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="settings-row-icon settings-icon-support"><LifeBuoy className="h-4 w-4" /></span>
