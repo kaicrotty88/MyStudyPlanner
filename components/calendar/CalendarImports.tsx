@@ -106,14 +106,43 @@ const cleanIcsValue = (value?: string) =>
     .replace(/\\;/g, ";")
     .replace(/\\\\/g, "\\");
 
+function getCalendarProperty(
+  text: string,
+  property: string,
+) {
+  const unfolded = unfold(text);
+  const row = unfolded
+    .split(/\r?\n/)
+    .find(
+      (candidate) =>
+        candidate.startsWith(`${property}:`) ||
+        candidate.startsWith(`${property};`),
+    );
+
+  if (!row) {
+    return undefined;
+  }
+
+  const colon = row.indexOf(":");
+
+  return cleanIcsValue(row.slice(colon + 1));
+}
+
 function parseIcs(
   text: string,
   subjects: Subject[],
 ): ImportedCalendarEvent[] {
-  const blocks = unfold(text)
+  const unfolded = unfold(text);
+  const blocks = unfolded
     .split("BEGIN:VEVENT")
     .slice(1)
     .map((entry) => entry.split("END:VEVENT")[0]);
+
+  const sourceCalendarName =
+    getCalendarProperty(text, "X-WR-CALNAME") ||
+    (text.includes("Compass Calendar")
+      ? "Compass timetable"
+      : "Calendar file");
 
   const events: ImportedCalendarEvent[] = [];
 
@@ -127,7 +156,9 @@ function parseIcs(
           candidate.startsWith(`${name};`),
       );
 
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
 
       const colon = row.indexOf(":");
 
@@ -139,7 +170,9 @@ function parseIcs(
 
     const startRaw = get("DTSTART");
 
-    if (!startRaw) return;
+    if (!startRaw) {
+      return;
+    }
 
     const uid = get("UID")?.value || `ics-${index}`;
     const endRaw = get("DTEND");
@@ -147,10 +180,6 @@ function parseIcs(
     const end = endRaw
       ? parseIcsDate(endRaw.value)
       : new Date(start.getTime() + 60 * 60 * 1000);
-    const calendarName =
-      cleanIcsValue(get("X-WR-CALNAME")?.value) ||
-      cleanIcsValue(get("CATEGORIES")?.value) ||
-      "Calendar file";
 
     events.push({
       id: `ics:${uid}:${start.toISOString()}`,
@@ -159,12 +188,17 @@ function parseIcs(
         "Untitled event",
       start,
       end,
-      allDay: Boolean(startRaw.params.includes("VALUE=DATE")),
+      allDay: Boolean(
+        startRaw.params.includes("VALUE=DATE"),
+      ),
       location: cleanIcsValue(get("LOCATION")?.value),
-      description: cleanIcsValue(get("DESCRIPTION")?.value),
+      description: cleanIcsValue(
+        get("DESCRIPTION")?.value,
+      ),
       source: "ics",
       externalId: uid,
-      calendarName,
+      externalCalendarId: sourceCalendarName,
+      calendarName: sourceCalendarName,
       recurring: Boolean(get("RRULE")),
       importedAt: new Date(),
     });
@@ -477,6 +511,10 @@ export function CalendarImports({
       ).length;
       const eventCount = events.length - classCount;
 
+      const matchedCount = events.filter(
+        (event) => Boolean(event.subjectId),
+      ).length;
+
       setNotice(
         `${events.length} calendar file event${
           events.length === 1 ? "" : "s"
@@ -484,7 +522,11 @@ export function CalendarImports({
           classCount === 1 ? "" : "es"
         } and ${eventCount} regular event${
           eventCount === 1 ? "" : "s"
-        } detected.`,
+        } detected.${
+          subjects.length
+            ? ` ${matchedCount} matched to your subjects.`
+            : ""
+        }`,
       );
     } catch (caughtError) {
       setError(
