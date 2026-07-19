@@ -17,6 +17,7 @@ import type {
   StudySession,
   Period,
   TimetableSettings,
+  ImportedCalendarEvent,
   TimetableClass,
   TimetablePeriod,
   TimetableDayOfWeek,
@@ -759,6 +760,8 @@ const makeDemoData = () => {
   const in5 = addDays(now, 5);
   const in7 = addDays(now, 7);
   const in10 = addDays(now, 10);
+  const in12 = addDays(now, 12);
+  const in14 = addDays(now, 14);
   const yesterday = addDays(now, -1);
   const twoDaysAgo = addDays(now, -2);
   const lastWeek = addDays(now, -7);
@@ -930,6 +933,13 @@ const makeDemoData = () => {
     },
   ];
 
+  tasks.push(
+    { id: "t11", title: "Economics budget questions", subjectId: "6", dueDate: in2, type: "homework", scheduledDate: tomorrow, startTime: "19:00", duration: "45 min", periodId: "p2", completed: false },
+    { id: "t12", title: "Engineering design folio", subjectId: "5", dueDate: in12, type: "assignment", scheduledDate: in5, startTime: "16:30", duration: "1h 30m", periodId: "p2", completed: false },
+    { id: "t13", title: "Chemistry revision set", subjectId: "3", dueDate: in7, type: "homework", scheduledDate: in3, startTime: "18:15", duration: "60 min", periodId: "p2", completed: false },
+    { id: "t14", title: "Legal Studies quiz", subjectId: "7", dueDate: in14, type: "exam", scheduledDate: in14, startTime: "10:00", duration: "45 min", periodId: "p2", completed: false }
+  );
+
   const studySessions: StudySession[] = [
     {
       id: "s1",
@@ -941,16 +951,12 @@ const makeDemoData = () => {
       linkedTaskId: "t1",
       completed: false,
     },
-    {
-      id: "s2",
-      title: "Physics review",
-      subjectId: "2",
-      date: tomorrow,
-      startTime: "18:00",
-      duration: "45 min",
-      linkedTaskId: "t3",
-      completed: false,
-    },
+    { id: "s2", title: "Physics review", subjectId: "2", date: tomorrow, startTime: "18:00", duration: "45 min", linkedTaskId: "t3", completed: false },
+    { id: "s3", title: "Chemistry flashcards", subjectId: "3", date: in2, startTime: "16:30", duration: "30 min", linkedTaskId: "t13", completed: false },
+    { id: "s4", title: "English essay planning", subjectId: "4", date: in3, startTime: "17:15", duration: "45 min", linkedTaskId: "t2", completed: false },
+    { id: "s5", title: "Economics essay plan", subjectId: "6", date: in5, startTime: "18:30", duration: "50 min", linkedTaskId: "t11", completed: false },
+    { id: "s6", title: "Legal Studies case review", subjectId: "7", date: in7, startTime: "17:00", duration: "40 min", linkedTaskId: "t14", completed: false },
+    { id: "s7", title: "Physics practice questions", subjectId: "2", date: in10, startTime: "16:45", duration: "60 min", linkedTaskId: "t3", completed: false },
   ];
 
   tasks.push(
@@ -1144,6 +1150,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [importedCalendarEvents, setImportedCalendarEvents] = useState<ImportedCalendarEvent[]>([]);
 
   // Legacy bridge only. Reminders are now migrated into Tasks as personal tasks.
   // This stays temporarily so older Calendar props do not break before Calendar is updated.
@@ -1220,6 +1227,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     timetableSettings,
     timetablePeriods,
     timetableClasses,
+    importedCalendarEvents,
   });
 
   const applyParsedState = (parsed: any) => {
@@ -1296,6 +1304,22 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     );
 
 
+
+    setImportedCalendarEvents(
+      Array.isArray(parsed?.importedCalendarEvents)
+        ? parsed.importedCalendarEvents.map((event: any) => ({
+            ...event,
+            id: String(event?.id ?? Date.now()),
+            title: String(event?.title ?? "Imported event"),
+            start: hydrateDate(event?.start),
+            end: hydrateDate(event?.end),
+            source: event?.source === "google" ? "google" : "ics",
+            externalId: String(event?.externalId ?? event?.id ?? Date.now()),
+            importedAt: hydrateDate(event?.importedAt),
+            updatedAt: event?.updatedAt ? hydrateDate(event.updatedAt) : undefined,
+          }))
+        : []
+    );
 
     const incomingSettings = parsed?.timetableSettings;
 
@@ -1455,6 +1479,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTimetableSettings(demo.timetableSettings);
       setTimetablePeriods(demo.timetablePeriods);
       setTimetableClasses(demo.timetableClasses);
+      setImportedCalendarEvents([]);
       seedPeriodsStorage(demo.periods);
 
       finishLoading();
@@ -1513,6 +1538,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           timetableSettings: DEFAULT_TIMETABLE_SETTINGS,
           timetablePeriods: DEFAULT_SCHOOL_TIMETABLE_PERIODS,
           timetableClasses: [],
+          importedCalendarEvents: [],
         };
 
         applyParsedState(emptyState);
@@ -1579,6 +1605,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     timetableSettings,
     timetablePeriods,
     timetableClasses,
+    importedCalendarEvents,
     storageKey,
     mode,
     isSignedIn,
@@ -1645,6 +1672,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTimetableSettings(demo.timetableSettings);
       setTimetablePeriods(demo.timetablePeriods);
       setTimetableClasses(demo.timetableClasses);
+      setImportedCalendarEvents([]);
       seedPeriodsStorage(demo.periods);
       setActiveTab("calendar");
       return;
@@ -1657,6 +1685,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setTimetableSettings(DEFAULT_TIMETABLE_SETTINGS);
     setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
     setTimetableClasses([]);
+    setImportedCalendarEvents([]);
     setActiveTab("calendar");
 
     if (Boolean(isSignedIn) && supabase) {
@@ -1749,6 +1778,18 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     seedPeriodsStorage(sorted);
   };
 
+
+  const handleImportCalendarEvents = (incoming: ImportedCalendarEvent[]) => {
+    setImportedCalendarEvents((current) => {
+      const byId = new Map(current.map((event) => [event.id, event]));
+      incoming.forEach((event) => byId.set(event.id, event));
+      return [...byId.values()].sort((a, b) => a.start.getTime() - b.start.getTime());
+    });
+  };
+
+  const handleRemoveImportedCalendarSource = (source: "google" | "ics") => {
+    setImportedCalendarEvents((current) => current.filter((event) => event.source !== source));
+  };
   const handleUpdateTimetableSettings = (settings: TimetableSettings) => {
     setTimetableSettings(settings);
   };
@@ -2028,6 +2069,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}
+            importedCalendarEvents={importedCalendarEvents}
             onAddTask={handleAddTask}
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
@@ -2102,6 +2144,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTimetableClass={handleUpdateTimetableClass}
             onDeleteTimetableClass={handleDeleteTimetableClass}
             onClearAllData={handleClearAllData}
+            importedCalendarEvents={importedCalendarEvents}
+            onImportCalendarEvents={handleImportCalendarEvents}
+            onRemoveImportedCalendarSource={handleRemoveImportedCalendarSource}
             openSection={settingsOpenSection}
             onOpenSectionHandled={() => setSettingsOpenSection(null)}
           />

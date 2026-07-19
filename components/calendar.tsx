@@ -17,6 +17,7 @@ import type {
   TimetablePeriod,
   TimetableSettings,
   TimetableWeek,
+  ImportedCalendarEvent,
 } from "./models";
 
 type ViewMode = "day" | "week" | "month";
@@ -50,7 +51,8 @@ type CalendarItemKind =
   | "homework"
   | "personal"
   | "study"
-  | "class";
+  | "class"
+  | "imported";
 
 type CalendarItemPlacement = "timed";
 
@@ -71,6 +73,7 @@ type CalendarItem = {
   task?: Task;
   session?: StudySession;
   timetableClass?: TimetableClass;
+  importedEvent?: ImportedCalendarEvent;
 };
 
 type TimedItemLayout = {
@@ -87,6 +90,7 @@ interface CalendarProps {
   timetableSettings: TimetableSettings;
   timetablePeriods: TimetablePeriod[];
   timetableClasses: TimetableClass[];
+  importedCalendarEvents: ImportedCalendarEvent[];
   onAddTask: (task: Omit<Task, "id">) => void;
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
   onDeleteTask?: (id: string) => void;
@@ -365,6 +369,10 @@ const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?:
     };
   }
 
+  if (kind === "imported") {
+    return { background: "color-mix(in srgb, #64748b 12%, var(--card))", border: "color-mix(in srgb, #64748b 32%, var(--border))", text: "#475569", dot: "#64748b" };
+  }
+
   if (kind === "study") {
     const background = mixHex(normalizedBase, "#ffffff", 0.72);
 
@@ -571,6 +579,7 @@ function CalendarView({
   timetableSettings,
   timetablePeriods,
   timetableClasses,
+  importedCalendarEvents,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -874,7 +883,20 @@ function CalendarView({
       };
     });
 
-    return [...taskItems, ...sessionItems].sort((a, b) => {
+    const importedItems: CalendarItem[] = importedCalendarEvents.map((event) => ({
+      id: `imported-${event.id}`,
+      sourceId: event.id,
+      kind: "imported",
+      placement: "timed",
+      title: event.title,
+      start: event.allDay ? dateWithMinutes(event.start, 8 * 60) : event.start,
+      end: event.allDay ? dateWithMinutes(event.start, 8 * 60 + DEADLINE_MARKER_MINUTES) : event.end,
+      timeLabel: event.allDay ? "All day" : displayTime(`${String(event.start.getHours()).padStart(2, "0")}:${String(event.start.getMinutes()).padStart(2, "0")}`),
+      durationLabel: event.source === "google" ? "Google Calendar" : "Imported calendar",
+      importedEvent: event,
+    }));
+
+    return [...taskItems, ...sessionItems, ...importedItems].sort((a, b) => {
       const dayDiff = startOfDay(a.start).getTime() - startOfDay(b.start).getTime();
       if (dayDiff !== 0) return dayDiff;
 
@@ -883,7 +905,7 @@ function CalendarView({
 
       return a.start.getTime() - b.start.getTime();
     });
-  }, [activeTasks, activeSessions, timetableClasses, timetableSettings, timetablePeriodById, periods]);
+  }, [activeTasks, activeSessions, importedCalendarEvents, timetableClasses, timetableSettings, timetablePeriodById, periods]);
 
   const getTimetableItemsForDate = (date: Date): CalendarItem[] => {
     return timetableClasses
@@ -1298,6 +1320,7 @@ function CalendarView({
     if (item.task?.type === "personal") return "#64748b";
     if (item.kind === "homework" || item.kind === "task") return "#3b82f6";
     if (item.kind === "study") return "#5f7f68";
+    if (item.kind === "imported") return "#64748b";
 
     return "#6366f1";
   };
@@ -1306,6 +1329,7 @@ function CalendarView({
     if (item.isTimetableClass) return "Class";
     if (item.isDeadlineMarker) return "Deadline";
     if (item.kind === "study") return "Study";
+    if (item.kind === "imported") return item.importedEvent?.source === "google" ? "Google Calendar" : "Imported";
     if (item.task?.type === "personal") return "Personal";
     if (item.task) return typeLabel(item.task.type);
     return "Item";

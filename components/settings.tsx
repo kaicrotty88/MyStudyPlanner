@@ -15,6 +15,7 @@ import {
   Sparkles,
   LifeBuoy,
 } from "lucide-react";
+import { CalendarImports } from "./calendar/CalendarImports";
 
 import type {
   Subject,
@@ -28,6 +29,7 @@ import type {
   TimetablePeriodType,
   TimetableSettings,
   TimetableWeek,
+  ImportedCalendarEvent,
 } from "./models";
 
 interface StudyItem {
@@ -103,6 +105,9 @@ interface SettingsProps {
   appMode: AppMode;
   plan?: Plan;
   onClearAllData: () => void;
+  importedCalendarEvents?: ImportedCalendarEvent[];
+  onImportCalendarEvents?: (events: ImportedCalendarEvent[]) => void;
+  onRemoveImportedCalendarSource?: (source: "google" | "ics") => void;
   openSection?: SettingsOpenSection | null;
   onOpenSectionHandled?: () => void;
 }
@@ -262,6 +267,9 @@ export function Settings({
   appMode,
   plan = "free",
   onClearAllData,
+  importedCalendarEvents = [],
+  onImportCalendarEvents = () => {},
+  onRemoveImportedCalendarSource = () => {},
   openSection,
   onOpenSectionHandled,
 }: SettingsProps) {
@@ -942,6 +950,13 @@ export function Settings({
       timetableSettings,
       timetablePeriods,
       timetableClasses,
+      importedCalendarEvents: importedCalendarEvents.map((event) => ({
+        ...event,
+        start: event.start.toISOString(),
+        end: event.end.toISOString(),
+        importedAt: event.importedAt.toISOString(),
+        updatedAt: event.updatedAt?.toISOString(),
+      })),
     };
 
     const backup: BackupV1 = {
@@ -953,6 +968,7 @@ export function Settings({
         timetableSettings,
         timetablePeriods,
         timetableClasses,
+        importedCalendarEvents: rawAppData?.importedCalendarEvents ?? fallbackData.importedCalendarEvents,
       },
       periods: rawPeriods,
     };
@@ -2152,6 +2168,13 @@ export function Settings({
             </div>
           ) : null}
         </div>
+
+        <CalendarImports
+          appMode={appMode}
+          importedEvents={importedCalendarEvents}
+          onImport={onImportCalendarEvents}
+          onRemoveSource={onRemoveImportedCalendarSource}
+        />
 
         <div ref={backupCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button

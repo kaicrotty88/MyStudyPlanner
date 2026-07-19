@@ -1,0 +1,6 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { getGoogleIntegration, getValidGoogleAccessToken } from "@/lib/calendarIntegrationStorage";
+import { googleApi } from "@/lib/googleCalendar";
+type CalendarList={items?:Array<{id:string;summary:string;primary?:boolean;accessRole?:string;backgroundColor?:string}>};
+export async function GET(){ const {userId}=await auth(); if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401}); const row=await getGoogleIntegration(userId); if(!row)return NextResponse.json({connected:false,calendars:[]}); try{const token=await getValidGoogleAccessToken(userId);const list=await googleApi<CalendarList>("/users/me/calendarList?minAccessRole=reader",token);return NextResponse.json({connected:true,calendars:(list.items||[]).map(c=>({id:c.id,name:c.summary,primary:Boolean(c.primary),color:c.backgroundColor})),selectedCalendarIds:row.selected_calendar_ids||[],lastImportedAt:row.last_imported_at});}catch(error){console.error(error);return NextResponse.json({connected:true,calendars:[],error:"Could not read Google calendars."},{status:502});} }

@@ -403,6 +403,25 @@ export interface ReminderStored {
   createdAt?: string; // ISO
 }
 
+
+export type ImportedCalendarSource = "google" | "ics";
+
+export interface ImportedCalendarEvent {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  allDay?: boolean;
+  location?: string;
+  description?: string;
+  source: ImportedCalendarSource;
+  externalId: string;
+  externalCalendarId?: string;
+  calendarName?: string;
+  importedAt: Date;
+  updatedAt?: Date;
+}
+
 /* -------------------- Calendar Events -------------------- */
 
 /**
