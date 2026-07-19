@@ -889,10 +889,16 @@ function CalendarView({
       kind: "imported",
       placement: "timed",
       title: event.title,
+      subjectId: event.subjectId,
       start: event.allDay ? dateWithMinutes(event.start, 8 * 60) : event.start,
       end: event.allDay ? dateWithMinutes(event.start, 8 * 60 + DEADLINE_MARKER_MINUTES) : event.end,
       timeLabel: event.allDay ? "All day" : displayTime(`${String(event.start.getHours()).padStart(2, "0")}:${String(event.start.getMinutes()).padStart(2, "0")}`),
-      durationLabel: event.source === "google" ? "Google Calendar" : "Imported calendar",
+      durationLabel: event.kind === "class"
+        ? "Imported class"
+        : event.source === "google"
+          ? "Google Calendar"
+          : "Imported calendar",
+      isTimetableClass: event.kind === "class",
       importedEvent: event,
     }));
 
@@ -1320,7 +1326,9 @@ function CalendarView({
     if (item.task?.type === "personal") return "#64748b";
     if (item.kind === "homework" || item.kind === "task") return "#3b82f6";
     if (item.kind === "study") return "#5f7f68";
-    if (item.kind === "imported") return "#64748b";
+    if (item.kind === "imported") {
+      return item.importedEvent?.color || "#64748b";
+    }
 
     return "#6366f1";
   };
@@ -1661,7 +1669,13 @@ function CalendarView({
 
         <div className="grid grid-cols-7">
           {cells.map((date) => {
-            const dayItems = getItemsForDate(date);
+            const dayItems = getItemsForDate(date).filter(
+              (item) =>
+                !(
+                  item.kind === "imported" &&
+                  item.importedEvent?.kind === "class"
+                ),
+            );
             const visible = dayItems.slice(0, 4);
             const hiddenCount = Math.max(0, dayItems.length - visible.length);
 
@@ -1748,7 +1762,15 @@ function CalendarView({
               </div>
 
               <div className="space-y-1.5">
-                {getItemsForDate(monthOverflowDate).map(renderMonthItem)}
+                {getItemsForDate(monthOverflowDate)
+                  .filter(
+                    (item) =>
+                      !(
+                        item.kind === "imported" &&
+                        item.importedEvent?.kind === "class"
+                      ),
+                  )
+                  .map(renderMonthItem)}
               </div>
             </div>
           </div>

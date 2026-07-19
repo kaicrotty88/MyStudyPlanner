@@ -9,13 +9,18 @@ import {
 } from "react";
 import {
   CalendarSync,
+  CheckCircle2,
   ChevronDown,
   CloudDownload,
   FileUp,
   Unplug,
 } from "lucide-react";
 
-import type { ImportedCalendarEvent } from "../models";
+import type {
+  ImportedCalendarEvent,
+  Subject,
+} from "../models";
+import { classifyImportedEvents } from "@/lib/calendarEventClassifier";
 
 type GoogleCalendar = {
   id: string;
@@ -38,10 +43,13 @@ type ImportedEventResponse = {
   calendarName?: string;
   importedAt: string;
   updatedAt?: string;
+  color?: string;
+  recurring?: boolean;
 };
 
 type Props = {
   appMode: "demo" | "app";
+  subjects: Subject[];
   importedEvents: ImportedCalendarEvent[];
   onImport: (events: ImportedCalendarEvent[]) => void;
   onRemoveSource: (source: "google" | "ics") => void;
@@ -98,7 +106,10 @@ const cleanIcsValue = (value?: string) =>
     .replace(/\\;/g, ";")
     .replace(/\\\\/g, "\\");
 
-function parseIcs(text: string): ImportedCalendarEvent[] {
+function parseIcs(
+  text: string,
+  subjects: Subject[],
+): ImportedCalendarEvent[] {
   const blocks = unfold(text)
     .split("BEGIN:VEVENT")
     .slice(1)
@@ -116,9 +127,7 @@ function parseIcs(text: string): ImportedCalendarEvent[] {
           candidate.startsWith(`${name};`),
       );
 
-      if (!row) {
-        return null;
-      }
+      if (!row) return null;
 
       const colon = row.indexOf(":");
 
@@ -130,9 +139,7 @@ function parseIcs(text: string): ImportedCalendarEvent[] {
 
     const startRaw = get("DTSTART");
 
-    if (!startRaw) {
-      return;
-    }
+    if (!startRaw) return;
 
     const uid = get("UID")?.value || `ics-${index}`;
     const endRaw = get("DTEND");
@@ -140,90 +147,198 @@ function parseIcs(text: string): ImportedCalendarEvent[] {
     const end = endRaw
       ? parseIcsDate(endRaw.value)
       : new Date(start.getTime() + 60 * 60 * 1000);
+    const calendarName =
+      cleanIcsValue(get("X-WR-CALNAME")?.value) ||
+      cleanIcsValue(get("CATEGORIES")?.value) ||
+      "Calendar file";
 
-    const event: ImportedCalendarEvent = {
+    events.push({
       id: `ics:${uid}:${start.toISOString()}`,
-      title: cleanIcsValue(get("SUMMARY")?.value) || "Untitled event",
+      title:
+        cleanIcsValue(get("SUMMARY")?.value) ||
+        "Untitled event",
       start,
       end,
-      allDay: startRaw.params.includes("VALUE=DATE"),
+      allDay: Boolean(startRaw.params.includes("VALUE=DATE")),
       location: cleanIcsValue(get("LOCATION")?.value),
       description: cleanIcsValue(get("DESCRIPTION")?.value),
       source: "ics",
       externalId: uid,
-      calendarName: "Calendar file",
+      calendarName,
+      recurring: Boolean(get("RRULE")),
       importedAt: new Date(),
-    };
-
-    events.push(event);
+    });
   });
 
-  return events;
+  return classifyImportedEvents(events, subjects);
 }
 
 export function CalendarImports({
   appMode,
+  subjects,
   importedEvents,
   onImport,
   onRemoveSource,
 }: Props) {
+  const [returnStatus, setReturnStatus] = useState<
+    string | null
+  >(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [connected, setConnected] = useState(false);
-  const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
+  const [calendars, setCalendars] = useState<
+    GoogleCalendar[]
+  >([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [lastImported, setLastImported] = useState<string | null>(null);
+  const [lastImported, setLastImported] = useState<
+    string | null
+  >(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const automaticImportStarted = useRef(false);
 
   const googleCount = useMemo(
     () =>
-      importedEvents.filter((event) => event.source === "google").length,
+      importedEvents.filter(
+        (event) => event.source === "google",
+      ).length,
     [importedEvents],
   );
 
   const icsCount = useMemo(
-    () => importedEvents.filter((event) => event.source === "ics").length,
+    () =>
+      importedEvents.filter(
+        (event) => event.source === "ics",
+      ).length,
     [importedEvents],
   );
 
+  const importGoogle = useCallback(
+    async (
+      calendarIds: string[],
+      automatic = false,
+    ) => {
+      if (!calendarIds.length) return;
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch(
+          "/api/calendar/google/import",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              calendarIds,
+              days: 120,
+            }),
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error || "Google import failed.",
+          );
+        }
+
+        const events = classifyImportedEvents(
+          (data.events || []).map(
+            (
+              event: ImportedEventResponse,
+            ): ImportedCalendarEvent => ({
+              ...event,
+              start: new Date(event.start),
+              end: new Date(event.end),
+              importedAt: new Date(event.importedAt),
+              updatedAt: event.updatedAt
+                ? new Date(event.updatedAt)
+                : undefined,
+            }),
+          ),
+          subjects,
+        );
+
+        onImport(events);
+        setLastImported(new Date().toISOString());
+        setNotice(
+          events.length
+            ? `${events.length} Google Calendar event${
+                events.length === 1 ? "" : "s"
+              } imported.`
+            : "Google Calendar connected. No events were found in the selected range.",
+        );
+
+        if (automatic) {
+          window.history.replaceState(
+            {},
+            "",
+            `${window.location.pathname}#calendar-imports`,
+          );
+        }
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Google import failed.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onImport, subjects],
+  );
+
   const loadStatus = useCallback(async () => {
-    if (appMode === "demo") {
-      return;
-    }
+    if (appMode === "demo") return;
 
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/calendar/google/status", {
-        cache: "no-store",
-      });
-
+      const response = await fetch(
+        "/api/calendar/google/status",
+        {
+          cache: "no-store",
+        },
+      );
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Could not check Google Calendar.",
+          data.error ||
+            "Could not check Google Calendar.",
         );
       }
 
       const availableCalendars: GoogleCalendar[] =
         data.calendars || [];
+      const defaultSelection = data.selectedCalendarIds?.length
+        ? data.selectedCalendarIds
+        : availableCalendars
+            .filter((calendar) => calendar.primary)
+            .map((calendar) => calendar.id);
 
       setConnected(Boolean(data.connected));
       setCalendars(availableCalendars);
-
-      setSelected(
-        data.selectedCalendarIds?.length
-          ? data.selectedCalendarIds
-          : availableCalendars
-              .filter((calendar) => calendar.primary)
-              .map((calendar) => calendar.id),
-      );
-
+      setSelected(defaultSelection);
       setLastImported(data.lastImportedAt || null);
+
+      if (
+        returnStatus === "connected" &&
+        data.connected &&
+        defaultSelection.length &&
+        !automaticImportStarted.current
+      ) {
+        automaticImportStarted.current = true;
+        await importGoogle(defaultSelection, true);
+      }
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -233,60 +348,49 @@ export function CalendarImports({
     } finally {
       setLoading(false);
     }
-  }, [appMode]);
+  }, [
+    appMode,
+    importGoogle,
+    returnStatus,
+  ]);
 
   useEffect(() => {
-    if (open) {
-      void loadStatus();
+    const status = new URLSearchParams(
+      window.location.search,
+    ).get("calendar");
+
+    if (!status) return;
+
+    setReturnStatus(status);
+    setOpen(true);
+
+    if (status === "connected") {
+      setNotice(
+        "Google Calendar connected. Importing your primary calendar now.",
+      );
+    } else if (status === "invalid-state") {
+      setError(
+        "The Google connection expired before it could finish. Please connect again.",
+      );
+    } else {
+      setError(
+        "Google Calendar could not be connected. Please try again.",
+      );
     }
-  }, [loadStatus, open]);
+  }, []);
 
-  const importGoogle = async () => {
-    setLoading(true);
-    setError("");
+  useEffect(() => {
+    if (!open) return;
 
-    try {
-      const response = await fetch("/api/calendar/google/import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          calendarIds: selected,
-          days: 120,
-        }),
+    document
+      .getElementById("calendar-imports")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Google import failed.");
-      }
-
-      const events: ImportedCalendarEvent[] = (
-        data.events || []
-      ).map((event: ImportedEventResponse) => ({
-        ...event,
-        start: new Date(event.start),
-        end: new Date(event.end),
-        importedAt: new Date(event.importedAt),
-        updatedAt: event.updatedAt
-          ? new Date(event.updatedAt)
-          : undefined,
-      }));
-
-      onImport(events);
-      setLastImported(new Date().toISOString());
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Google import failed.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    void loadStatus();
+  }, [loadStatus, open]);
 
   const disconnect = async () => {
     setLoading(true);
@@ -301,13 +405,20 @@ export function CalendarImports({
       );
 
       if (!response.ok) {
-        throw new Error("Could not disconnect Google Calendar.");
+        throw new Error(
+          "Could not disconnect Google Calendar.",
+        );
       }
 
       setConnected(false);
       setCalendars([]);
       setSelected([]);
       setLastImported(null);
+      setNotice(
+        googleCount
+          ? "Google Calendar disconnected. Your imported copies are still available below."
+          : "Google Calendar disconnected.",
+      );
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -319,15 +430,39 @@ export function CalendarImports({
     }
   };
 
+  const removeImported = (
+    source: "google" | "ics",
+    count: number,
+  ) => {
+    const provider =
+      source === "google"
+        ? "Google Calendar"
+        : "calendar file";
+
+    const confirmed = window.confirm(
+      `Remove ${count} imported ${provider} event${
+        count === 1 ? "" : "s"
+      } from MyStudyPlanner? This will not delete anything from the original calendar.`,
+    );
+
+    if (!confirmed) return;
+
+    onRemoveSource(source);
+    setNotice(
+      `Imported ${provider} events removed from MyStudyPlanner.`,
+    );
+  };
+
   const importFile = async (file: File | null) => {
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     setError("");
 
     try {
-      const events = parseIcs(await file.text());
+      const events = parseIcs(
+        await file.text(),
+        subjects,
+      );
 
       if (!events.length) {
         throw new Error(
@@ -336,6 +471,21 @@ export function CalendarImports({
       }
 
       onImport(events);
+
+      const classCount = events.filter(
+        (event) => event.kind === "class",
+      ).length;
+      const eventCount = events.length - classCount;
+
+      setNotice(
+        `${events.length} calendar file event${
+          events.length === 1 ? "" : "s"
+        } imported. ${classCount} class${
+          classCount === 1 ? "" : "es"
+        } and ${eventCount} regular event${
+          eventCount === 1 ? "" : "s"
+        } detected.`,
+      );
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -350,7 +500,10 @@ export function CalendarImports({
   };
 
   return (
-    <div className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
+    <div
+      id="calendar-imports"
+      className="settings-panel overflow-hidden rounded-2xl border border-border bg-card"
+    >
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -365,10 +518,9 @@ export function CalendarImports({
             <div className="text-sm font-semibold text-foreground">
               Calendar imports
             </div>
-
             <div className="text-xs text-muted-foreground">
-              Google Calendar, Apple Calendar, Outlook, and school
-              calendar files.
+              Google Calendar, Apple Calendar, Outlook, and
+              school calendar files.
             </div>
           </div>
         </div>
@@ -382,6 +534,22 @@ export function CalendarImports({
 
       {open ? (
         <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
+          {notice ? (
+            <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>{notice}</span>
+            </div>
+          ) : null}
+
+          {!subjects.length ? (
+            <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+              No subjects are set up yet. That is fine. Imported
+              events will receive consistent colours and class
+              detection automatically. Subject colours will be used
+              whenever a clear match is available later.
+            </div>
+          ) : null}
+
           <div className="grid gap-3 lg:grid-cols-2">
             <div className="rounded-2xl border border-border bg-background/60 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -389,10 +557,9 @@ export function CalendarImports({
                   <div className="text-sm font-semibold">
                     Google Calendar
                   </div>
-
                   <div className="mt-1 text-xs text-muted-foreground">
-                    Read-only import. MyStudyPlanner cannot edit your
-                    Google calendar.
+                    Read-only import. MyStudyPlanner cannot edit
+                    your Google calendar.
                   </div>
                 </div>
 
@@ -418,46 +585,59 @@ export function CalendarImports({
               ) : connected ? (
                 <>
                   <div className="mt-4 max-h-44 space-y-2 overflow-auto rounded-xl border border-border bg-card p-3">
-                    {calendars.map((calendar) => (
-                      <label
-                        key={calendar.id}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(calendar.id)}
-                          onChange={() =>
-                            setSelected((current) =>
-                              current.includes(calendar.id)
-                                ? current.filter(
-                                    (id) => id !== calendar.id,
-                                  )
-                                : [...current, calendar.id],
-                            )
-                          }
-                        />
-
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{
-                            background:
-                              calendar.color || "#5f7f68",
-                          }}
-                        />
-
-                        <span className="truncate">
-                          {calendar.name}
-                          {calendar.primary ? " (Primary)" : ""}
-                        </span>
-                      </label>
-                    ))}
+                    {calendars.length ? (
+                      calendars.map((calendar) => (
+                        <label
+                          key={calendar.id}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(
+                              calendar.id,
+                            )}
+                            onChange={() =>
+                              setSelected((current) =>
+                                current.includes(calendar.id)
+                                  ? current.filter(
+                                      (id) =>
+                                        id !== calendar.id,
+                                    )
+                                  : [...current, calendar.id],
+                              )
+                            }
+                          />
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                              background:
+                                calendar.color || "#5f7f68",
+                            }}
+                          />
+                          <span className="truncate">
+                            {calendar.name}
+                            {calendar.primary
+                              ? " (Primary)"
+                              : ""}
+                          </span>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="text-xs text-muted-foreground">
+                        No readable calendars were found.
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={loading || !selected.length}
-                      onClick={() => void importGoogle()}
+                      disabled={
+                        loading || !selected.length
+                      }
+                      onClick={() =>
+                        void importGoogle(selected)
+                      }
                       className="app-btn-primary h-9 px-3"
                     >
                       <CloudDownload className="h-4 w-4" />
@@ -477,22 +657,14 @@ export function CalendarImports({
                       <Unplug className="h-4 w-4" />
                       Disconnect
                     </button>
-
-                    {googleCount ? (
-                      <button
-                        type="button"
-                        onClick={() => onRemoveSource("google")}
-                        className="app-btn-tertiary h-9 px-3"
-                      >
-                        Remove {googleCount} imported
-                      </button>
-                    ) : null}
                   </div>
 
                   {lastImported ? (
                     <div className="mt-2 text-[11px] text-muted-foreground">
                       Last imported{" "}
-                      {new Date(lastImported).toLocaleString("en-AU")}
+                      {new Date(
+                        lastImported,
+                      ).toLocaleString("en-AU")}
                     </div>
                   ) : null}
                 </>
@@ -504,16 +676,37 @@ export function CalendarImports({
                   Connect Google Calendar
                 </a>
               )}
+
+              {googleCount ? (
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="text-xs text-muted-foreground">
+                    {googleCount} Google event
+                    {googleCount === 1 ? "" : "s"} currently
+                    stored in MyStudyPlanner.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeImported(
+                        "google",
+                        googleCount,
+                      )
+                    }
+                    className="app-btn-tertiary mt-2 h-9 px-3"
+                  >
+                    Remove imported Google events
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-border bg-background/60 p-4">
               <div className="text-sm font-semibold">
                 Calendar file
               </div>
-
               <div className="mt-1 text-xs text-muted-foreground">
-                Import a standard .ics export from Apple Calendar,
-                Outlook, or a school system.
+                Import a standard .ics export from Apple
+                Calendar, Outlook, or a school system.
               </div>
 
               <input
@@ -522,35 +715,49 @@ export function CalendarImports({
                 accept=".ics,text/calendar"
                 className="hidden"
                 onChange={(event) =>
-                  void importFile(event.target.files?.[0] || null)
+                  void importFile(
+                    event.target.files?.[0] || null,
+                  )
                 }
               />
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() =>
+                    fileRef.current?.click()
+                  }
                   className="app-btn-secondary h-9 px-3"
                 >
                   <FileUp className="h-4 w-4" />
                   Choose .ics file
                 </button>
-
-                {icsCount ? (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveSource("ics")}
-                    className="app-btn-tertiary h-9 px-3"
-                  >
-                    Remove {icsCount} imported
-                  </button>
-                ) : null}
               </div>
 
               <div className="mt-3 text-[11px] text-muted-foreground">
-                Existing events with the same UID and start time are
-                updated rather than duplicated.
+                Classes are detected automatically and appear only
+                in Week and Day views. Other events also appear in
+                Month view.
               </div>
+
+              {icsCount ? (
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="text-xs text-muted-foreground">
+                    {icsCount} calendar file event
+                    {icsCount === 1 ? "" : "s"} currently
+                    stored in MyStudyPlanner.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeImported("ics", icsCount)
+                    }
+                    className="app-btn-tertiary mt-2 h-9 px-3"
+                  >
+                    Remove imported file events
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 

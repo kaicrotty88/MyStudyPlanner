@@ -2171,6 +2171,7 @@ export function Settings({
 
         <CalendarImports
           appMode={appMode}
+          subjects={subjects}
           importedEvents={importedCalendarEvents}
           onImport={onImportCalendarEvents}
           onRemoveSource={onRemoveImportedCalendarSource}

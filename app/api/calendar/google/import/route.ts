@@ -2,5 +2,44 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getValidGoogleAccessToken, updateGoogleImportSettings } from "@/lib/calendarIntegrationStorage";
 import { googleApi } from "@/lib/googleCalendar";
-type GoogleEvents={items?:Array<{id:string;status?:string;summary?:string;description?:string;location?:string;updated?:string;start?:{dateTime?:string;date?:string};end?:{dateTime?:string;date?:string};recurringEventId?:string;originalStartTime?:{dateTime?:string;date?:string}}>};
-export async function POST(request:Request){ const {userId}=await auth(); if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401}); const body=await request.json().catch(()=>({})); const ids=Array.isArray(body.calendarIds)?body.calendarIds.filter((x:unknown)=>typeof x==="string"):[]; const days=Math.min(Math.max(Number(body.days)||90,7),365); if(!ids.length)return NextResponse.json({error:"Choose at least one calendar."},{status:400}); const token=await getValidGoogleAccessToken(userId); const timeMin=new Date(Date.now()-14*86400000).toISOString(); const timeMax=new Date(Date.now()+days*86400000).toISOString(); const output=[]; for(const calendarId of ids){ let pageToken=""; do{ const qs=new URLSearchParams({singleEvents:"true",orderBy:"startTime",timeMin,timeMax,maxResults:"2500"}); if(pageToken)qs.set("pageToken",pageToken); const data=await googleApi<GoogleEvents & {nextPageToken?:string}>(`/calendars/${encodeURIComponent(calendarId)}/events?${qs}`,token); for(const event of data.items||[]){ if(event.status==="cancelled"||!event.id||!event.start||!event.end)continue; const allDay=Boolean(event.start.date); const start=event.start.dateTime||`${event.start.date}T00:00:00`; const end=event.end.dateTime||`${event.end.date}T00:00:00`; output.push({id:`google:${calendarId}:${event.id}:${event.originalStartTime?.dateTime||event.originalStartTime?.date||start}`,title:event.summary||"Untitled event",start,end,allDay,location:event.location,description:event.description,source:"google",externalId:event.id,externalCalendarId:calendarId,importedAt:new Date().toISOString(),updatedAt:event.updated}); } pageToken=data.nextPageToken||""; }while(pageToken); } await updateGoogleImportSettings(userId,ids); return NextResponse.json({events:output}); }
+
+type GoogleCalendar={id:string;summary?:string;backgroundColor?:string};
+type GoogleEvent={id?:string;status?:string;summary?:string;description?:string;location?:string;updated?:string;recurringEventId?:string;start?:{dateTime?:string;date?:string};end?:{dateTime?:string;date?:string};originalStartTime?:{dateTime?:string;date?:string}};
+type GoogleEvents={items?:GoogleEvent[];nextPageToken?:string};
+
+export async function POST(request:Request){
+  const {userId}=await auth();
+  if(!userId)return NextResponse.json({error:"Unauthorized"},{status:401});
+  const body=await request.json().catch(()=>({}));
+  const calendarIds=Array.isArray(body.calendarIds)?body.calendarIds.filter((value:unknown):value is string=>typeof value==="string"):[];
+  const days=Math.min(Math.max(Number(body.days)||90,7),365);
+  if(!calendarIds.length)return NextResponse.json({error:"Choose at least one calendar."},{status:400});
+  const token=await getValidGoogleAccessToken(userId);
+  const timeMin=new Date(Date.now()-14*86400000).toISOString();
+  const timeMax=new Date(Date.now()+days*86400000).toISOString();
+  const events=[];
+  for(const calendarId of calendarIds){
+    const calendar=await googleApi<GoogleCalendar>(`/calendars/${encodeURIComponent(calendarId)}`,token);
+    let pageToken="";
+    do{
+      const query=new URLSearchParams({singleEvents:"true",orderBy:"startTime",timeMin,timeMax,maxResults:"2500"});
+      if(pageToken)query.set("pageToken",pageToken);
+      const data=await googleApi<GoogleEvents>(`/calendars/${encodeURIComponent(calendarId)}/events?${query}`,token);
+      for(const event of data.items||[]){
+        if(event.status==="cancelled"||!event.id||!event.start||!event.end)continue;
+        const allDay=Boolean(event.start.date);
+        const start=event.start.dateTime||`${event.start.date}T00:00:00`;
+        const end=event.end.dateTime||`${event.end.date}T00:00:00`;
+        events.push({
+          id:`google:${calendarId}:${event.id}:${event.originalStartTime?.dateTime||event.originalStartTime?.date||start}`,
+          title:event.summary||"Untitled event",start,end,allDay,location:event.location,description:event.description,
+          source:"google",externalId:event.id,externalCalendarId:calendarId,calendarName:calendar.summary||"Google Calendar",
+          color:calendar.backgroundColor,recurring:Boolean(event.recurringEventId),importedAt:new Date().toISOString(),updatedAt:event.updated,
+        });
+      }
+      pageToken=data.nextPageToken||"";
+    }while(pageToken);
+  }
+  await updateGoogleImportSettings(userId,calendarIds);
+  return NextResponse.json({events});
+}

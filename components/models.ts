@@ -405,6 +405,7 @@ export interface ReminderStored {
 
 
 export type ImportedCalendarSource = "google" | "ics";
+export type ImportedCalendarKind = "class" | "event";
 
 export interface ImportedCalendarEvent {
   id: string;
@@ -420,6 +421,12 @@ export interface ImportedCalendarEvent {
   calendarName?: string;
   importedAt: Date;
   updatedAt?: Date;
+  kind?: ImportedCalendarKind;
+  subjectId?: string;
+  subjectName?: string;
+  color?: string;
+  recurring?: boolean;
+  autoClassified?: boolean;
 }
 
 /* -------------------- Calendar Events -------------------- */

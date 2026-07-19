@@ -1317,6 +1317,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             externalId: String(event?.externalId ?? event?.id ?? Date.now()),
             importedAt: hydrateDate(event?.importedAt),
             updatedAt: event?.updatedAt ? hydrateDate(event.updatedAt) : undefined,
+            kind: event?.kind === "class" ? "class" : "event",
+            subjectId: event?.subjectId ? String(event.subjectId) : undefined,
+            subjectName: event?.subjectName ? String(event.subjectName) : undefined,
+            color: event?.color ? String(event.color) : undefined,
+            recurring: Boolean(event?.recurring),
+            autoClassified: event?.autoClassified !== false,
           }))
         : []
     );
