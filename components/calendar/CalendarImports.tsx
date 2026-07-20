@@ -19,6 +19,9 @@ import {
 import type {
   ImportedCalendarEvent,
   Subject,
+  TimetableClass,
+  TimetableSettings,
+  TimetableWeek,
 } from "../models";
 import { classifyImportedEvents } from "@/lib/calendarEventClassifier";
 
@@ -51,8 +54,15 @@ type Props = {
   appMode: "demo" | "app";
   subjects: Subject[];
   importedEvents: ImportedCalendarEvent[];
+  timetableClasses: TimetableClass[];
+  timetableSettings: TimetableSettings;
   onImport: (events: ImportedCalendarEvent[]) => void;
+  onImportTimetableClasses: (classes: Array<Omit<TimetableClass, "id">>) => void;
+  onUpdateTimetableSettings: (settings: TimetableSettings) => void;
   onRemoveSource: (source: "google" | "ics") => void;
+  onRemoveTimetableSource: (source: "google" | "ics") => void;
+  onOpenSubjects: () => void;
+  onOpenTimetable: () => void;
 };
 
 const unfold = (text: string) => text.replace(/\r?\n[ \t]/g, "");
@@ -211,8 +221,15 @@ export function CalendarImports({
   appMode,
   subjects,
   importedEvents,
+  timetableClasses,
+  timetableSettings,
   onImport,
+  onImportTimetableClasses,
+  onUpdateTimetableSettings,
   onRemoveSource,
+  onRemoveTimetableSource,
+  onOpenSubjects,
+  onOpenTimetable,
 }: Props) {
   const [returnStatus, setReturnStatus] = useState<
     string | null
@@ -247,6 +264,154 @@ export function CalendarImports({
         (event) => event.source === "ics",
       ).length,
     [importedEvents],
+  );
+
+  const startOfMonday = (date: Date) => {
+    const next = new Date(date);
+    next.setHours(0, 0, 0, 0);
+    const day = next.getDay();
+    next.setDate(next.getDate() - (day === 0 ? 6 : day - 1));
+    return next;
+  };
+
+  const formatTime = (date: Date) =>
+    `${String(date.getHours()).padStart(2, "0")}:${String(
+      date.getMinutes(),
+    ).padStart(2, "0")}`;
+
+  const extractTeacher = (description?: string) => {
+    const match = description?.match(/Attending Staff\s*:\s*([^\n]+)/i);
+    const value = match?.[1]?.trim();
+    return value || undefined;
+  };
+
+  const importIntoPlanner = useCallback(
+    (
+      events: ImportedCalendarEvent[],
+      source: "google" | "ics",
+      sourceLabel: string,
+    ) => {
+      if (!subjects.length) {
+        throw new Error(
+          "Create your subjects first, then import the calendar so classes can be matched and coloured correctly.",
+        );
+      }
+
+      const timetableEvents = events.filter(
+        (event) => event.kind === "class" && !event.allDay,
+      );
+      const regularEvents = events.filter(
+        (event) => event.kind !== "class" || event.allDay,
+      );
+
+      const isCompass = events.some((event) =>
+        `${event.calendarName || ""} ${event.description || ""}`
+          .toLowerCase()
+          .includes("compass"),
+      );
+
+      const earliest = timetableEvents
+        .map((event) => event.start)
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+      const cycleStart = earliest ? startOfMonday(earliest) : undefined;
+      const nextCycle = isCompass ? "fortnightly" : timetableSettings.cycle;
+
+      if (isCompass && cycleStart) {
+        onUpdateTimetableSettings({
+          ...timetableSettings,
+          mode: "custom",
+          cycle: "fortnightly",
+          cycleStartDate: cycleStart,
+        });
+      } else if (timetableEvents.length && timetableSettings.mode === "school") {
+        onUpdateTimetableSettings({
+          ...timetableSettings,
+          mode: "custom",
+        });
+      }
+
+      const weekFor = (date: Date): TimetableWeek => {
+        if (nextCycle !== "fortnightly" || !cycleStart) return "both";
+        const difference = Math.floor(
+          (startOfMonday(date).getTime() - cycleStart.getTime()) /
+            (7 * 24 * 60 * 60 * 1000),
+        );
+        return Math.abs(difference) % 2 === 0 ? "A" : "B";
+      };
+
+      const existingKeys = new Set(
+        timetableClasses.map((item) =>
+          [
+            item.source,
+            item.title.trim().toLowerCase(),
+            item.dayOfWeek,
+            item.startTime,
+            item.endTime,
+            item.week,
+            item.location || "",
+          ].join("|"),
+        ),
+      );
+      const createdKeys = new Set<string>();
+      const classes: Array<Omit<TimetableClass, "id">> = [];
+
+      timetableEvents.forEach((event) => {
+        const timetableClass: Omit<TimetableClass, "id"> = {
+          subjectId: event.subjectId,
+          title: event.subjectName || event.title,
+          dayOfWeek: event.start.getDay() as TimetableClass["dayOfWeek"],
+          startTime: formatTime(event.start),
+          endTime: formatTime(event.end),
+          week: weekFor(event.start),
+          location:
+            event.location && event.location !== "UNKNOWN"
+              ? event.location
+              : undefined,
+          teacher: extractTeacher(event.description),
+          notes: `Imported from ${sourceLabel}. You can edit this like any other timetable entry.`,
+          source,
+          sourceLabel,
+          createdAt: new Date(),
+        };
+
+        const key = [
+          source,
+          timetableClass.title.trim().toLowerCase(),
+          timetableClass.dayOfWeek,
+          timetableClass.startTime,
+          timetableClass.endTime,
+          timetableClass.week,
+          timetableClass.location || "",
+        ].join("|");
+
+        if (!existingKeys.has(key) && !createdKeys.has(key)) {
+          createdKeys.add(key);
+          classes.push(timetableClass);
+        }
+      });
+
+      if (classes.length) onImportTimetableClasses(classes);
+      if (regularEvents.length) onImport(regularEvents);
+
+      setNotice(
+        `${classes.length} editable timetable entr${
+          classes.length === 1 ? "y" : "ies"
+        } and ${regularEvents.length} calendar event${
+          regularEvents.length === 1 ? "" : "s"
+        } imported. Repeating classes and commitments now appear in Week and Day only.`,
+      );
+
+      if (classes.length) onOpenTimetable();
+    },
+    [
+      onImport,
+      onImportTimetableClasses,
+      onOpenTimetable,
+      onUpdateTimetableSettings,
+      subjects.length,
+      timetableClasses,
+      timetableSettings,
+    ],
   );
 
   const importGoogle = useCallback(
@@ -299,15 +464,14 @@ export function CalendarImports({
           subjects,
         );
 
-        onImport(events);
+        importIntoPlanner(events, "google", "Google Calendar");
         setLastImported(new Date().toISOString());
-        setNotice(
-          events.length
-            ? `${events.length} Google Calendar event${
-                events.length === 1 ? "" : "s"
-              } imported.`
-            : "Google Calendar connected. No events were found in the selected range.",
-        );
+
+        if (!events.length) {
+          setNotice(
+            "Google Calendar connected. No events were found in the selected range.",
+          );
+        }
 
         if (automatic) {
           window.history.replaceState(
@@ -326,7 +490,7 @@ export function CalendarImports({
         setLoading(false);
       }
     },
-    [onImport, subjects],
+    [importIntoPlanner, subjects],
   );
 
   const loadStatus = useCallback(async () => {
@@ -482,6 +646,7 @@ export function CalendarImports({
     if (!confirmed) return;
 
     onRemoveSource(source);
+    onRemoveTimetableSource(source);
     setNotice(
       `Imported ${provider} events removed from MyStudyPlanner.`,
     );
@@ -504,30 +669,9 @@ export function CalendarImports({
         );
       }
 
-      onImport(events);
-
-      const classCount = events.filter(
-        (event) => event.kind === "class",
-      ).length;
-      const eventCount = events.length - classCount;
-
-      const matchedCount = events.filter(
-        (event) => Boolean(event.subjectId),
-      ).length;
-
-      setNotice(
-        `${events.length} calendar file event${
-          events.length === 1 ? "" : "s"
-        } imported. ${classCount} class${
-          classCount === 1 ? "" : "es"
-        } and ${eventCount} regular event${
-          eventCount === 1 ? "" : "s"
-        } detected.${
-          subjects.length
-            ? ` ${matchedCount} matched to your subjects.`
-            : ""
-        }`,
-      );
+      const sourceLabel =
+        events[0]?.calendarName || "Calendar file";
+      importIntoPlanner(events, "ics", sourceLabel);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -589,6 +733,22 @@ export function CalendarImports({
               events will receive consistent colours and class
               detection automatically. Subject colours will be used
               whenever a clear match is available later.
+            </div>
+          ) : null}
+
+          {!subjects.length ? (
+            <div className="rounded-2xl border border-amber-300/50 bg-amber-50/70 p-4 dark:bg-amber-950/15">
+              <div className="text-sm font-semibold text-foreground">Create subjects before importing</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                Subjects let MyStudyPlanner identify classes, apply the right colours, and place them into your editable timetable. Add them once, then return here to import.
+              </div>
+              <button
+                type="button"
+                onClick={onOpenSubjects}
+                className="app-btn-primary mt-3 h-9 px-3"
+              >
+                Create subjects
+              </button>
             </div>
           ) : null}
 

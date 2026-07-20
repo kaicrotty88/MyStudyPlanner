@@ -175,6 +175,10 @@ export interface TimetableClass {
 
   notes?: string;
 
+  /** Where this editable timetable entry originally came from. */
+  source?: "manual" | "google" | "ics";
+  sourceLabel?: string;
+
   createdAt?: Date;
 }
 
@@ -199,6 +203,9 @@ export interface TimetableClassStored {
   teacher?: string;
 
   notes?: string;
+
+  source?: "manual" | "google" | "ics";
+  sourceLabel?: string;
 
   createdAt?: string; // ISO
 }

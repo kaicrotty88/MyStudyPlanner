@@ -27,6 +27,18 @@ const CLASS_WORDS = [
   "laboratory",
 ];
 
+
+const RECURRING_COMMITMENT_WORDS = [
+  "training",
+  "practice",
+  "work shift",
+  "shift",
+  "club",
+  "rehearsal",
+  "tutor",
+  "tutoring",
+  "gym",
+];
 const NON_CLASS_WORDS = [
   "exam",
   "test",
@@ -37,8 +49,6 @@ const NON_CLASS_WORDS = [
   "appointment",
   "meeting",
   "game",
-  "training",
-  "practice",
   "match",
   "event",
   "birthday",
@@ -358,6 +368,17 @@ export function detectImportedKind(
 
   if (
     CLASS_WORDS.some((word) => text.includes(word))
+  ) {
+    return "class";
+  }
+
+  if (
+    Boolean(event.recurring) &&
+    RECURRING_COMMITMENT_WORDS.some((word) =>
+      text.includes(word),
+    ) &&
+    schoolHours &&
+    classLength
   ) {
     return "class";
   }

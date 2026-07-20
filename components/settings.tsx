@@ -906,6 +906,12 @@ export function Settings({
       week: timetableSettings.cycle === "weekly" ? "both" : manualClassForm.week,
       location: manualClassForm.location.trim() || undefined,
       teacher: manualClassForm.teacher.trim() || undefined,
+      source: editingManualClassId
+        ? timetableClasses.find((c) => c.id === editingManualClassId)?.source
+        : "manual",
+      sourceLabel: editingManualClassId
+        ? timetableClasses.find((c) => c.id === editingManualClassId)?.sourceLabel
+        : undefined,
       createdAt: editingManualClassId
         ? timetableClasses.find((c) => c.id === editingManualClassId)?.createdAt
         : new Date(),
@@ -2101,6 +2107,11 @@ export function Settings({
                               <div className="min-w-0">
                                 <div className="truncate text-sm font-semibold text-foreground">
                                   {item.title}
+                                  {item.source && item.source !== "manual" ? (
+                                    <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                      Imported
+                                    </span>
+                                  ) : null}
                                 </div>
 
                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -2173,8 +2184,38 @@ export function Settings({
           appMode={appMode}
           subjects={subjects}
           importedEvents={importedCalendarEvents}
+          timetableClasses={timetableClasses}
+          timetableSettings={timetableSettings}
           onImport={onImportCalendarEvents}
+          onImportTimetableClasses={(classes) => {
+            classes.forEach((item) => onAddTimetableClass(item));
+          }}
+          onUpdateTimetableSettings={onUpdateTimetableSettings}
           onRemoveSource={onRemoveImportedCalendarSource}
+          onRemoveTimetableSource={(source) => {
+            timetableClasses
+              .filter((item) => item.source === source)
+              .forEach((item) => onDeleteTimetableClass(item.id));
+          }}
+          onOpenSubjects={() => {
+            setSubjectsOpen(true);
+            setTimetableOpen(false);
+            window.setTimeout(() => {
+              subjectsCardRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }, 50);
+          }}
+          onOpenTimetable={() => {
+            setTimetableOpen(true);
+            window.setTimeout(() => {
+              timetableCardRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }, 50);
+          }}
         />
 
         <div ref={backupCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
