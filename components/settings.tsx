@@ -1705,7 +1705,7 @@ export function Settings({
                           Timetable grid
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          Pick a subject in each cell. Empty means no class.
+                          Imported academic classes are grouped into editable Week A/B cells. Pick a subject in each cell. Empty means no class.
                         </div>
                       </div>
 
@@ -1885,15 +1885,20 @@ export function Settings({
                     ) : null}
                   </div>
                 </>
-              ) : (
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              ) : null}
+
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <div className="text-sm font-semibold text-foreground">
-                        Manual classes
+                        {timetableSettings.mode === "school"
+                          ? "Other recurring commitments"
+                          : "Manual classes"}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Best for uni lectures, tutorials, labs, sport, work, or custom events.
+                        {timetableSettings.mode === "school"
+                          ? "Mentor periods, training, sport, work and other repeating commitments that do not belong in the academic grid."
+                          : "Best for uni lectures, tutorials, labs, sport, work, or custom events."}
                       </div>
                     </div>
 
@@ -2109,7 +2114,7 @@ export function Settings({
                                   {item.title}
                                   {item.source && item.source !== "manual" ? (
                                     <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                                      Imported
+                                      {item.sourceLabel || "Imported"}
                                     </span>
                                   ) : null}
                                 </div>
@@ -2175,7 +2180,7 @@ export function Settings({
                     )}
                   </div>
                 </div>
-              )}
+
             </div>
           ) : null}
         </div>
@@ -2185,11 +2190,13 @@ export function Settings({
           subjects={subjects}
           importedEvents={importedCalendarEvents}
           timetableClasses={timetableClasses}
+          timetablePeriods={timetablePeriods}
           timetableSettings={timetableSettings}
           onImport={onImportCalendarEvents}
           onImportTimetableClasses={(classes) => {
             classes.forEach((item) => onAddTimetableClass(item));
           }}
+          onUpdateTimetablePeriods={onUpdateTimetablePeriods}
           onUpdateTimetableSettings={onUpdateTimetableSettings}
           onRemoveSource={onRemoveImportedCalendarSource}
           onRemoveTimetableSource={(source) => {

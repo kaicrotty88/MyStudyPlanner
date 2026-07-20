@@ -15,7 +15,7 @@ const COLORS = [
   "#9A6F82",
 ];
 
-const CLASS_WORDS = [
+const ACADEMIC_CLASS_WORDS = [
   "class",
   "lesson",
   "lecture",
@@ -27,7 +27,6 @@ const CLASS_WORDS = [
   "laboratory",
 ];
 
-
 const RECURRING_COMMITMENT_WORDS = [
   "training",
   "practice",
@@ -38,8 +37,19 @@ const RECURRING_COMMITMENT_WORDS = [
   "tutor",
   "tutoring",
   "gym",
+  "mentor",
+  "homeroom",
+  "roll call",
+  "pastoral",
+  "chapel",
+  "study period",
+  "free period",
+  "1st xi",
+  "2nd xi",
+  "opens",
 ];
-const NON_CLASS_WORDS = [
+
+const DEFINITE_ONE_OFF_WORDS = [
   "exam",
   "test",
   "assessment",
@@ -47,22 +57,20 @@ const NON_CLASS_WORDS = [
   "deadline",
   "due",
   "appointment",
-  "meeting",
-  "game",
-  "match",
-  "event",
   "birthday",
   "holiday",
   "presentation",
   "assembly",
   "excursion",
   "fixture",
-  "opens",
-  "1st xi",
-  "2nd xi",
+  "game",
+  "match",
+  "competition",
+  "ceremony",
+  "conference",
 ];
 
-const ALIASES: Record<string, string[]> = {
+const SUBJECT_ALIASES: Record<string, string[]> = {
   mathematics: [
     "math",
     "maths",
@@ -136,6 +144,7 @@ export type SchoolCodeDetails = {
   label: string;
   kind: ImportedCalendarKind;
   subjectHints: string[];
+  allowSubjectMatch: boolean;
 };
 
 export function decodeSchoolCalendarCode(
@@ -143,22 +152,24 @@ export function decodeSchoolCalendarCode(
 ): SchoolCodeDetails | undefined {
   const title = compact(rawTitle);
 
-  if (/^11T\d+$/.test(title)) {
+  if (/^\d{2}T\d+$/.test(title)) {
     return {
-      label: "Tutor Group",
+      label: "Mentor Period",
       kind: "class",
-      subjectHints: ["tutor group", "tutor"],
+      subjectHints: [],
+      allowSubjectMatch: false,
     };
   }
 
   if (
-    title.includes("11DP/11STUDY") ||
+    title.includes("DP/") ||
     title.includes("STUDY.")
   ) {
     return {
       label: "Study Period",
       kind: "class",
-      subjectHints: ["study period", "study"],
+      subjectHints: [],
+      allowSubjectMatch: false,
     };
   }
 
@@ -167,6 +178,7 @@ export function decodeSchoolCalendarCode(
       label: "Economics",
       kind: "class",
       subjectHints: ["economics", "econ"],
+      allowSubjectMatch: true,
     };
   }
 
@@ -175,6 +187,7 @@ export function decodeSchoolCalendarCode(
       label: "English Advanced",
       kind: "class",
       subjectHints: ["english advanced", "english"],
+      allowSubjectMatch: true,
     };
   }
 
@@ -183,6 +196,7 @@ export function decodeSchoolCalendarCode(
       label: "Legal Studies",
       kind: "class",
       subjectHints: ["legal studies", "legal"],
+      allowSubjectMatch: true,
     };
   }
 
@@ -194,6 +208,7 @@ export function decodeSchoolCalendarCode(
         "engineering studies",
         "engineering",
       ],
+      allowSubjectMatch: true,
     };
   }
 
@@ -205,6 +220,7 @@ export function decodeSchoolCalendarCode(
         "business studies",
         "business",
       ],
+      allowSubjectMatch: true,
     };
   }
 
@@ -217,6 +233,7 @@ export function decodeSchoolCalendarCode(
         "maths advanced",
         "mathematics",
       ],
+      allowSubjectMatch: true,
     };
   }
 
@@ -231,11 +248,26 @@ export function decodeSchoolCalendarCode(
         "extension 1",
         "mathematics",
       ],
+      allowSubjectMatch: true,
     };
   }
 
   return undefined;
 }
+
+const aliasesForSubject = (subjectName: string) => {
+  const normalised = normalise(subjectName);
+
+  return (
+    Object.entries(SUBJECT_ALIASES).find(
+      ([key, aliases]) =>
+        normalised.includes(key) ||
+        aliases.some((alias) =>
+          normalised.includes(normalise(alias)),
+        ),
+    )?.[1] ?? []
+  );
+};
 
 export function matchImportedSubject(
   event: Pick<
@@ -249,11 +281,58 @@ export function matchImportedSubject(
   }
 
   const decoded = decodeSchoolCalendarCode(event.title);
+
+  if (decoded && !decoded.allowSubjectMatch) {
+    return undefined;
+  }
+
+  if (decoded?.subjectHints.length) {
+    const direct = subjects
+      .map((subject) => {
+        const subjectName = normalise(subject.name);
+        const aliases = [
+          subjectName,
+          ...aliasesForSubject(subject.name),
+        ].map(normalise);
+
+        const score = decoded.subjectHints.reduce(
+          (total, hint) => {
+            const value = normalise(hint);
+
+            if (subjectName === value) {
+              return total + 100;
+            }
+
+            if (
+              subjectName.includes(value) ||
+              aliases.some(
+                (alias) =>
+                  alias === value ||
+                  alias.includes(value) ||
+                  value.includes(alias),
+              )
+            ) {
+              return total + value.length;
+            }
+
+            return total;
+          },
+          0,
+        );
+
+        return { subject, score };
+      })
+      .sort((left, right) => right.score - left.score)
+      .find((result) => result.score > 0)?.subject;
+
+    if (direct) {
+      return direct;
+    }
+  }
+
   const haystack = normalise(
     [
       event.title,
-      decoded?.label,
-      ...(decoded?.subjectHints || []),
       event.description,
       event.calendarName,
     ]
@@ -263,45 +342,24 @@ export function matchImportedSubject(
 
   return subjects
     .map((subject) => {
-      const subjectName = normalise(subject.name);
-
-      const aliases =
-        Object.entries(ALIASES).find(
-          ([key, list]) =>
-            subjectName.includes(key) ||
-            list.some((alias) =>
-              subjectName.includes(alias),
-            ),
-        )?.[1] ?? [];
-
       const terms = [
-        subjectName,
-        ...aliases,
-        ...(decoded?.subjectHints || []),
+        normalise(subject.name),
+        ...aliasesForSubject(subject.name).map(normalise),
       ].filter((term) => term.length >= 3);
 
       const score = terms.reduce((total, term) => {
-        const normalisedTerm = normalise(term);
-
-        if (!normalisedTerm) {
-          return total;
+        if (haystack === term) {
+          return total + term.length * 3;
         }
 
-        if (haystack === normalisedTerm) {
-          return total + normalisedTerm.length * 3;
-        }
-
-        if (haystack.includes(normalisedTerm)) {
-          return total + normalisedTerm.length;
+        if (haystack.includes(term)) {
+          return total + term.length;
         }
 
         return total;
       }, 0);
 
-      return {
-        subject,
-        score,
-      };
+      return { subject, score };
     })
     .sort((left, right) => right.score - left.score)
     .find((result) => result.score > 0)?.subject;
@@ -340,14 +398,6 @@ export function detectImportedKind(
       .join(" "),
   );
 
-  if (
-    NON_CLASS_WORDS.some((word) =>
-      text.includes(word),
-    )
-  ) {
-    return "event";
-  }
-
   const duration = Math.max(
     0,
     Math.round(
@@ -357,28 +407,37 @@ export function detectImportedKind(
   );
 
   const weekday = event.start.getDay();
-  const schoolHours =
-    weekday >= 1 &&
-    weekday <= 5 &&
-    event.start.getHours() >= 7 &&
-    event.start.getHours() <= 18;
+  const weekdayCommitment =
+    weekday >= 1 && weekday <= 5;
+  const reasonableDuration =
+    duration >= 20 && duration <= 240;
 
-  const classLength =
-    duration >= 25 && duration <= 180;
+  const recurringCommitment =
+    Boolean(event.recurring) &&
+    RECURRING_COMMITMENT_WORDS.some((word) =>
+      text.includes(word),
+    );
 
   if (
-    CLASS_WORDS.some((word) => text.includes(word))
+    recurringCommitment &&
+    weekdayCommitment &&
+    reasonableDuration
   ) {
     return "class";
   }
 
   if (
-    Boolean(event.recurring) &&
-    RECURRING_COMMITMENT_WORDS.some((word) =>
+    DEFINITE_ONE_OFF_WORDS.some((word) =>
       text.includes(word),
-    ) &&
-    schoolHours &&
-    classLength
+    )
+  ) {
+    return "event";
+  }
+
+  if (
+    ACADEMIC_CLASS_WORDS.some((word) =>
+      text.includes(word),
+    )
   ) {
     return "class";
   }
@@ -386,8 +445,8 @@ export function detectImportedKind(
   if (
     Boolean(event.recurring) &&
     Boolean(matchedSubject) &&
-    schoolHours &&
-    classLength
+    weekdayCommitment &&
+    reasonableDuration
   ) {
     return "class";
   }
@@ -408,7 +467,9 @@ export function classifyImportedEvent(
 
   const displayTitle =
     kind === "class"
-      ? matched?.name || decoded?.label || event.title
+      ? matched?.name ||
+        decoded?.label ||
+        event.title
       : event.title;
 
   const seed =
@@ -427,12 +488,15 @@ export function classifyImportedEvent(
     subjectName:
       event.subjectName ??
       matched?.name ??
-      (kind === "class" ? decoded?.label : undefined),
+      (kind === "class"
+        ? decoded?.label
+        : undefined),
     color:
       event.color ||
       matched?.color ||
       stableImportedColor(seed),
-    autoClassified: event.autoClassified ?? true,
+    autoClassified:
+      event.autoClassified ?? true,
   };
 }
 
@@ -444,7 +508,10 @@ export function classifyImportedEvents(
 
   events.forEach((event) => {
     const key = normalise(event.title);
-    titleCounts.set(key, (titleCounts.get(key) || 0) + 1);
+    titleCounts.set(
+      key,
+      (titleCounts.get(key) || 0) + 1,
+    );
   });
 
   return events.map((event) => {
@@ -455,7 +522,8 @@ export function classifyImportedEvents(
     return classifyImportedEvent(
       {
         ...event,
-        recurring: event.recurring || repeated,
+        recurring:
+          event.recurring || repeated,
       },
       subjects,
     );
