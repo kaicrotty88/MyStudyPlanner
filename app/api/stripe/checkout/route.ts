@@ -37,7 +37,7 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${appUrl}/app?checkout=success`,
+      success_url: `${appUrl}/app?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/app?checkout=cancelled`,
       client_reference_id: userId,
       customer_email: email,

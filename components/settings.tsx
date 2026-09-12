@@ -880,12 +880,10 @@ export function Settings({
   };
 
   const saveManualClass = () => {
-    const title = manualClassForm.title.trim();
-
-    if (!title) {
-      setManualClassError("Please enter a class name.");
-      return;
-    }
+    const selectedSubject = manualClassForm.subjectId
+      ? subjects.find((subject) => subject.id === manualClassForm.subjectId)
+      : undefined;
+    const title = manualClassForm.title.trim() || selectedSubject?.name || "Class";
 
     if (!manualClassForm.startTime || !manualClassForm.endTime) {
       setManualClassError("Start and end time are required.");
@@ -1914,14 +1912,19 @@ export function Settings({
 
                   {showManualClassForm ? (
                     <div className="mt-4 space-y-4 rounded-2xl border border-border bg-background/50 p-4">
-                      <div className="text-sm font-semibold text-foreground">
-                        {editingManualClassId ? "Edit class" : "New class"}
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {editingManualClassId ? "Edit class" : "Add one class"}
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Pick the subject, day and time. That is all you need. Name, room and teacher are optional.
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div>
                           <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                            Class name
+                            Class name <span className="font-normal opacity-70">(optional)</span>
                           </label>
                           <input
                             type="text"
@@ -1929,7 +1932,7 @@ export function Settings({
                             onChange={(e) =>
                               setManualClassForm((p) => ({ ...p, title: e.target.value }))
                             }
-                            placeholder="e.g. Economics Tutorial"
+                            placeholder="Leave blank to use the subject name"
                             maxLength={100}
                             className="w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             autoFocus
@@ -2423,14 +2426,19 @@ export function Settings({
               ) : null}
 
               {plan === "premium" && appMode === "app" ? (
-                <button
-                  type="button"
-                  onClick={openBillingPortal}
-                  disabled={billingLoading}
-                  className="app-btn-primary"
-                >
-                  {billingLoading ? "Opening billing..." : "Manage subscription"}
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={openBillingPortal}
+                    disabled={billingLoading}
+                    className="app-btn-primary"
+                  >
+                    {billingLoading ? "Opening billing..." : "Manage or cancel subscription"}
+                  </button>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    Cancellation is handled securely in the Stripe billing page. Choose <span className="font-medium text-foreground">Manage or cancel subscription</span>, then cancel your plan there. You keep Premium access until the end of the paid billing period.
+                  </div>
+                </div>
               ) : null}
 
               {billingLoading && plan !== "premium" ? (

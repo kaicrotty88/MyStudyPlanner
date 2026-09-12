@@ -1118,9 +1118,30 @@ function LockedPremiumView({
               </button>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-border bg-muted/20 px-4 py-3 text-xs leading-5 text-muted-foreground">
-              Upgrade from Settings to unlock this feature on your account. Demo mode stays open so visitors can test the full product.
-            </div>
+            {feature === "marks" ? (
+              <div className="mt-7 w-full max-w-2xl text-left">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    ["Current average", "82%", "Across recorded assessments"],
+                    ["Best subject", "Mathematics", "See subject-by-subject trends"],
+                    ["Recent result", "18 / 20", "Keep every assessment in one place"],
+                  ].map(([label, value, helper]) => (
+                    <div key={label} className="rounded-2xl border border-border bg-background/60 p-4">
+                      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+                      <div className="mt-2 text-lg font-semibold text-foreground blur-[3px] select-none">{value}</div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{helper}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 rounded-2xl border border-border bg-background/40 px-4 py-3 text-xs leading-5 text-muted-foreground">
+                  Your planner still works fully on Free. Premium adds marks tracking and performance analytics without turning the free screen into a dead end.
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-border bg-muted/20 px-4 py-3 text-xs leading-5 text-muted-foreground">
+                Upgrade from Settings to unlock this feature on your account. Demo mode stays open so visitors can test the full product.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1424,6 +1445,31 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
     (async () => {
       try {
+        const params = new URLSearchParams(window.location.search);
+        const checkoutState = params.get("checkout");
+        const billingReturn = params.get("billing") === "return";
+
+        if (checkoutState === "success" || billingReturn) {
+          const sessionId = params.get("session_id");
+
+          const response = await fetch("/api/stripe/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(sessionId ? { sessionId } : {}),
+          });
+
+          if (!response.ok) {
+            const data = (await response.json().catch(() => null)) as { error?: string } | null;
+            console.error("Failed to sync billing status:", data?.error ?? response.statusText);
+          }
+
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("checkout");
+          cleanUrl.searchParams.delete("session_id");
+          cleanUrl.searchParams.delete("billing");
+          window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+        }
+
         const nextProfile = await ensureProfile(supabase, user.id);
 
         if (cancelled) return;

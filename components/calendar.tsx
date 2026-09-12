@@ -1383,6 +1383,7 @@ function CalendarView({
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
     const palette = createEventPalette(color, item.kind, item.isTimetableClass);
+    const subjectName = item.subjectId ? subjectById.get(item.subjectId)?.name : undefined;
 
     return (
       <button
@@ -1407,7 +1408,13 @@ function CalendarView({
           {item.isDeadlineMarker ? "Due:" : item.timeLabel}
         </span>
 
-        <span className="truncate font-semibold" style={{ color: palette.text }}>
+        <span className="min-w-0 truncate font-semibold" style={{ color: palette.text }}>
+          {subjectName ? (
+            <>
+              <span className="font-medium opacity-75">{subjectName}</span>
+              <span className="mx-1 opacity-40">·</span>
+            </>
+          ) : null}
           {item.title}
         </span>
       </button>

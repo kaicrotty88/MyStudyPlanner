@@ -221,6 +221,37 @@ export function StudyPlanner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionForm.linkedTaskId, tasks]);
 
+  const studyNext = useMemo(() =>
+    tasks
+      .filter((task) => !task.completed && task.type !== "personal" && Boolean(task.subjectId))
+      .slice()
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+      .slice(0, 3),
+    [tasks]
+  );
+
+  const openForTask = (task: Task) => {
+    const now = new Date();
+    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 10);
+    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+    const rounded = new Date(now);
+    rounded.setMinutes(roundedMinutes, 0, 0);
+
+    setEditingId(null);
+    setDeletingId(null);
+    setPanelOpen(true);
+    resetForm({
+      title: task.title,
+      subjectId: task.subjectId ?? "",
+      date: localDate,
+      startTime: rounded.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      duration: "60 min",
+      linkedTaskId: task.id,
+    });
+  };
+
   const visibleSessions = useMemo(() => {
     const base = activeSubject === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeSubject);
     const filtered = showCompleted ? base : base.filter((s) => !s.completed);
@@ -313,7 +344,7 @@ export function StudyPlanner({
       {/* Header */}
       <div className="app-page-heading">
         <h1 className="app-page-title">Study</h1>
-        <p className="app-page-subtitle">Log study sessions and review your study analytics.</p>
+        <p className="app-page-subtitle">Turn upcoming work into focused study sessions, then see what you actually did.</p>
       </div>
 
       <div className="app-control-bar flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -363,6 +394,42 @@ export function StudyPlanner({
 
       {studyView === "log" ? (
         <>
+      <div className="app-card overflow-hidden">
+        <div className="app-card-header flex items-center justify-between gap-3 bg-muted/20">
+          <div>
+            <div className="text-sm font-semibold text-foreground">What should I study next?</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">Start from your actual upcoming work, then the session is linked automatically.</div>
+          </div>
+        </div>
+        {studyNext.length === 0 ? (
+          <div className="px-5 py-4 text-sm text-muted-foreground">
+            No upcoming subject tasks. Add homework, an assignment or an exam and it will appear here.
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {studyNext.map((task) => {
+              const subject = getSubjectById(task.subjectId);
+              return (
+                <div key={task.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {subject ? <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
+                      <div className="truncate text-sm font-medium text-foreground">{task.title}</div>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {subject?.name ?? "Subject"} · {typeLabel(task.type)} · due {task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => openForTask(task)} className="app-btn-secondary h-9 shrink-0 px-3">
+                    Study this
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Subject tabs */}
       <div className="app-filter-scroll app-filter-scroll-compact">
         <div className="app-filter-scroll-track">
