@@ -34,10 +34,7 @@ import {
   upsertPlannerState,
   clearPlannerState,
 } from "@/lib/plannerStateSupabase";
-import {
-  ensureProfile,
-  type ProfileRow,
-} from "@/lib/profileSupabase";
+import { type ProfileRow } from "@/lib/profileSupabase";
 
 import WhatsNewModal from "@/components/WhatsNewModal";
 
@@ -1433,7 +1430,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
     if (!userLoaded) return;
 
-    if (!isSignedIn || !supabase || !user?.id) {
+    if (!isSignedIn || !user?.id) {
       setPlan("free");
       setProfile(null);
       setProfileLoaded(true);
@@ -1446,82 +1443,51 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     (async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        const checkoutState = params.get("checkout");
-        const billingReturn = params.get("billing") === "return";
+        const sessionId = params.get("session_id");
 
-        let serverPlan: Plan | null = null;
+        const response = await fetch("/api/stripe/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sessionId ? { sessionId } : {}),
+          cache: "no-store",
+        });
 
-        if (checkoutState === "success" || billingReturn) {
-          const sessionId = params.get("session_id");
-
-          const response = await fetch("/api/stripe/status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(sessionId ? { sessionId } : {}),
-            cache: "no-store",
-          });
-
-          const data = (await response.json().catch(() => null)) as
-            | { plan?: Plan; error?: string }
-            | null;
-
-          if (response.ok && data?.plan) {
-            serverPlan = data.plan;
-          } else if (!response.ok) {
-            console.error("Failed to sync billing status:", data?.error ?? response.statusText);
-          }
-
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete("checkout");
-          cleanUrl.searchParams.delete("session_id");
-          cleanUrl.searchParams.delete("billing");
-          window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
-        }
-
-        let nextProfile = await ensureProfile(supabase, user.id);
-
-        // If Supabase still says Free, reconcile with Stripe once. The server
-        // response is authoritative, so Premium can unlock immediately even if
-        // the client-side Supabase read takes a moment to reflect the admin update.
-        if (nextProfile.plan === "free" && serverPlan !== "premium") {
-          const response = await fetch("/api/stripe/status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}),
-            cache: "no-store",
-          });
-
-          const data = (await response.json().catch(() => null)) as
-            | { plan?: Plan; error?: string }
-            | null;
-
-          if (response.ok && data?.plan) {
-            serverPlan = data.plan;
-
-            if (data.plan === "premium") {
-              // Refresh the full profile for customer/subscription metadata, but
-              // do not block the UI unlock on that second read.
-              try {
-                nextProfile = await ensureProfile(supabase, user.id);
-              } catch {}
+        const data = (await response.json().catch(() => null)) as
+          | {
+              plan?: Plan;
+              profile?: ProfileRow;
+              error?: string;
             }
-          } else if (!response.ok) {
-            console.error("Failed to reconcile billing status:", data?.error ?? response.statusText);
-          }
+          | null;
+
+        if (!response.ok || !data?.plan) {
+          throw new Error(data?.error ?? "Could not load account plan.");
         }
 
         if (cancelled) return;
 
-        const resolvedPlan = serverPlan ?? nextProfile.plan;
-        setProfile(
-          resolvedPlan === nextProfile.plan
-            ? nextProfile
-            : { ...nextProfile, plan: resolvedPlan }
-        );
-        setPlan(resolvedPlan);
+        setPlan(data.plan);
+        setProfile(data.profile ?? null);
         setProfileLoaded(true);
+
+        // Remove temporary billing query parameters once the server has synced.
+        if (
+          params.has("checkout") ||
+          params.has("session_id") ||
+          params.has("billing")
+        ) {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("checkout");
+          cleanUrl.searchParams.delete("session_id");
+          cleanUrl.searchParams.delete("billing");
+          window.history.replaceState(
+            {},
+            "",
+            `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`
+          );
+        }
       } catch (error) {
-        console.error("Failed to fetch user profile:", error);
+        console.error("Failed to load server profile:", error);
 
         if (cancelled) return;
 
@@ -1534,7 +1500,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     return () => {
       cancelled = true;
     };
-  }, [mode, userLoaded, isSignedIn, supabase, user?.id]);
+  }, [mode, userLoaded, isSignedIn, user?.id]);
 
   useEffect(() => {
     let cancelled = false;

@@ -5,9 +5,26 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { stripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
+type Plan = "free" | "premium";
+
 type StatusRequestBody = {
   sessionId?: string;
 };
+
+type ProfileRow = {
+  user_id: string;
+  plan: Plan;
+  subscription_status: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  has_completed_onboarding: boolean;
+  onboarding_completed_at: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+const PROFILE_SELECT =
+  "user_id, plan, subscription_status, stripe_customer_id, stripe_subscription_id, has_completed_onboarding, onboarding_completed_at, created_at, updated_at";
 
 const isPremiumStatus = (status: Stripe.Subscription.Status) =>
   status === "active" || status === "trialing";
@@ -40,41 +57,69 @@ async function findActiveSubscriptionForEmail(email: string) {
     }
   }
 
-  // Secondary recovery path for older purchases where the Stripe customer record
-  // was not populated as expected. This is bounded to recent checkout sessions and
-  // still requires an exact email match to the signed-in Clerk account.
-  const sessions = await stripe.checkout.sessions.list({ limit: 100 });
-
-  for (const session of sessions.data) {
-    if (session.mode !== "subscription" || session.status !== "complete") continue;
-
-    const sessionEmail = session.customer_details?.email ?? session.customer_email;
-    if (!sessionEmail || normaliseEmail(sessionEmail) !== normalisedEmail) continue;
-
-    const subscriptionId =
-      typeof session.subscription === "string"
-        ? session.subscription
-        : session.subscription?.id ?? null;
-
-    if (!subscriptionId) continue;
-
-    try {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      if (!isPremiumStatus(subscription.status)) continue;
-
-      const customerId = getCustomerId(subscription.customer);
-      if (!customerId) continue;
-
-      const customer = await stripe.customers.retrieve(customerId);
-      if (customer.deleted) continue;
-
-      return { customer, subscription };
-    } catch (error) {
-      console.warn("Could not inspect checkout subscription during recovery:", error);
-    }
-  }
-
   return null;
+}
+
+async function readOrCreateProfile(userId: string): Promise<ProfileRow> {
+  const supabase = getSupabaseAdmin();
+
+  const { data: existing, error: readError } = await supabase
+    .from("profiles")
+    .select(PROFILE_SELECT)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (readError) throw readError;
+  if (existing) return existing as ProfileRow;
+
+  const now = new Date().toISOString();
+  const { data: created, error: createError } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        user_id: userId,
+        plan: "free",
+        subscription_status: "inactive",
+        has_completed_onboarding: true,
+        onboarding_completed_at: now,
+        updated_at: now,
+      },
+      { onConflict: "user_id" }
+    )
+    .select(PROFILE_SELECT)
+    .single();
+
+  if (createError) throw createError;
+  return created as ProfileRow;
+}
+
+async function saveSubscriptionProfile(params: {
+  userId: string;
+  plan: Plan;
+  subscriptionStatus: string;
+  customerId: string | null;
+  subscriptionId: string | null;
+}) {
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        user_id: params.userId,
+        plan: params.plan,
+        subscription_status: params.subscriptionStatus,
+        stripe_customer_id: params.customerId,
+        stripe_subscription_id: params.subscriptionId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    )
+    .select(PROFILE_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data as ProfileRow;
 }
 
 export async function POST(request: Request) {
@@ -86,10 +131,27 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json().catch(() => null)) as StatusRequestBody | null;
-    const supabase = getSupabaseAdmin();
+    let profile = await readOrCreateProfile(userId);
 
-    let customerId: string | null = null;
-    let subscriptionId: string | null = null;
+    // If Supabase already knows this account is Premium and active, trust that
+    // immediately. This avoids making a Stripe request on every normal app load.
+    if (
+      !body?.sessionId &&
+      profile.plan === "premium" &&
+      (profile.subscription_status === "active" ||
+        profile.subscription_status === "trialing")
+    ) {
+      return NextResponse.json({
+        plan: "premium" as const,
+        subscriptionStatus: profile.subscription_status,
+        profile,
+        recovered: false,
+      });
+    }
+
+    let customerId = profile.stripe_customer_id;
+    let subscriptionId = profile.stripe_subscription_id;
+    let subscription: Stripe.Subscription | null = null;
     let recovered = false;
 
     if (body?.sessionId) {
@@ -116,37 +178,14 @@ export async function POST(request: Request) {
         typeof session.subscription === "string"
           ? session.subscription
           : session.subscription?.id ?? null;
-    } else {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("stripe_customer_id, stripe_subscription_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      customerId = data?.stripe_customer_id ?? null;
-      subscriptionId = data?.stripe_subscription_id ?? null;
     }
-
-    let subscription: Stripe.Subscription | null = null;
 
     if (subscriptionId) {
       try {
         subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-        const subscriptionUserId = subscription.metadata?.clerkUserId ?? null;
-        if (subscriptionUserId && subscriptionUserId !== userId) {
-          // Do not fail the whole sync here. The saved ID may belong to an older
-          // Clerk account or stale environment. Email recovery below can safely
-          // repair the link for the currently authenticated account.
-          subscription = null;
-          subscriptionId = null;
-        }
       } catch (error) {
         console.warn("Saved Stripe subscription could not be retrieved:", error);
         subscription = null;
-        subscriptionId = null;
       }
     }
 
@@ -167,14 +206,11 @@ export async function POST(request: Request) {
           recovered = true;
           customerId = recoveredSubscription.customer.id;
           subscription = recoveredSubscription.subscription;
-          subscriptionId = recoveredSubscription.subscription.id;
+          subscriptionId = subscription.id;
 
           if (subscription.metadata?.clerkUserId !== userId) {
             subscription = await stripe.subscriptions.update(subscription.id, {
-              metadata: {
-                ...subscription.metadata,
-                clerkUserId: userId,
-              },
+              metadata: { ...subscription.metadata, clerkUserId: userId },
             });
           }
 
@@ -191,40 +227,37 @@ export async function POST(request: Request) {
     }
 
     if (!subscription) {
+      // No Stripe subscription was found. Keep the existing server-side profile
+      // instead of trying to create/read it from the browser.
       return NextResponse.json({
-        plan: "free",
-        subscriptionStatus: "inactive",
+        plan: profile.plan,
+        subscriptionStatus: profile.subscription_status,
+        profile,
         recovered: false,
       });
     }
 
     const premium = isPremiumStatus(subscription.status);
-    const resolvedCustomerId = getCustomerId(subscription.customer) ?? customerId;
+    customerId = getCustomerId(subscription.customer) ?? customerId;
 
-    const { error: updateError } = await supabase.from("profiles").upsert(
-      {
-        user_id: userId,
-        plan: premium ? "premium" : "free",
-        subscription_status: subscription.status,
-        stripe_customer_id: resolvedCustomerId,
-        stripe_subscription_id: subscription.id,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
-
-    if (updateError) throw updateError;
-
-    return NextResponse.json({
+    profile = await saveSubscriptionProfile({
+      userId,
       plan: premium ? "premium" : "free",
       subscriptionStatus: subscription.status,
+      customerId,
+      subscriptionId: subscription.id,
+    });
+
+    return NextResponse.json({
+      plan: profile.plan,
+      subscriptionStatus: profile.subscription_status,
+      profile,
       recovered,
-      stripeCustomerLinked: Boolean(resolvedCustomerId),
     });
   } catch (error) {
-    console.error("Stripe status sync error:", error);
+    console.error("Stripe/profile status error:", error);
     return NextResponse.json(
-      { error: "Could not sync billing status." },
+      { error: "Could not load account status." },
       { status: 500 }
     );
   }
