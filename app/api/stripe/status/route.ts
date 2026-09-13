@@ -12,14 +12,18 @@ type StatusRequestBody = {
 const isPremiumStatus = (status: Stripe.Subscription.Status) =>
   status === "active" || status === "trialing";
 
-const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer | null) =>
-  typeof customer === "string" ? customer : customer?.id ?? null;
+const getCustomerId = (
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null
+) => (typeof customer === "string" ? customer : customer?.id ?? null);
 
-async function findActiveSubscriptionForEmail(email: string, userId: string) {
+const normaliseEmail = (value: string) => value.trim().toLowerCase();
+
+async function findActiveSubscriptionForEmail(email: string) {
+  const normalisedEmail = normaliseEmail(email);
   const customers = await stripe.customers.list({ email, limit: 100 });
 
   for (const customer of customers.data) {
-    if (customer.email?.trim().toLowerCase() !== email.trim().toLowerCase()) continue;
+    if (!customer.email || normaliseEmail(customer.email) !== normalisedEmail) continue;
 
     const subscriptions = await stripe.subscriptions.list({
       customer: customer.id,
@@ -28,14 +32,45 @@ async function findActiveSubscriptionForEmail(email: string, userId: string) {
     });
 
     const activeSubscription = subscriptions.data
-      .filter((subscription) => {
-        const linkedUserId = subscription.metadata?.clerkUserId;
-        return isPremiumStatus(subscription.status) && (!linkedUserId || linkedUserId === userId);
-      })
+      .filter((subscription) => isPremiumStatus(subscription.status))
       .sort((a, b) => b.created - a.created)[0];
 
     if (activeSubscription) {
       return { customer, subscription: activeSubscription };
+    }
+  }
+
+  // Secondary recovery path for older purchases where the Stripe customer record
+  // was not populated as expected. This is bounded to recent checkout sessions and
+  // still requires an exact email match to the signed-in Clerk account.
+  const sessions = await stripe.checkout.sessions.list({ limit: 100 });
+
+  for (const session of sessions.data) {
+    if (session.mode !== "subscription" || session.status !== "complete") continue;
+
+    const sessionEmail = session.customer_details?.email ?? session.customer_email;
+    if (!sessionEmail || normaliseEmail(sessionEmail) !== normalisedEmail) continue;
+
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id ?? null;
+
+    if (!subscriptionId) continue;
+
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      if (!isPremiumStatus(subscription.status)) continue;
+
+      const customerId = getCustomerId(subscription.customer);
+      if (!customerId) continue;
+
+      const customer = await stripe.customers.retrieve(customerId);
+      if (customer.deleted) continue;
+
+      return { customer, subscription };
+    } catch (error) {
+      console.warn("Could not inspect checkout subscription during recovery:", error);
     }
   }
 
@@ -55,10 +90,12 @@ export async function POST(request: Request) {
 
     let customerId: string | null = null;
     let subscriptionId: string | null = null;
+    let recovered = false;
 
     if (body?.sessionId) {
       const session = await stripe.checkout.sessions.retrieve(body.sessionId);
-      const sessionUserId = session.metadata?.clerkUserId ?? session.client_reference_id ?? null;
+      const sessionUserId =
+        session.metadata?.clerkUserId ?? session.client_reference_id ?? null;
 
       if (sessionUserId !== userId) {
         return NextResponse.json(
@@ -95,33 +132,42 @@ export async function POST(request: Request) {
     let subscription: Stripe.Subscription | null = null;
 
     if (subscriptionId) {
-      subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      try {
+        subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-      const subscriptionUserId = subscription.metadata?.clerkUserId ?? null;
-      if (subscriptionUserId && subscriptionUserId !== userId) {
-        return NextResponse.json(
-          { error: "Subscription does not belong to this account." },
-          { status: 403 }
-        );
+        const subscriptionUserId = subscription.metadata?.clerkUserId ?? null;
+        if (subscriptionUserId && subscriptionUserId !== userId) {
+          // Do not fail the whole sync here. The saved ID may belong to an older
+          // Clerk account or stale environment. Email recovery below can safely
+          // repair the link for the currently authenticated account.
+          subscription = null;
+          subscriptionId = null;
+        }
+      } catch (error) {
+        console.warn("Saved Stripe subscription could not be retrieved:", error);
+        subscription = null;
+        subscriptionId = null;
       }
     }
 
-    // Recovery path for purchases that succeeded in Stripe but were never linked
-    // back to the Supabase profile (for example if the webhook was missed).
     if (!subscription || !isPremiumStatus(subscription.status)) {
       const user = await currentUser();
       const primaryEmail =
-        user?.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)?.emailAddress ??
+        user?.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)
+          ?.emailAddress ??
+        user?.emailAddresses.find((item) => item.verification?.status === "verified")
+          ?.emailAddress ??
         user?.emailAddresses[0]?.emailAddress ??
         null;
 
       if (primaryEmail) {
-        const recovered = await findActiveSubscriptionForEmail(primaryEmail, userId);
+        const recoveredSubscription = await findActiveSubscriptionForEmail(primaryEmail);
 
-        if (recovered) {
-          customerId = recovered.customer.id;
-          subscription = recovered.subscription;
-          subscriptionId = recovered.subscription.id;
+        if (recoveredSubscription) {
+          recovered = true;
+          customerId = recoveredSubscription.customer.id;
+          subscription = recoveredSubscription.subscription;
+          subscriptionId = recoveredSubscription.subscription.id;
 
           if (subscription.metadata?.clerkUserId !== userId) {
             subscription = await stripe.subscriptions.update(subscription.id, {
@@ -132,10 +178,10 @@ export async function POST(request: Request) {
             });
           }
 
-          if (recovered.customer.metadata?.clerkUserId !== userId) {
-            await stripe.customers.update(recovered.customer.id, {
+          if (recoveredSubscription.customer.metadata?.clerkUserId !== userId) {
+            await stripe.customers.update(recoveredSubscription.customer.id, {
               metadata: {
-                ...recovered.customer.metadata,
+                ...recoveredSubscription.customer.metadata,
                 clerkUserId: userId,
               },
             });
@@ -172,10 +218,14 @@ export async function POST(request: Request) {
     return NextResponse.json({
       plan: premium ? "premium" : "free",
       subscriptionStatus: subscription.status,
-      recovered: premium && !body?.sessionId,
+      recovered,
+      stripeCustomerLinked: Boolean(resolvedCustomerId),
     });
   } catch (error) {
     console.error("Stripe status sync error:", error);
-    return NextResponse.json({ error: "Could not sync billing status." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not sync billing status." },
+      { status: 500 }
+    );
   }
 }

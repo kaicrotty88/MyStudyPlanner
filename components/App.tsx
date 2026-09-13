@@ -1449,6 +1449,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         const checkoutState = params.get("checkout");
         const billingReturn = params.get("billing") === "return";
 
+        let serverPlan: Plan | null = null;
+
         if (checkoutState === "success" || billingReturn) {
           const sessionId = params.get("session_id");
 
@@ -1456,10 +1458,16 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(sessionId ? { sessionId } : {}),
+            cache: "no-store",
           });
 
-          if (!response.ok) {
-            const data = (await response.json().catch(() => null)) as { error?: string } | null;
+          const data = (await response.json().catch(() => null)) as
+            | { plan?: Plan; error?: string }
+            | null;
+
+          if (response.ok && data?.plan) {
+            serverPlan = data.plan;
+          } else if (!response.ok) {
             console.error("Failed to sync billing status:", data?.error ?? response.statusText);
           }
 
@@ -1472,27 +1480,45 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
         let nextProfile = await ensureProfile(supabase, user.id);
 
-        // If Supabase still says Free, reconcile with Stripe once. This repairs
-        // successful purchases whose webhook/profile link was missed.
-        if (nextProfile.plan === "free") {
+        // If Supabase still says Free, reconcile with Stripe once. The server
+        // response is authoritative, so Premium can unlock immediately even if
+        // the client-side Supabase read takes a moment to reflect the admin update.
+        if (nextProfile.plan === "free" && serverPlan !== "premium") {
           const response = await fetch("/api/stripe/status", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({}),
+            cache: "no-store",
           });
 
-          if (response.ok) {
-            nextProfile = await ensureProfile(supabase, user.id);
-          } else {
-            const data = (await response.json().catch(() => null)) as { error?: string } | null;
+          const data = (await response.json().catch(() => null)) as
+            | { plan?: Plan; error?: string }
+            | null;
+
+          if (response.ok && data?.plan) {
+            serverPlan = data.plan;
+
+            if (data.plan === "premium") {
+              // Refresh the full profile for customer/subscription metadata, but
+              // do not block the UI unlock on that second read.
+              try {
+                nextProfile = await ensureProfile(supabase, user.id);
+              } catch {}
+            }
+          } else if (!response.ok) {
             console.error("Failed to reconcile billing status:", data?.error ?? response.statusText);
           }
         }
 
         if (cancelled) return;
 
-        setProfile(nextProfile);
-        setPlan(nextProfile.plan);
+        const resolvedPlan = serverPlan ?? nextProfile.plan;
+        setProfile(
+          resolvedPlan === nextProfile.plan
+            ? nextProfile
+            : { ...nextProfile, plan: resolvedPlan }
+        );
+        setPlan(resolvedPlan);
         setProfileLoaded(true);
       } catch (error) {
         console.error("Failed to fetch user profile:", error);
@@ -2196,7 +2222,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                 />
               </div>
 
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/25 px-4 backdrop-blur-[1px]">
+              <div className="absolute inset-x-0 top-0 z-10 flex min-h-[calc(100vh-9rem)] items-center justify-center bg-background/25 px-4 backdrop-blur-[1px]">
                 <div className="app-card w-full max-w-xl p-8 shadow-lg">
                   <div className="mx-auto flex flex-col items-center text-center">
                     <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft">

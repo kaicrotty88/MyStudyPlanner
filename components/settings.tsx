@@ -1123,6 +1123,145 @@ export function Settings({
       </div>
 
       <div className="space-y-3">
+        <div ref={premiumCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
+          <button
+            type="button"
+            onClick={() => setPremiumOpen((value) => !value)}
+            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <span className="settings-row-icon settings-icon-premium">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Premium</div>
+                <div className="text-xs text-muted-foreground">
+                  Compare plans and manage your subscription.
+                </div>
+              </div>
+            </div>
+
+            <ChevronDown
+              className={[
+                "h-5 w-5 text-muted-foreground transition-transform",
+                premiumOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
+            />
+          </button>
+
+          {premiumOpen ? (
+            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Current plan</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {appMode === "demo"
+                      ? "Preview mode includes Premium features."
+                      : plan === "premium"
+                        ? "Premium is active on this account."
+                        : "The core planner remains available on the Free plan."}
+                  </div>
+                </div>
+                <span className="app-pill w-fit">{currentPlanLabel}</span>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={plan === "premium" || billingLoading || appMode === "demo"}
+                  onClick={() => {
+                    setBillingInterval("monthly");
+                    void startPremiumCheckout();
+                  }}
+                  className="rounded-2xl border border-border bg-background/50 p-5 text-left transition hover:border-border-strong hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <div className="text-sm font-semibold text-foreground">Monthly</div>
+                  <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
+                    US$2.99
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">per month</div>
+                  <div className="mt-4 text-xs font-medium text-foreground">
+                    Choose monthly
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={plan === "premium" || billingLoading || appMode === "demo"}
+                  onClick={() => {
+                    setBillingInterval("yearly");
+                    void startPremiumCheckout();
+                  }}
+                  className="relative rounded-2xl border border-primary/40 bg-primary-soft/50 p-5 text-left transition hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="absolute right-4 top-4 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                    Best value
+                  </span>
+                  <div className="text-sm font-semibold text-foreground">Yearly</div>
+                  <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
+                    US$19.99
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">per year</div>
+                  <div className="mt-3 text-xs font-semibold text-primary">
+                    Save US$15.89, about 44%
+                  </div>
+                  <div className="mt-4 text-xs font-medium text-foreground">
+                    Choose yearly
+                  </div>
+                </button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-background/50 p-4">
+                  <div className="text-sm font-semibold text-foreground">
+                    Free includes
+                  </div>
+                  <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+                    <div>Calendar, tasks, study sessions, subjects, terms, and timetable</div>
+                    <div>Account sync and backup tools</div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background/50 p-4">
+                  <div className="text-sm font-semibold text-foreground">
+                    Premium unlocks
+                  </div>
+                  <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+                    <div>Marks tracking and assessment performance</div>
+                    <div>Deeper study insights and future Premium tools</div>
+                  </div>
+                </div>
+              </div>
+
+              {billingError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+                  {billingError}
+                </div>
+              ) : null}
+
+              {plan === "premium" && appMode === "app" ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={openBillingPortal}
+                    disabled={billingLoading}
+                    className="app-btn-primary"
+                  >
+                    {billingLoading ? "Opening billing..." : "Manage or cancel subscription"}
+                  </button>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    Cancellation is handled securely in the Stripe billing page. Choose <span className="font-medium text-foreground">Manage or cancel subscription</span>, then cancel your plan there. You keep Premium access until the end of the paid billing period.
+                  </div>
+                </div>
+              ) : null}
+
+              {billingLoading && plan !== "premium" ? (
+                <div className="text-xs text-muted-foreground">Opening secure checkout...</div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
         <div ref={subjectsCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
@@ -2304,145 +2443,6 @@ export function Settings({
                 <div className="rounded-xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
                   {importError}
                 </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        <div ref={premiumCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
-          <button
-            type="button"
-            onClick={() => setPremiumOpen((value) => !value)}
-            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
-          >
-            <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon settings-icon-premium">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <div>
-                <div className="text-sm font-semibold text-foreground">Premium</div>
-                <div className="text-xs text-muted-foreground">
-                  Compare plans and manage your subscription.
-                </div>
-              </div>
-            </div>
-
-            <ChevronDown
-              className={[
-                "h-5 w-5 text-muted-foreground transition-transform",
-                premiumOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
-            />
-          </button>
-
-          {premiumOpen ? (
-            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
-              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-foreground">Current plan</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {appMode === "demo"
-                      ? "Preview mode includes Premium features."
-                      : plan === "premium"
-                        ? "Premium is active on this account."
-                        : "The core planner remains available on the Free plan."}
-                  </div>
-                </div>
-                <span className="app-pill w-fit">{currentPlanLabel}</span>
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                <button
-                  type="button"
-                  disabled={plan === "premium" || billingLoading || appMode === "demo"}
-                  onClick={() => {
-                    setBillingInterval("monthly");
-                    void startPremiumCheckout();
-                  }}
-                  className="rounded-2xl border border-border bg-background/50 p-5 text-left transition hover:border-border-strong hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <div className="text-sm font-semibold text-foreground">Monthly</div>
-                  <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-                    US$2.99
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">per month</div>
-                  <div className="mt-4 text-xs font-medium text-foreground">
-                    Choose monthly
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={plan === "premium" || billingLoading || appMode === "demo"}
-                  onClick={() => {
-                    setBillingInterval("yearly");
-                    void startPremiumCheckout();
-                  }}
-                  className="relative rounded-2xl border border-primary/40 bg-primary-soft/50 p-5 text-left transition hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className="absolute right-4 top-4 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-                    Best value
-                  </span>
-                  <div className="text-sm font-semibold text-foreground">Yearly</div>
-                  <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-                    US$19.99
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">per year</div>
-                  <div className="mt-3 text-xs font-semibold text-primary">
-                    Save US$15.89, about 44%
-                  </div>
-                  <div className="mt-4 text-xs font-medium text-foreground">
-                    Choose yearly
-                  </div>
-                </button>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    Free includes
-                  </div>
-                  <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                    <div>Calendar, tasks, study sessions, subjects, terms, and timetable</div>
-                    <div>Account sync and backup tools</div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    Premium unlocks
-                  </div>
-                  <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                    <div>Marks tracking and assessment performance</div>
-                    <div>Deeper study insights and future Premium tools</div>
-                  </div>
-                </div>
-              </div>
-
-              {billingError ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-                  {billingError}
-                </div>
-              ) : null}
-
-              {plan === "premium" && appMode === "app" ? (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={openBillingPortal}
-                    disabled={billingLoading}
-                    className="app-btn-primary"
-                  >
-                    {billingLoading ? "Opening billing..." : "Manage or cancel subscription"}
-                  </button>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    Cancellation is handled securely in the Stripe billing page. Choose <span className="font-medium text-foreground">Manage or cancel subscription</span>, then cancel your plan there. You keep Premium access until the end of the paid billing period.
-                  </div>
-                </div>
-              ) : null}
-
-              {billingLoading && plan !== "premium" ? (
-                <div className="text-xs text-muted-foreground">Opening secure checkout...</div>
               ) : null}
             </div>
           ) : null}
