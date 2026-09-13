@@ -1470,7 +1470,24 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
         }
 
-        const nextProfile = await ensureProfile(supabase, user.id);
+        let nextProfile = await ensureProfile(supabase, user.id);
+
+        // If Supabase still says Free, reconcile with Stripe once. This repairs
+        // successful purchases whose webhook/profile link was missed.
+        if (nextProfile.plan === "free") {
+          const response = await fetch("/api/stripe/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+
+          if (response.ok) {
+            nextProfile = await ensureProfile(supabase, user.id);
+          } else {
+            const data = (await response.json().catch(() => null)) as { error?: string } | null;
+            console.error("Failed to reconcile billing status:", data?.error ?? response.statusText);
+          }
+        }
 
         if (cancelled) return;
 
@@ -2167,10 +2184,44 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               onUpdateTask={handleUpdateTask}
             />
           ) : (
-            <LockedPremiumView
-              feature="marks"
-              onGoToSettings={() => openSettingsSection("premium")}
-            />
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none select-none blur-[3px] opacity-55"
+              >
+                <Marks
+                  tasks={tasks}
+                  subjects={subjects}
+                  onUpdateTask={handleUpdateTask}
+                />
+              </div>
+
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/25 px-4 backdrop-blur-[1px]">
+                <div className="app-card w-full max-w-xl p-8 shadow-lg">
+                  <div className="mx-auto flex flex-col items-center text-center">
+                    <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft">
+                      <Lock className="h-6 w-6 text-muted-foreground" />
+                    </div>
+
+                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                      Unlock Marks
+                    </h1>
+                    <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+                      Track assessment results, subject averages, recent performance, and progress over time.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => openSettingsSection("premium")}
+                      className="app-btn-primary mt-6"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      View Premium
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )
         ) : null}
 
