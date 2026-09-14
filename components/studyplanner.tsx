@@ -532,11 +532,14 @@ export function StudyPlanner({
                     >
                       <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="truncate text-sm font-semibold text-foreground">{subject?.name ?? task.title}</span>
-                          <span className="text-[11px] font-medium text-muted-foreground">{typeLabel(task.type)}</span>
-                          <span className="text-[11px] text-muted-foreground">{daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                          <span className="font-medium">{subject?.name ?? "Assessment"}</span>
+                          <span>·</span>
+                          <span className="font-medium">{typeLabel(task.type)}</span>
+                          <span>·</span>
+                          <span>{daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</span>
                         </div>
+                        <div className="mt-1 truncate text-sm font-semibold text-foreground">{task.title}</div>
                         <div className="mt-2 flex items-center gap-3">
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />

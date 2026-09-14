@@ -1775,7 +1775,7 @@ function CalendarView({
                   "min-h-[96px] border-r border-b border-border p-1.5 text-left transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                   planningStudyTask
-                    ? (isPlanningDateEligible(date) ? "cursor-pointer bg-primary/[0.09] hover:bg-primary/[0.14] ring-2 ring-inset ring-primary/25" : "cursor-not-allowed bg-muted/10 opacity-45")
+                    ? (isPlanningDateEligible(date) ? "cursor-pointer bg-primary/[0.15] hover:bg-primary/[0.22] ring-2 ring-inset ring-primary/40" : "cursor-not-allowed bg-muted/10 opacity-35")
                     : (isOtherMonth ? "cursor-pointer bg-muted/10 text-muted-foreground" : "cursor-pointer bg-card hover:bg-muted/25"),
                   isToday ? "bg-primary/[0.04]" : "",
                 ].join(" ")}
@@ -1891,7 +1891,7 @@ function CalendarView({
                   onClick={() => openAddMenuForDate(date)}
                   className={[
                     "border-r border-border px-2 py-3 text-center transition",
-                    planningStudyTask ? (isPlanningDateEligible(date) ? "bg-primary/[0.10] hover:bg-primary/[0.16] ring-1 ring-inset ring-primary/20" : "opacity-45") : "hover:bg-muted/30",
+                    planningStudyTask ? (isPlanningDateEligible(date) ? "bg-primary/[0.15] hover:bg-primary/[0.22] ring-2 ring-inset ring-primary/35" : "opacity-35") : "hover:bg-muted/30",
                     isToday ? "bg-primary/[0.04]" : "",
                   ].join(" ")}
                 >
@@ -1973,7 +1973,7 @@ function CalendarView({
                     }}
                     className={[
                       "relative border-r border-border bg-card text-left",
-                      planningStudyTask ? (isPlanningDateEligible(date) ? "cursor-crosshair bg-primary/[0.07] hover:bg-primary/[0.12] ring-1 ring-inset ring-primary/15" : "cursor-not-allowed opacity-45") : "cursor-pointer",
+                      planningStudyTask ? (isPlanningDateEligible(date) ? "cursor-crosshair bg-primary/[0.13] hover:bg-primary/[0.20] ring-2 ring-inset ring-primary/30" : "cursor-not-allowed opacity-35") : "cursor-pointer",
                       isToday ? "bg-primary/[0.025]" : "",
                     ].join(" ")}
                     style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
@@ -2087,7 +2087,7 @@ function CalendarView({
               }}
               className={[
                 "relative bg-card text-left",
-                planningStudyTask ? (isPlanningDateEligible(currentDate) ? "cursor-crosshair bg-primary/[0.07] ring-1 ring-inset ring-primary/15" : "cursor-not-allowed opacity-45") : "cursor-pointer",
+                planningStudyTask ? (isPlanningDateEligible(currentDate) ? "cursor-crosshair bg-primary/[0.13] ring-2 ring-inset ring-primary/30" : "cursor-not-allowed opacity-35") : "cursor-pointer",
                 isToday ? "bg-primary/[0.025]" : "",
               ].join(" ")}
               style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
@@ -2233,19 +2233,20 @@ function CalendarView({
       </div>
 
       {planningStudyTask ? (
-        <div className="sticky top-3 z-30 overflow-hidden rounded-2xl border-2 border-primary/35 bg-card shadow-xl shadow-black/5">
-          <div className="h-1 bg-primary" />
-          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="sticky top-3 z-30 overflow-hidden rounded-3xl border-2 border-primary/45 bg-card shadow-2xl shadow-black/10">
+          <div className="h-1.5 bg-primary" />
+          <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Planning mode</span>
-                <span className="text-xs text-muted-foreground">Due {planningStudyTask.dueDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                <span className="rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground">Planning study</span>
+                <span className="text-xs font-medium text-muted-foreground">Due {planningStudyTask.dueDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>
               </div>
-              <div className="mt-2 truncate text-base font-semibold text-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? planningStudyTask.title} · {planningStudyTask.type === "exam" ? "Exam" : "Assignment"}</div>
-              <div className="mt-1 text-sm text-muted-foreground">Highlighted dates are available. Click a day, or click the exact time in Week/Day view, to place study there.</div>
-              {planningStudySummary ? <div className="mt-2 text-sm font-semibold text-foreground">{planningStudySummary.unscheduled > 0 ? `${formatMinutes(planningStudySummary.unscheduled)} still needs to be scheduled` : "Your study target is fully scheduled"}</div> : null}
+              <div className="mt-2 text-xs font-medium text-muted-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? "Assessment"} · {planningStudyTask.type === "exam" ? "Exam" : "Assignment"}</div>
+              <div className="mt-0.5 truncate text-lg font-semibold text-foreground">{planningStudyTask.title}</div>
+              <div className="mt-2 text-sm font-medium text-foreground">Choose a highlighted day below. In Week or Day view, click the exact time you want to study.</div>
+              {planningStudySummary ? <div className="mt-2 text-sm text-muted-foreground">{planningStudySummary.unscheduled > 0 ? <><span className="font-semibold text-primary">{formatMinutes(planningStudySummary.unscheduled)}</span> still needs to be scheduled.</> : <span className="font-semibold text-primary">Your study target is fully scheduled.</span>}</div> : null}
             </div>
-            <button type="button" className="app-btn-primary h-10 shrink-0 px-4" onClick={onPlanningStudyHandled}>Done planning</button>
+            <button type="button" className="app-btn-primary h-11 shrink-0 px-5" onClick={onPlanningStudyHandled}>Done planning</button>
           </div>
         </div>
       ) : null}
