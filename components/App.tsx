@@ -2278,6 +2278,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onPlanStudy={planStudyOnCalendar}
             hasPremium={hasPremium}
             onGoToSettings={() => setActiveTab("settings")}
+            onGoToToday={() => setActiveTab("today")}
             initialTaskId={studyTaskToOpen}
             onInitialTaskHandled={() => setStudyTaskToOpen(null)}
           />

@@ -135,6 +135,7 @@ interface StudyPlannerProps {
   onPlanStudy?: (taskId: string) => void;
   hasPremium?: boolean;
   onGoToSettings?: () => void;
+  onGoToToday?: () => void;
   initialTaskId?: string | null;
   onInitialTaskHandled?: () => void;
 }
@@ -150,6 +151,7 @@ export function StudyPlanner({
   onPlanStudy,
   hasPremium = false,
   onGoToSettings,
+  onGoToToday,
   initialTaskId = null,
   onInitialTaskHandled,
 }: StudyPlannerProps) {
@@ -172,6 +174,7 @@ export function StudyPlanner({
 
   const [formErrors, setFormErrors] = useState<SessionFormErrors>({});
   const [targetTaskId, setTargetTaskId] = useState<string | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [targetHours, setTargetHours] = useState("3");
   const [completeSessionId, setCompleteSessionId] = useState<string | null>(null);
   const [actualMinutes, setActualMinutes] = useState("");
@@ -250,44 +253,6 @@ export function StudyPlanner({
 
     return map;
   }, [studySessions]);
-
-  const studyRecommendations = useMemo(() => {
-    const today = startOfDay(new Date()).getTime();
-    const dayMs = 24 * 60 * 60 * 1000;
-
-    return tasks
-      .filter((task) => !task.completed && task.type !== "personal" && Boolean(task.subjectId))
-      .map((task) => {
-        const stats = studyStatsByTask.get(task.id) ?? { minutes: 0, sessions: 0, lastStudiedAt: null };
-        const daysUntilDue = Math.ceil((startOfDay(task.dueDate).getTime() - today) / dayMs);
-        const typeWeight = task.type === "exam" ? 28 : task.type === "assignment" ? 18 : 8;
-        const urgencyWeight =
-          daysUntilDue <= 0 ? 90 : daysUntilDue <= 2 ? 75 : daysUntilDue <= 7 ? 52 : daysUntilDue <= 14 ? 30 : 12;
-        const prepWeight = stats.minutes === 0 ? 22 : stats.minutes < 60 ? 12 : stats.minutes < 120 ? 5 : 0;
-        const lastStudiedDays = stats.lastStudiedAt
-          ? Math.floor((today - startOfDay(stats.lastStudiedAt).getTime()) / dayMs)
-          : null;
-        const freshnessWeight = lastStudiedDays === null ? 10 : lastStudiedDays >= 4 ? 8 : 0;
-        const score = urgencyWeight + typeWeight + prepWeight + freshnessWeight;
-
-        const reason =
-          daysUntilDue < 0
-            ? "Overdue"
-            : daysUntilDue === 0
-              ? "Due today"
-              : daysUntilDue <= 2
-                ? `Due in ${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"}`
-                : stats.minutes === 0
-                  ? "No study logged yet"
-                  : lastStudiedDays !== null && lastStudiedDays >= 4
-                    ? `Last studied ${lastStudiedDays} days ago`
-                    : `Due in ${daysUntilDue} days`;
-
-        return { task, stats, daysUntilDue, score, reason };
-      })
-      .sort((a, b) => b.score - a.score || a.task.dueDate.getTime() - b.task.dueDate.getTime())
-      .slice(0, 4);
-  }, [tasks, studyStatsByTask]);
 
   const assessmentOverview = useMemo(() => {
     return tasks
@@ -534,73 +499,114 @@ export function StudyPlanner({
 
       {studyView === "focus" ? (
         <>
-          {studyRecommendations[0] ? (() => {
-            const top = studyRecommendations[0];
-            const subject = getSubjectById(top.task.subjectId);
-            const overview = assessmentOverview.find((item) => item.task.id === top.task.id);
-            return (
-              <div className="app-card flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recommended next</div>
-                  <div className="mt-2 flex items-center gap-2">
-                    {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
-                    <h2 className="truncate text-lg font-semibold text-foreground">{top.task.title}</h2>
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">{top.reason}{overview ? ` · ${formatMinutes(overview.unscheduledMinutes)} still unscheduled` : ""}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" className="app-btn-primary h-9 px-4" onClick={() => openLogForTask(top.task)}>Log study</button>
-                  {onPlanStudy ? <button type="button" className="app-btn-secondary h-9 px-4" onClick={() => onPlanStudy(top.task.id)}>Plan on Calendar</button> : null}
-                </div>
-              </div>
-            );
-          })() : null}
+          <div className="flex justify-end">
+            {onGoToToday ? (
+              <button type="button" className="app-btn-primary h-10 px-4" onClick={onGoToToday}>
+                Study now
+              </button>
+            ) : null}
+          </div>
 
-          <div className="app-card overflow-hidden">
-            <div className="app-card-header bg-muted/20">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Your assessments</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Set a study target, schedule preparation, then track the time you actually complete.</div>
-              </div>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="border-b border-border px-5 py-4">
+              <div className="text-sm font-semibold text-foreground">Upcoming assessments</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Choose an assessment to plan, study or review your preparation.</div>
             </div>
             {assessmentOverview.length === 0 ? (
-              <div className="app-empty-state border-0"><div className="text-sm font-medium text-foreground">No active assessments</div><div className="mt-1 text-xs text-muted-foreground">Assignments and exams will appear here automatically.</div></div>
+              <div className="app-empty-state border-0">
+                <div className="text-sm font-medium text-foreground">No active assessments</div>
+                <div className="mt-1 text-xs text-muted-foreground">Assignments and exams will appear here automatically.</div>
+              </div>
             ) : (
               <div className="divide-y divide-border">
-                {assessmentOverview.map(({ task, completedMinutes, plannedMinutes, targetMinutes, remainingMinutes, unscheduledMinutes, daysLeft }) => {
+                {assessmentOverview.map(({ task, completedMinutes, targetMinutes, daysLeft }) => {
                   const subject = getSubjectById(task.subjectId);
                   const progress = Math.min(100, (completedMinutes / Math.max(1, targetMinutes)) * 100);
                   return (
-                    <div key={task.id} className="px-5 py-5">
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
-                            <span className="text-xs font-medium text-muted-foreground">{subject?.name ?? "Subject"}</span><span className="text-xs text-muted-foreground">•</span><span className="text-xs text-muted-foreground">{daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</span>
-                          </div>
-                          <div className="mt-2 text-base font-semibold text-foreground">{task.title}</div>
-                          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div>
-                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Target</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(targetMinutes)}</div></div>
-                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Completed</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(completedMinutes)}</div></div>
-                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Planned</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(plannedMinutes)}</div></div>
-                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Remaining</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(remainingMinutes)}</div></div>
-                          </div>
-                          <div className="mt-2 text-xs text-muted-foreground">{unscheduledMinutes > 0 ? `${formatMinutes(unscheduledMinutes)} of your target still needs to be scheduled.` : "Your remaining target is fully scheduled."}</div>
+                    <button
+                      key={task.id}
+                      type="button"
+                      onClick={() => setDetailTaskId(task.id)}
+                      className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-muted/25"
+                    >
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="truncate text-sm font-semibold text-foreground">{subject?.name ?? task.title}</span>
+                          <span className="text-[11px] font-medium text-muted-foreground">{typeLabel(task.type)}</span>
+                          <span className="text-[11px] text-muted-foreground">{daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</span>
                         </div>
-                        <div className="flex flex-wrap gap-2 xl:max-w-[330px] xl:justify-end">
-                          <button type="button" className="app-btn-ghost h-9 px-3" onClick={() => { setTargetTaskId(task.id); setTargetHours(String((targetMinutes / 60).toFixed(targetMinutes % 60 === 0 ? 0 : 1))); }}>Edit target</button>
-                          {onPlanStudy ? <button type="button" className="app-btn-secondary h-9 px-3" onClick={() => onPlanStudy(task.id)}>Plan study</button> : null}
-                          <button type="button" className="app-btn-primary h-9 px-3" onClick={() => openLogForTask(task)}>Log study</button>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                          </div>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatMinutes(completedMinutes)} / {formatMinutes(targetMinutes)}</span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
           </div>
-          <div className="flex justify-end"><button type="button" onClick={() => setStudyView("log")} className="app-btn-secondary h-9 px-3">View study history</button></div>
+
+          {detailTaskId ? (() => {
+            const overview = assessmentOverview.find((item) => item.task.id === detailTaskId);
+            if (!overview) return null;
+            const { task, completedMinutes, plannedMinutes, targetMinutes, remainingMinutes, unscheduledMinutes, daysLeft } = overview;
+            const subject = getSubjectById(task.subjectId);
+            const sessions = studySessions.filter((session) => !session.completed && session.linkedTaskId === task.id).sort((a, b) => a.date.getTime() - b.date.getTime());
+            return (
+              <div className="fixed inset-0 z-[80] grid place-items-center bg-black/35 p-4" onMouseDown={() => setDetailTaskId(null)}>
+                <div className="app-card w-full max-w-xl p-5" onMouseDown={(event) => event.stopPropagation()}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
+                        <span>{subject?.name ?? "Subject"}</span><span>·</span><span>{typeLabel(task.type)}</span>
+                      </div>
+                      <div className="mt-2 text-xl font-semibold text-foreground">{task.title}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">{daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</div>
+                    </div>
+                    <button type="button" className="app-iconbtn" onClick={() => setDetailTaskId(null)} aria-label="Close"><X className="h-4 w-4" /></button>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Target</div><div className="mt-1 text-sm font-semibold text-foreground">{formatMinutes(targetMinutes)}</div></div>
+                    <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Completed</div><div className="mt-1 text-sm font-semibold text-foreground">{formatMinutes(completedMinutes)}</div></div>
+                    <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Planned</div><div className="mt-1 text-sm font-semibold text-foreground">{formatMinutes(plannedMinutes)}</div></div>
+                    <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Remaining</div><div className="mt-1 text-sm font-semibold text-foreground">{formatMinutes(remainingMinutes)}</div></div>
+                  </div>
+
+                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (completedMinutes / Math.max(1, targetMinutes)) * 100)}%` }} />
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">{unscheduledMinutes > 0 ? `${formatMinutes(unscheduledMinutes)} still needs to be scheduled.` : "Your remaining target is scheduled."}</div>
+
+                  {sessions.length > 0 ? (
+                    <div className="mt-5 border-t border-border pt-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Planned sessions</div>
+                      <div className="mt-2 space-y-2">
+                        {sessions.slice(0, 4).map((session) => (
+                          <div key={session.id} className="flex items-center justify-between text-sm">
+                            <span className="text-foreground">{session.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · {session.startTime}</span>
+                            <span className="text-muted-foreground">{formatMinutes(parseDurationToMinutes(session.duration))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {onGoToToday ? <button type="button" className="app-btn-primary" onClick={onGoToToday}>Study now</button> : null}
+                    {onPlanStudy ? <button type="button" className="app-btn-secondary" onClick={() => { setDetailTaskId(null); onPlanStudy(task.id); }}>Plan study</button> : null}
+                    <button type="button" className="app-btn-secondary" onClick={() => { setDetailTaskId(null); openLogForTask(task); }}>Log study</button>
+                    <button type="button" className="app-btn-ghost" onClick={() => { setTargetTaskId(task.id); setTargetHours(String((targetMinutes / 60).toFixed(targetMinutes % 60 === 0 ? 0 : 1))); }}>Edit target</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })() : null}
         </>
       ) : studyView === "log" ? (
         <>

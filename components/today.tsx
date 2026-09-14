@@ -1,17 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  BookOpen,
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  Pause,
-  Play,
-  RotateCcw,
-  Square,
-  TimerReset,
-} from "lucide-react";
+import { CheckCircle2, Clock3, Pause, Play, RotateCcw, Square } from "lucide-react";
 
 import type {
   Subject,
@@ -62,15 +52,9 @@ const sameDay = (a: Date, b: Date) => startOfDay(a).getTime() === startOfDay(b).
 const parseDurationToMinutes = (duration?: string) => {
   if (!duration) return 0;
   const s = duration.toLowerCase().trim();
-  const colon = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (colon) return Number(colon[1]) * 60 + Number(colon[2]);
-  let hours = 0;
-  let minutes = 0;
   const h = s.match(/(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)\b/);
   const m = s.match(/(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes)\b/);
-  if (h) hours = Number(h[1]);
-  if (m) minutes = Number(m[1]);
-  if (h || m) return Math.round(hours * 60 + minutes);
+  if (h || m) return Math.round((h ? Number(h[1]) * 60 : 0) + (m ? Number(m[1]) : 0));
   const n = s.match(/\d+/);
   return n ? Number(n[0]) : 0;
 };
@@ -163,7 +147,6 @@ export function Today({
   }, []);
 
   const elapsedSeconds = timer.accumulatedSeconds + (timer.running && timer.startedAt ? Math.floor((now.getTime() - timer.startedAt) / 1000) : 0);
-
   const subjectById = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects]);
   const activeAssessments = useMemo(
     () => tasks.filter((task) => isAssessmentTask(task) && !task.completed).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()),
@@ -176,28 +159,14 @@ export function Today({
   );
 
   const missedSessions = useMemo(
-    () => studySessions.filter((session) => !session.completed && startOfDay(session.date).getTime() < startOfDay(now).getTime()).sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 3),
+    () => studySessions.filter((session) => !session.completed && startOfDay(session.date).getTime() < startOfDay(now).getTime()).sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 2),
     [studySessions, now]
   );
 
   const todayTasks = useMemo(
-    () => tasks.filter((task) => !task.completed && startOfDay(task.dueDate).getTime() <= startOfDay(now).getTime()).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()).slice(0, 6),
+    () => tasks.filter((task) => !task.completed && startOfDay(task.dueDate).getTime() <= startOfDay(now).getTime()).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()).slice(0, 5),
     [tasks, now]
   );
-
-  const recommended = useMemo(() => {
-    return activeAssessments
-      .map((task) => {
-        const completed = studySessions.filter((s) => s.completed && s.linkedTaskId === task.id).reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
-        const planned = studySessions.filter((s) => !s.completed && s.linkedTaskId === task.id).reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
-        const target = task.targetStudyMinutes ?? 180;
-        const remaining = Math.max(0, target - completed - planned);
-        const days = Math.ceil((startOfDay(task.dueDate).getTime() - startOfDay(now).getTime()) / 86_400_000);
-        const urgency = days <= 0 ? 1000 : 200 / Math.max(1, days);
-        return { task, completed, planned, target, remaining, days, score: urgency + remaining / 10 };
-      })
-      .sort((a, b) => b.score - a.score)[0];
-  }, [activeAssessments, studySessions, now]);
 
   const quote = useMemo(() => {
     const key = Number(`${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`);
@@ -223,15 +192,7 @@ export function Today({
   }, [now, timetableClasses, timetablePeriods, timetableSettings]);
 
   const beginTimer = (opts: { subjectId: string; linkedTaskId?: string; plannedSessionId?: string; title: string }) => {
-    setTimer({
-      running: true,
-      startedAt: Date.now(),
-      accumulatedSeconds: 0,
-      subjectId: opts.subjectId,
-      linkedTaskId: opts.linkedTaskId,
-      plannedSessionId: opts.plannedSessionId,
-      title: opts.title,
-    });
+    setTimer({ running: true, startedAt: Date.now(), accumulatedSeconds: 0, subjectId: opts.subjectId, linkedTaskId: opts.linkedTaskId, plannedSessionId: opts.plannedSessionId, title: opts.title });
     setPickerOpen(false);
   };
 
@@ -246,8 +207,7 @@ export function Today({
   };
 
   const finishTimer = () => {
-    const mins = Math.max(1, Math.round(elapsedSeconds / 60));
-    setManualMinutes(String(mins));
+    setManualMinutes(String(Math.max(1, Math.round(elapsedSeconds / 60))));
     setFinishOpen(true);
   };
 
@@ -258,26 +218,9 @@ export function Today({
     const existing = timer.plannedSessionId ? studySessions.find((session) => session.id === timer.plannedSessionId) : undefined;
 
     if (existing) {
-      onUpdateStudySession(existing.id, {
-        ...existing,
-        plannedDuration: existing.plannedDuration ?? existing.duration,
-        duration: actualDuration,
-        notes: finishNote.trim() || existing.notes,
-        completed: true,
-        completedAt: new Date(),
-      });
+      onUpdateStudySession(existing.id, { ...existing, plannedDuration: existing.plannedDuration ?? existing.duration, duration: actualDuration, notes: finishNote.trim() || existing.notes, completed: true, completedAt: new Date() });
     } else {
-      onAddStudySession({
-        title: timer.title || linkedTask?.title || "Study session",
-        subjectId: timer.subjectId || linkedTask?.subjectId || "",
-        date: new Date(),
-        startTime: new Date().toTimeString().slice(0, 5),
-        duration: actualDuration,
-        linkedTaskId: timer.linkedTaskId,
-        notes: finishNote.trim() || undefined,
-        completed: true,
-        completedAt: new Date(),
-      });
+      onAddStudySession({ title: timer.title || linkedTask?.title || "Study session", subjectId: timer.subjectId || linkedTask?.subjectId || "", date: new Date(), startTime: new Date().toTimeString().slice(0, 5), duration: actualDuration, linkedTaskId: timer.linkedTaskId, notes: finishNote.trim() || undefined, completed: true, completedAt: new Date() });
     }
 
     setTimer(EMPTY_TIMER);
@@ -289,14 +232,7 @@ export function Today({
   const saveManualCompletion = () => {
     if (!manualSession) return;
     const actual = Math.max(1, Number(manualMinutes) || parseDurationToMinutes(manualSession.duration));
-    onUpdateStudySession(manualSession.id, {
-      ...manualSession,
-      plannedDuration: manualSession.plannedDuration ?? manualSession.duration,
-      duration: `${actual} min`,
-      notes: finishNote.trim() || manualSession.notes,
-      completed: true,
-      completedAt: new Date(),
-    });
+    onUpdateStudySession(manualSession.id, { ...manualSession, plannedDuration: manualSession.plannedDuration ?? manualSession.duration, duration: `${actual} min`, notes: finishNote.trim() || manualSession.notes, completed: true, completedAt: new Date() });
     setManualSession(null);
     setManualMinutes("");
     setFinishNote("");
@@ -308,218 +244,139 @@ export function Today({
     setFinishNote(session.notes ?? "");
   };
 
+  const clockLabel = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const dateLabel = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
   return (
-    <div className="app-page app-scroll-page space-y-4">
-      <div className="app-page-heading">
-        <h1 className="app-page-title">Today</h1>
-        <p className="app-page-subtitle">Your classes, study and deadlines in one place.</p>
-      </div>
-
-      <div className="app-card px-5 py-4">
-        <div className="text-sm italic leading-6 text-foreground">“{quote.text}”</div>
-        <div className="mt-1 text-xs text-muted-foreground">{quote.author}</div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <div className="space-y-4">
-          <div className="app-card overflow-hidden">
-            <div className="app-card-header flex items-center justify-between gap-4 bg-muted/20">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Study now</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Start working and MyStudyPlanner will record what you actually do.</div>
-              </div>
-              <TimerReset className="h-5 w-5 text-muted-foreground" />
-            </div>
-
-            <div className="p-5">
-              {timer.subjectId || timer.linkedTaskId || timer.accumulatedSeconds > 0 || timer.running ? (
-                <div>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Current session</div>
-                      <div className="mt-2 text-lg font-semibold text-foreground">{timer.title || "Study session"}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{subjectById.get(timer.subjectId)?.name ?? "General study"}</div>
-                    </div>
-                    <div className="font-mono text-4xl font-semibold tracking-tight text-foreground">{formatSeconds(elapsedSeconds)}</div>
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <button type="button" onClick={pauseResume} className="app-btn-secondary">
-                      {timer.running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                      {timer.running ? "Pause" : "Resume"}
-                    </button>
-                    <button type="button" onClick={finishTimer} className="app-btn-primary">
-                      <Square className="h-4 w-4" /> Finish session
-                    </button>
-                    <button type="button" onClick={() => setTimer(EMPTY_TIMER)} className="app-btn-ghost">
-                      <RotateCcw className="h-4 w-4" /> Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-lg font-semibold text-foreground">Ready to start?</div>
-                    <div className="mt-1 max-w-xl text-sm text-muted-foreground">Choose an assessment or subject, start the timer, then save the actual time when you finish.</div>
-                  </div>
-                  <button type="button" onClick={() => setPickerOpen(true)} className="app-btn-primary h-11 px-5">
-                    <Play className="h-4 w-4" /> Study now
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="app-card overflow-hidden">
-            <div className="app-card-header bg-muted/20">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Planned study today</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Start a planned session or record what you actually completed.</div>
-              </div>
-            </div>
-            {todaySessions.length === 0 ? (
-              <div className="app-empty-state border-0">
-                <div className="text-sm font-medium text-foreground">Nothing planned today</div>
-                <div className="mt-1 text-xs text-muted-foreground">Plan preparation from Study and place it on Calendar.</div>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {todaySessions.map((session) => {
-                  const subject = subjectById.get(session.subjectId);
-                  const task = session.linkedTaskId ? tasks.find((item) => item.id === session.linkedTaskId) : undefined;
-                  return (
-                    <div key={session.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
-                          <div className="truncate text-sm font-medium text-foreground">{session.title ?? task?.title ?? "Study session"}</div>
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground">{session.startTime} · planned {formatMinutes(parseDurationToMinutes(session.duration))}{task ? ` · ${task.title}` : ""}</div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" className="app-btn-primary h-9 px-3" onClick={() => beginTimer({ subjectId: session.subjectId, linkedTaskId: session.linkedTaskId, plannedSessionId: session.id, title: session.title ?? task?.title ?? "Study session" })}>
-                          <Play className="h-3.5 w-3.5" /> Start
-                        </button>
-                        <button type="button" className="app-btn-secondary h-9 px-3" onClick={() => openManualCompletion(session)}>
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Log actual
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {missedSessions.length > 0 ? (
-            <div className="app-card overflow-hidden">
-              <div className="app-card-header bg-muted/20">
-                <div>
-                  <div className="text-sm font-semibold text-foreground">Missed study</div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">Nothing is silently counted as completed.</div>
-                </div>
-              </div>
-              <div className="divide-y divide-border">
-                {missedSessions.map((session) => {
-                  const linked = session.linkedTaskId ? tasks.find((t) => t.id === session.linkedTaskId) : undefined;
-                  return (
-                    <div key={session.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-foreground">{session.title ?? linked?.title ?? "Study session"}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">Planned {session.date.toLocaleDateString()} · {formatMinutes(parseDurationToMinutes(session.duration))}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button type="button" className="app-btn-secondary h-9 px-3" onClick={() => openManualCompletion(session)}>Log what I did</button>
-                        {linked ? <button type="button" className="app-btn-ghost h-9 px-3" onClick={() => onPlanStudy(linked.id)}>Reschedule</button> : null}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+    <div className="app-page app-scroll-page pb-10">
+      <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-card px-6 py-10 text-center sm:px-10 sm:py-12">
+        <div className="pointer-events-none absolute inset-x-8 bottom-5 text-center text-[11px] italic text-muted-foreground/35 sm:text-xs">
+          “{quote.text}” · {quote.author}
         </div>
+        <div className="font-mono text-6xl font-semibold tracking-[-0.06em] text-foreground sm:text-7xl">{clockLabel}</div>
+        <div className="mt-3 text-sm font-medium text-muted-foreground">{dateLabel}</div>
+        <button type="button" onClick={() => setPickerOpen(true)} className="app-btn-primary mt-7 h-11 px-5">
+          <Play className="h-4 w-4" /> Study now
+        </button>
+      </section>
 
-        <div className="space-y-4">
-          <div className="app-card p-5">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock3 className="h-4 w-4" /> Next class</div>
-            {nextClass ? (
-              <div className="mt-4">
-                <div className="text-lg font-semibold text-foreground">{nextClass.classItem.title}</div>
-                <div className="mt-1 text-sm text-muted-foreground">{nextClass.startTime}{nextClass.classItem.location ? ` · ${nextClass.classItem.location}` : ""}</div>
-              </div>
-            ) : (
-              <div className="mt-4 text-sm text-muted-foreground">No more classes on your timetable today.</div>
-            )}
+      {timer.subjectId || timer.linkedTaskId || timer.accumulatedSeconds > 0 || timer.running ? (
+        <section className="mt-4 rounded-2xl border border-primary/20 bg-primary/[0.035] px-5 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Current study</div>
+              <div className="mt-1 text-base font-semibold text-foreground">{timer.title || "Study session"}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{subjectById.get(timer.subjectId)?.name ?? "General study"}</div>
+            </div>
+            <div className="font-mono text-4xl font-semibold tracking-tight text-foreground">{formatSeconds(elapsedSeconds)}</div>
           </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={pauseResume} className="app-btn-secondary">{timer.running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{timer.running ? "Pause" : "Resume"}</button>
+            <button type="button" onClick={finishTimer} className="app-btn-primary"><Square className="h-4 w-4" /> Finish</button>
+            <button type="button" onClick={() => setTimer(EMPTY_TIMER)} className="app-btn-ghost"><RotateCcw className="h-4 w-4" /> Cancel</button>
+          </div>
+        </section>
+      ) : null}
 
-          {recommended ? (
-            <div className="app-card p-5">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><BookOpen className="h-4 w-4" /> Recommended next</div>
-              <div className="mt-4 text-base font-semibold text-foreground">{recommended.task.title}</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {recommended.days <= 0 ? "Due now" : `Due in ${recommended.days} day${recommended.days === 1 ? "" : "s"}`} · {formatMinutes(recommended.completed)} completed
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, (recommended.completed / Math.max(1, recommended.target)) * 100)}%` }} />
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">{formatMinutes(recommended.remaining)} of the target still needs completing or scheduling.</div>
-              <div className="mt-4 flex gap-2">
-                <button type="button" className="app-btn-primary h-9 px-3" onClick={() => beginTimer({ subjectId: recommended.task.subjectId ?? "", linkedTaskId: recommended.task.id, title: recommended.task.title })}>Study now</button>
-                <button type="button" className="app-btn-secondary h-9 px-3" onClick={() => onPlanStudy(recommended.task.id)}>Plan</button>
-              </div>
+      <div className="mt-6 divide-y divide-border rounded-2xl border border-border bg-card">
+        <section className="px-5 py-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock3 className="h-4 w-4" /> Next</div>
+          {nextClass ? (
+            <div className="mt-3 flex items-baseline justify-between gap-4">
+              <div className="text-base font-medium text-foreground">{nextClass.classItem.title}</div>
+              <div className="shrink-0 text-sm text-muted-foreground">{nextClass.startTime}{nextClass.classItem.location ? ` · ${nextClass.classItem.location}` : ""}</div>
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">No more classes today.</div>
+          )}
+        </section>
 
-          <div className="app-card overflow-hidden">
-            <div className="app-card-header bg-muted/20">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Due and overdue</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Keep the immediate list short.</div>
-              </div>
+        <section className="px-5 py-4">
+          <div className="text-sm font-semibold text-foreground">Study today</div>
+          {todaySessions.length === 0 ? (
+            <div className="mt-3 text-sm text-muted-foreground">Nothing planned today.</div>
+          ) : (
+            <div className="mt-2 divide-y divide-border/70">
+              {todaySessions.map((session) => {
+                const subject = subjectById.get(session.subjectId);
+                const task = session.linkedTaskId ? tasks.find((item) => item.id === session.linkedTaskId) : undefined;
+                return (
+                  <div key={session.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
+                        <div className="truncate text-sm font-medium text-foreground">{subject?.name ?? session.title ?? "Study"}</div>
+                        <span className="text-[11px] font-medium text-muted-foreground">Study</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">{session.startTime} · {formatMinutes(parseDurationToMinutes(session.duration))}{task ? ` · ${task.type === "exam" ? "Exam" : "Assignment"}` : ""}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" className="app-btn-primary h-9 px-3" onClick={() => beginTimer({ subjectId: session.subjectId, linkedTaskId: session.linkedTaskId, plannedSessionId: session.id, title: task?.title ?? session.title ?? "Study session" })}><Play className="h-3.5 w-3.5" /> Start</button>
+                      <button type="button" className="app-btn-ghost h-9 px-3" onClick={() => openManualCompletion(session)}>Log actual</button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            {todayTasks.length === 0 ? (
-              <div className="app-empty-state border-0 text-xs text-muted-foreground">Nothing due or overdue today.</div>
-            ) : (
-              <div className="divide-y divide-border">
-                {todayTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+          )}
+        </section>
+
+        <section className="px-5 py-4">
+          <div className="text-sm font-semibold text-foreground">Due today</div>
+          {todayTasks.length === 0 ? (
+            <div className="mt-3 text-sm text-muted-foreground">Nothing due or overdue.</div>
+          ) : (
+            <div className="mt-2 divide-y divide-border/70">
+              {todayTasks.map((task) => {
+                const subject = task.subjectId ? subjectById.get(task.subjectId) : undefined;
+                const overdue = startOfDay(task.dueDate).getTime() < startOfDay(now).getTime();
+                return (
+                  <div key={task.id} className="flex items-center justify-between gap-3 py-3">
                     <button type="button" className="min-w-0 text-left" onClick={() => onOpenTask(task.id)}>
-                      <div className="truncate text-sm font-medium text-foreground">{task.title}</div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">{startOfDay(task.dueDate).getTime() < startOfDay(now).getTime() ? "Overdue" : "Due today"}</div>
+                      <div className="flex items-center gap-2">
+                        {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
+                        <span className="truncate text-sm font-medium text-foreground">{subject?.name ?? task.title}</span>
+                        <span className="text-[11px] text-muted-foreground">{task.type === "exam" ? "Exam" : task.type === "assignment" ? "Assignment" : task.type === "homework" ? "Homework" : "Task"}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">{overdue ? `Overdue · ${task.title}` : task.title}</div>
                     </button>
                     <button type="button" className="app-iconbtn" aria-label={`Complete ${task.title}`} onClick={() => onToggleTaskCompleted(task.id)}><CheckCircle2 className="h-4 w-4" /></button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
+
+      {missedSessions.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-border bg-muted/[0.08] px-5 py-3 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{missedSessions.length} missed study session{missedSessions.length === 1 ? "" : "s"}.</span>{" "}
+          {missedSessions.map((session, index) => {
+            const linked = session.linkedTaskId ? tasks.find((task) => task.id === session.linkedTaskId) : undefined;
+            return <React.Fragment key={session.id}>{index > 0 ? " · " : ""}<button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => openManualCompletion(session)}>Log actual</button>{linked ? <> or <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => onPlanStudy(linked.id)}>reschedule</button></> : null}</React.Fragment>;
+          })}
+        </div>
+      ) : null}
 
       {pickerOpen ? (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" onMouseDown={() => setPickerOpen(false)}>
           <div className="app-card w-full max-w-lg p-5" onMouseDown={(e) => e.stopPropagation()}>
             <div className="text-lg font-semibold text-foreground">What are you studying?</div>
-            <div className="mt-1 text-sm text-muted-foreground">Pick an assessment for automatic preparation tracking, or choose a subject for general study.</div>
+            <div className="mt-1 text-sm text-muted-foreground">Pick an assessment, or choose a subject for general study.</div>
             <div className="mt-5 max-h-[55vh] space-y-2 overflow-y-auto">
               {activeAssessments.map((task) => {
                 const subject = subjectById.get(task.subjectId ?? "");
                 return (
                   <button key={task.id} type="button" onClick={() => beginTimer({ subjectId: task.subjectId ?? "", linkedTaskId: task.id, title: task.title })} className="flex w-full items-center justify-between rounded-xl border border-border px-4 py-3 text-left transition hover:bg-muted/40">
-                    <div>
-                      <div className="text-sm font-medium text-foreground">{task.title}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{subject?.name ?? "Assessment"} · due {task.dueDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div>
-                    </div>
+                    <div><div className="text-sm font-medium text-foreground">{subject?.name ?? task.title}</div><div className="mt-1 text-xs text-muted-foreground">{task.type === "exam" ? "Exam" : "Assignment"} · {task.title}</div></div>
                     <Play className="h-4 w-4 text-muted-foreground" />
                   </button>
                 );
               })}
               <div className="pt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">General subject study</div>
               {subjects.map((subject) => (
-                <button key={subject.id} type="button" onClick={() => beginTimer({ subjectId: subject.id, title: subject.name })} className="flex w-full items-center gap-3 rounded-xl border border-border px-4 py-3 text-left transition hover:bg-muted/40">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} />
-                  <span className="text-sm font-medium text-foreground">{subject.name}</span>
-                </button>
+                <button key={subject.id} type="button" onClick={() => beginTimer({ subjectId: subject.id, title: subject.name })} className="flex w-full items-center gap-3 rounded-xl border border-border px-4 py-3 text-left transition hover:bg-muted/40"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /><span className="text-sm font-medium text-foreground">{subject.name}</span></button>
               ))}
             </div>
           </div>
@@ -529,16 +386,13 @@ export function Today({
       {finishOpen || manualSession ? (
         <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4" onMouseDown={() => { setFinishOpen(false); setManualSession(null); }}>
           <div className="app-card w-full max-w-md p-5" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="text-lg font-semibold text-foreground">Record what you actually studied</div>
-            <div className="mt-1 text-sm text-muted-foreground">Planned time and actual time stay separate so your Insights remain trustworthy.</div>
+            <div className="text-lg font-semibold text-foreground">Record actual study</div>
+            <div className="mt-1 text-sm text-muted-foreground">Only the time you actually studied counts toward progress.</div>
             <label className="mt-5 block text-sm font-medium text-foreground">Actual minutes</label>
             <input type="number" min="1" value={manualMinutes} onChange={(e) => setManualMinutes(e.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
             <label className="mt-4 block text-sm font-medium text-foreground">What did you work on? <span className="font-normal text-muted-foreground">Optional</span></label>
             <textarea value={finishNote} onChange={(e) => setFinishNote(e.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" placeholder="Practice questions, essay plan, flashcards..." />
-            <div className="mt-5 flex gap-2">
-              <button type="button" className="app-btn-primary flex-1" onClick={manualSession ? saveManualCompletion : saveTimer}>Save completed study</button>
-              <button type="button" className="app-btn-secondary" onClick={() => { setFinishOpen(false); setManualSession(null); }}>Cancel</button>
-            </div>
+            <div className="mt-5 flex gap-2"><button type="button" className="app-btn-primary flex-1" onClick={manualSession ? saveManualCompletion : saveTimer}>Save completed study</button><button type="button" className="app-btn-secondary" onClick={() => { setFinishOpen(false); setManualSession(null); }}>Cancel</button></div>
           </div>
         </div>
       ) : null}
