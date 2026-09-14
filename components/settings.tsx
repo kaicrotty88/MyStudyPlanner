@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { CalendarImports } from "./calendar/CalendarImports";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import PWAInstaller from "./PWAInstaller";
 
 import type {
   Subject,
@@ -2450,6 +2451,8 @@ export function Settings({
             </div>
           ) : null}
         </div>
+
+        <PWAInstaller />
 
         <div className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
