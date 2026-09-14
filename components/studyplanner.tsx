@@ -157,7 +157,7 @@ export function StudyPlanner({
 }: StudyPlannerProps) {
   const [studyView, setStudyView] = useState<"focus" | "log" | "insights">("focus");
   const [activeSubject, setActiveSubject] = useState<string>("all");
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [sessionIntent, setSessionIntent] = useState<"plan" | "log">("log");
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -235,7 +235,7 @@ export function StudyPlanner({
     const map = new Map<string, { minutes: number; sessions: number; lastStudiedAt: Date | null }>();
 
     for (const session of studySessions) {
-      if (!session.linkedTaskId) continue;
+      if (!session.completed || !session.linkedTaskId) continue;
       const current = map.get(session.linkedTaskId) ?? { minutes: 0, sessions: 0, lastStudiedAt: null };
       current.minutes += parseDurationToMinutes(session.duration);
       current.sessions += 1;
@@ -288,6 +288,7 @@ export function StudyPlanner({
 
   const openForTask = (task: Task) => {
     trackProductEvent("study_recommendation_started", { taskType: task.type });
+    setSessionIntent("plan");
     const now = new Date();
     const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
       .toISOString()
@@ -309,11 +310,20 @@ export function StudyPlanner({
     });
   };
 
-  const visibleSessions = useMemo(() => {
+  const filteredSessions = useMemo(() => {
     const base = activeSubject === "all" ? studySessions : studySessions.filter((s) => s.subjectId === activeSubject);
-    const filtered = showCompleted ? base : base.filter((s) => !s.completed);
-    return filtered.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [studySessions, activeSubject, showCompleted]);
+    return base.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [studySessions, activeSubject]);
+
+  const completedSessions = useMemo(
+    () => filteredSessions.filter((session) => session.completed),
+    [filteredSessions]
+  );
+
+  const plannedSessions = useMemo(
+    () => filteredSessions.filter((session) => !session.completed).sort((a, b) => a.date.getTime() - b.date.getTime()),
+    [filteredSessions]
+  );
 
   useEffect(() => {
     if (!initialTaskId) return;
@@ -333,7 +343,7 @@ export function StudyPlanner({
     const now = new Date();
     const a = getWeekStart(now);
     const b = getWeekEnd(now);
-    const inWeek = studySessions.filter((s) => inRange(s.date, a, b));
+    const inWeek = studySessions.filter((s) => s.completed && inRange(s.date, a, b));
     const minutes = inWeek.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
     return {
       count: inWeek.length,
@@ -345,19 +355,40 @@ export function StudyPlanner({
     };
   }, [studySessions]);
 
-  const totalMinutesVisible = useMemo(
-    () => visibleSessions.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0),
-    [visibleSessions]
+  const totalCompletedMinutesVisible = useMemo(
+    () => completedSessions.reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0),
+    [completedSessions]
   );
 
+  const getNowPreset = () => {
+    const now = new Date();
+    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 10);
+    return {
+      date: localDate,
+      startTime: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    };
+  };
+
   const openNew = () => {
+    setSessionIntent("log");
     setEditingId(null);
     setDeletingId(null);
     setPanelOpen(true);
-    resetForm();
+    resetForm(getNowPreset());
+  };
+
+  const openPlanNew = () => {
+    setSessionIntent("plan");
+    setEditingId(null);
+    setDeletingId(null);
+    setPanelOpen(true);
+    resetForm(getNowPreset());
   };
 
   const openEdit = (s: StudySession) => {
+    setSessionIntent(s.completed ? "log" : "plan");
     setEditingId(s.id);
     setDeletingId(null);
     setPanelOpen(true);
@@ -393,7 +424,9 @@ export function StudyPlanner({
             const current = studySessions.find((x) => x.id === editingId);
             return { completed: current?.completed, completedAt: current?.completedAt };
           })()
-        : {}),
+        : sessionIntent === "log"
+          ? { completed: true, completedAt: new Date() }
+          : { completed: false, completedAt: undefined }),
     };
 
     editingId ? onUpdateStudySession(editingId, payload) : onAddStudySession(payload);
@@ -449,17 +482,23 @@ export function StudyPlanner({
           <div className="app-inline-summary">
             <span className="font-medium text-foreground">This week</span>
             <span className="opacity-40">•</span>
-            <span>{weeklySummary.count} session{weeklySummary.count === 1 ? "" : "s"}</span>
+            <span>{weeklySummary.count} completed session{weeklySummary.count === 1 ? "" : "s"}</span>
             <span className="opacity-40">•</span>
             <span className="font-semibold text-foreground">{formatMinutes(weeklySummary.minutes)}</span>
           </div>
         </div>
 
         {studyView !== "insights" ? (
-          <button onClick={openNew} className="app-btn-primary h-9 px-4" type="button">
-            <Plus className="h-4 w-4" />
-            Log session
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={openPlanNew} className="app-btn-secondary h-9 px-4" type="button">
+              <Plus className="h-4 w-4" />
+              Plan session
+            </button>
+            <button onClick={openNew} className="app-btn-primary h-9 px-4" type="button">
+              <CheckCircle2 className="h-4 w-4" />
+              Log completed study
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -531,7 +570,7 @@ export function StudyPlanner({
                       </div>
 
                       <button type="button" onClick={() => openForTask(top.task)} className="app-btn-primary mt-6 h-10 px-5">
-                        {lifecycle?.actionLabel ?? "Study now"}
+                        {lifecycle?.actionLabel ?? "Plan session"}
                       </button>
                     </div>
                   </div>
@@ -567,7 +606,7 @@ export function StudyPlanner({
                               {reason} · {formatMinutes(stats.minutes)} studied
                             </div>
                           </div>
-                          <span className="shrink-0 text-xs font-medium text-foreground">Study</span>
+                          <span className="shrink-0 text-xs font-medium text-foreground">Plan</span>
                         </button>
                       );
                     })
@@ -621,76 +660,120 @@ export function StudyPlanner({
             </div>
           </div>
 
-          <div className="app-card app-session-list overflow-hidden">
-            <div className="app-card-header flex items-center justify-between gap-3 bg-muted/20">
-              <div>
-                <div className="text-sm font-semibold text-foreground">Study log</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">A record of what you actually worked on.</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowCompleted((value) => !value)} className="text-xs font-medium text-muted-foreground hover:text-foreground" type="button">
-                  {showCompleted ? "Hide completed" : "Show completed"}
-                </button>
+          <div className="space-y-4">
+            <div className="app-card app-session-list overflow-hidden">
+              <div className="app-card-header flex items-center justify-between gap-3 bg-muted/20">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Completed study</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">Only completed sessions count toward preparation and Insights.</div>
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  {visibleSessions.length} session{visibleSessions.length === 1 ? "" : "s"} · <span className="font-semibold text-foreground">{formatMinutes(totalMinutesVisible)}</span>
+                  {completedSessions.length} session{completedSessions.length === 1 ? "" : "s"} · <span className="font-semibold text-foreground">{formatMinutes(totalCompletedMinutesVisible)}</span>
                 </div>
               </div>
+
+              {completedSessions.length === 0 ? (
+                <div className="app-empty-state border-0">
+                  <div className="text-sm font-medium text-foreground">No completed study yet</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Log completed study or mark a planned session complete.</div>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {completedSessions.map((session) => {
+                    const subject = getSubjectById(session.subjectId);
+                    const mins = parseDurationToMinutes(session.duration);
+                    const linked = session.linkedTaskId ? getTaskById(session.linkedTaskId) : undefined;
+                    return (
+                      <div key={session.id} className="app-session-row group flex items-start justify-between gap-4 px-5 py-3.5 transition">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-foreground">{session.title}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span>{formatMinutes(mins)} • {session.startTime}</span>
+                            <span>• {session.date.toLocaleDateString()}</span>
+                            {subject ? <span>• {subject.name}</span> : null}
+                          </div>
+                          {linked ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                              <span className="inline-flex items-center gap-1"><Link2 className="h-3.5 w-3.5" />Linked:</span>
+                              <span className="text-foreground/90">{typeLabel(linked.type)} • {linked.title}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 opacity-75 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                          <span className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2.5 text-[11px] font-medium text-primary">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Completed
+                          </span>
+                          <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button">
+                            <Edit2 className="h-4 w-4 text-foreground" />
+                          </button>
+                          <button onClick={() => setDeletingId(session.id)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Delete" type="button">
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {visibleSessions.length === 0 ? (
-              <div className="app-empty-state border-0">
-                <div className="text-sm font-medium text-foreground">No sessions yet</div>
-                <div className="mt-1 text-xs text-muted-foreground">Start from Focus or log a session manually.</div>
+            <div className="app-card app-session-list overflow-hidden">
+              <div className="app-card-header flex items-center justify-between gap-3 bg-muted/20">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Planned sessions</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">Scheduled preparation. These do not count as study until completed.</div>
+                </div>
+                <div className="text-xs text-muted-foreground">{plannedSessions.length} planned</div>
               </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {visibleSessions.map((session) => {
-                  const subject = getSubjectById(session.subjectId);
-                  const mins = parseDurationToMinutes(session.duration);
-                  const linked = session.linkedTaskId ? getTaskById(session.linkedTaskId) : undefined;
 
-                  return (
-                    <div key={session.id} className={["app-session-row group flex items-start justify-between gap-4 px-5 py-3.5 transition", session.completed ? "opacity-80" : ""].join(" ")}>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-foreground">{session.title}</div>
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          <span>{formatMinutes(mins)} • {session.startTime}</span>
-                          <span>• {session.date.toLocaleDateString()}</span>
-                          {subject ? <span>• {subject.name}</span> : null}
-                        </div>
-                        {linked ? (
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                            <span className="inline-flex items-center gap-1"><Link2 className="h-3.5 w-3.5" />Linked:</span>
-                            <span className="text-foreground/90">{typeLabel(linked.type)} • {linked.title}</span>
+              {plannedSessions.length === 0 ? (
+                <div className="app-empty-state border-0">
+                  <div className="text-sm font-medium text-foreground">Nothing planned</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Use Focus or Plan session to schedule preparation.</div>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {plannedSessions.map((session) => {
+                    const subject = getSubjectById(session.subjectId);
+                    const mins = parseDurationToMinutes(session.duration);
+                    const linked = session.linkedTaskId ? getTaskById(session.linkedTaskId) : undefined;
+                    return (
+                      <div key={session.id} className="app-session-row group flex items-start justify-between gap-4 px-5 py-3.5 transition">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-foreground">{session.title}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span>{formatMinutes(mins)} • {session.startTime}</span>
+                            <span>• {session.date.toLocaleDateString()}</span>
+                            {subject ? <span>• {subject.name}</span> : null}
                           </div>
-                        ) : null}
+                          {linked ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                              <span className="inline-flex items-center gap-1"><Link2 className="h-3.5 w-3.5" />Linked:</span>
+                              <span className="text-foreground/90">{typeLabel(linked.type)} • {linked.title}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 opacity-80 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => onToggleSessionCompleted(session.id)}
+                            className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Mark complete
+                          </button>
+                          <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button">
+                            <Edit2 className="h-4 w-4 text-foreground" />
+                          </button>
+                          <button onClick={() => setDeletingId(session.id)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Delete" type="button">
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="flex shrink-0 items-center gap-1 opacity-75 transition group-hover:opacity-100 group-focus-within:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => onToggleSessionCompleted(session.id)}
-                          className={[
-                            "mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition",
-                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                            session.completed ? "border-primary/20 bg-primary/10 text-primary hover:bg-primary/15" : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
-                          ].join(" ")}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {session.completed ? "Completed" : "Mark complete"}
-                        </button>
-                        <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button">
-                          <Edit2 className="h-4 w-4 text-foreground" />
-                        </button>
-                        <button onClick={() => setDeletingId(session.id)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Delete" type="button">
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </>
       ) : showPremiumInsightsLock ? (
@@ -733,9 +816,13 @@ export function StudyPlanner({
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="space-y-0.5">
-                <div className="text-sm font-semibold text-foreground">{editingId ? "Edit session" : "New session"}</div>
+                <div className="text-sm font-semibold text-foreground">
+                  {editingId ? "Edit session" : sessionIntent === "plan" ? "Plan study session" : "Log completed study"}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  Add title, subject, time, duration — and optionally link a task.
+                  {sessionIntent === "plan"
+                    ? "Schedule preparation now and mark it complete after you study."
+                    : "Record study you have already completed. It will count toward Insights immediately."}
                 </div>
               </div>
               <button
@@ -935,7 +1022,7 @@ export function StudyPlanner({
                   className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                   type="button"
                 >
-                  {editingId ? "Save" : "Add"}
+                  {editingId ? "Save" : sessionIntent === "plan" ? "Plan session" : "Log completed study"}
                 </button>
                 <button
                   onClick={closePanel}

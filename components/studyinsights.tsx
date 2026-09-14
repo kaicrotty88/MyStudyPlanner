@@ -96,7 +96,12 @@ export function StudyInsights({ subjects, tasks, studySessions }: StudyInsightsP
   const last30Days = useMemo(() => {
     const cutoff = startOfDay(new Date(now));
     cutoff.setDate(cutoff.getDate() - 30);
-    return studySessions.filter((session) => startOfDay(session.date).getTime() >= cutoff.getTime());
+    return studySessions.filter(
+      (session) =>
+        session.completed &&
+        startOfDay(session.date).getTime() >= cutoff.getTime() &&
+        startOfDay(session.date).getTime() <= startOfDay(now).getTime()
+    );
   }, [studySessions, now]);
 
   const totalMinutes = useMemo(
@@ -151,7 +156,7 @@ export function StudyInsights({ subjects, tasks, studySessions }: StudyInsightsP
     const map = new Map<string, number>();
 
     studySessions.forEach((session) => {
-      if (!session.linkedTaskId) return;
+      if (!session.completed || !session.linkedTaskId) return;
 
       const task = taskById.get(session.linkedTaskId);
       if (!task) return;
@@ -244,7 +249,7 @@ export function StudyInsights({ subjects, tasks, studySessions }: StudyInsightsP
       <div>
         <h2 className="text-lg font-semibold tracking-tight text-foreground">Study insights</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Analytics for the last 30 days of study sessions.
+          Completed study from the last 30 days. Planned sessions are kept separate.
         </p>
       </div>
 

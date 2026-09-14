@@ -935,7 +935,7 @@ const makeDemoData = () => {
 
   tasks.push(
     { id: "t11", title: "Economics budget questions", subjectId: "6", dueDate: in2, type: "homework", scheduledDate: tomorrow, startTime: "19:00", duration: "45 min", periodId: "p2", completed: false },
-    { id: "t12", title: "Engineering design folio", subjectId: "5", dueDate: in12, type: "assignment", scheduledDate: in5, startTime: "16:30", duration: "1h 30m", periodId: "p2", completed: false },
+    { id: "t12", title: "Engineering design folio", subjectId: "9", dueDate: in12, type: "assignment", scheduledDate: in5, startTime: "16:30", duration: "1h 30m", periodId: "p2", completed: false },
     { id: "t13", title: "Chemistry revision set", subjectId: "3", dueDate: in7, type: "homework", scheduledDate: in3, startTime: "18:15", duration: "60 min", periodId: "p2", completed: false },
     { id: "t14", title: "Legal Studies quiz", subjectId: "7", dueDate: in14, type: "exam", scheduledDate: in14, startTime: "10:00", duration: "45 min", periodId: "p2", completed: false }
   );
@@ -945,18 +945,19 @@ const makeDemoData = () => {
       id: "s1",
       title: "Calculus practice",
       subjectId: "1",
-      date: today,
+      date: yesterday,
       startTime: "17:00",
       duration: "60 min",
       linkedTaskId: "t1",
-      completed: false,
+      completed: true,
+      completedAt: yesterday,
     },
-    { id: "s2", title: "Physics review", subjectId: "2", date: tomorrow, startTime: "18:00", duration: "45 min", linkedTaskId: "t3", completed: false },
-    { id: "s3", title: "Chemistry flashcards", subjectId: "3", date: in2, startTime: "16:30", duration: "30 min", linkedTaskId: "t13", completed: false },
-    { id: "s4", title: "English essay planning", subjectId: "4", date: in3, startTime: "17:15", duration: "45 min", linkedTaskId: "t2", completed: false },
-    { id: "s5", title: "Economics essay plan", subjectId: "6", date: in5, startTime: "18:30", duration: "50 min", linkedTaskId: "t11", completed: false },
-    { id: "s6", title: "Legal Studies case review", subjectId: "7", date: in7, startTime: "17:00", duration: "40 min", linkedTaskId: "t14", completed: false },
-    { id: "s7", title: "Physics practice questions", subjectId: "2", date: in10, startTime: "16:45", duration: "60 min", linkedTaskId: "t3", completed: false },
+    { id: "s2", title: "Physics review", subjectId: "2", date: twoDaysAgo, startTime: "18:00", duration: "45 min", linkedTaskId: "t3", completed: true, completedAt: twoDaysAgo },
+    { id: "s3", title: "Chemistry practical prep", subjectId: "3", date: yesterday, startTime: "16:30", duration: "30 min", linkedTaskId: "t2", completed: true, completedAt: yesterday },
+    { id: "s4", title: "English paragraph planning", subjectId: "4", date: twoDaysAgo, startTime: "17:15", duration: "45 min", linkedTaskId: "t4", completed: true, completedAt: twoDaysAgo },
+    { id: "s5", title: "Economics budget questions", subjectId: "6", date: tomorrow, startTime: "18:30", duration: "50 min", linkedTaskId: "t11", completed: false },
+    { id: "s6", title: "Legal Studies case review", subjectId: "7", date: in2, startTime: "17:00", duration: "40 min", linkedTaskId: "t10", completed: false },
+    { id: "s7", title: "Physics practice questions", subjectId: "2", date: in5, startTime: "16:45", duration: "60 min", linkedTaskId: "t3", completed: false },
   ];
 
   tasks.push(
@@ -1320,6 +1321,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             date: hydrateDate(s?.date),
             startTime: String(s?.startTime ?? "16:00"),
             duration: String(s?.duration ?? "60 min"),
+            completed:
+              typeof s?.completed === "boolean"
+                ? s.completed
+                : hydrateDate(s?.date).getTime() <= Date.now(),
             completedAt: s?.completedAt ? hydrateDate(s.completedAt) : undefined,
           }))
         : []
@@ -1845,7 +1850,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       },
     ]);
     if (mode === "app" && isSignedIn) {
-      trackProductEvent("study_session_created", { linkedToTask: Boolean(session.linkedTaskId) });
+      trackProductEvent("study_session_created", {
+        linkedToTask: Boolean(session.linkedTaskId),
+        status: session.completed ? "completed" : "planned",
+      });
+      if (session.completed) {
+        trackProductEvent("study_session_completed", { linkedToTask: Boolean(session.linkedTaskId) });
+      }
     }
   };
 

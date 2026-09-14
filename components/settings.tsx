@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { CalendarImports } from "./calendar/CalendarImports";
 import { trackProductEvent } from "@/lib/productAnalytics";
-import PWAInstaller from "./PWAInstaller";
 
 import type {
   Subject,
@@ -1385,7 +1384,7 @@ export function Settings({
                           {subject.name}
                         </div>
                         <div className="mt-0.5 text-xs text-muted-foreground">
-                          {tasks.filter((t) => t.subjectId === subject.id).length} linked items
+                          {tasks.filter((t) => t.subjectId === subject.id).length} linked {tasks.filter((t) => t.subjectId === subject.id).length === 1 ? "item" : "items"}
                         </div>
                       </div>
 
@@ -2451,8 +2450,6 @@ export function Settings({
             </div>
           ) : null}
         </div>
-
-        <PWAInstaller />
 
         <div className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <div className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">

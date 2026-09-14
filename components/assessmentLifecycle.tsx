@@ -55,7 +55,7 @@ export const getAssessmentPreparationStats = (
   let lastStudiedAt: Date | null = null;
 
   for (const session of studySessions) {
-    if (session.linkedTaskId !== taskId) continue;
+    if (session.linkedTaskId !== taskId || !session.completed) continue;
     minutes += parseStudyDurationMinutes(session.duration);
     sessions += 1;
     if (!lastStudiedAt || session.date.getTime() > lastStudiedAt.getTime()) {
@@ -110,7 +110,7 @@ export const getAssessmentLifecycle = (
     return {
       state: "due-soon",
       label: daysUntilDue === 0 ? "Due today" : "Due soon",
-      actionLabel: stats.sessions > 0 ? "Continue studying" : "Study now",
+      actionLabel: stats.sessions > 0 ? "Plan more prep" : "Plan preparation",
       daysUntilDue,
       stats,
     };
@@ -120,7 +120,7 @@ export const getAssessmentLifecycle = (
     return {
       state: "preparing",
       label: "Preparing",
-      actionLabel: "Continue studying",
+      actionLabel: "Plan more prep",
       daysUntilDue,
       stats,
     };
@@ -129,7 +129,7 @@ export const getAssessmentLifecycle = (
   return {
     state: "upcoming",
     label: "Upcoming",
-    actionLabel: "Start preparing",
+    actionLabel: "Plan preparation",
     daysUntilDue,
     stats,
   };

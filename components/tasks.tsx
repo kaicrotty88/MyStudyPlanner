@@ -238,9 +238,9 @@ export function Tasks({
   const [assessmentAddedMessage, setAssessmentAddedMessage] = useState<string | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<TaskSectionType, boolean>>({
-    homework: false,
-    assignment: false,
-    exam: false,
+    homework: true,
+    assignment: true,
+    exam: true,
     personal: false,
   });
 
@@ -330,7 +330,7 @@ export function Tasks({
 
   const getMinutesStudiedForTask = (taskId: string) =>
     studySessions
-      .filter((s) => s.linkedTaskId === taskId)
+      .filter((s) => s.linkedTaskId === taskId && s.completed)
       .reduce((sum, s) => sum + parseDurationToMinutes(s.duration), 0);
 
   const getSectionAccentColor = () => {
@@ -448,7 +448,7 @@ export function Tasks({
 
       if (type === "assignment" || type === "exam") {
         setAssessmentAddedMessage(
-          `${formData.title.trim()} is now connected to Calendar, Study, and Marks.`
+          `${formData.title.trim()} has been added. Open Study when you are ready to plan preparation.`
         );
         window.setTimeout(() => setAssessmentAddedMessage(null), 4500);
       }
@@ -502,7 +502,9 @@ export function Tasks({
         <div className="mt-1 text-xs text-muted-foreground">
           {type === "personal"
             ? "Personal tasks do not need a subject."
-            : "School tasks use subject colours across Calendar and Tasks."}
+            : type === "assignment" || type === "exam"
+              ? "Add the deadline first. Plan preparation separately when you are ready."
+              : "School tasks use subject colours across Calendar and Tasks."}
         </div>
       </div>
 
@@ -571,6 +573,7 @@ export function Tasks({
         <FieldError message={formErrors.dueDate} />
       </div>
 
+      {(editingId || (type !== "assignment" && type !== "exam")) ? (
       <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
         <div className="flex items-start gap-2">
           <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card">
@@ -694,6 +697,7 @@ export function Tasks({
           ) : null}
         </div>
       </div>
+      ) : null}
 
       <div className="flex gap-2 pt-1">
         <button
@@ -1015,7 +1019,7 @@ export function Tasks({
 
       {assessmentAddedMessage ? (
         <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3">
-          <div className="text-sm font-semibold text-foreground">Assessment connected</div>
+          <div className="text-sm font-semibold text-foreground">Assessment added</div>
           <div className="mt-1 text-xs text-muted-foreground">{assessmentAddedMessage}</div>
         </div>
       ) : null}
