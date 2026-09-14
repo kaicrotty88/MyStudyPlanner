@@ -567,32 +567,31 @@ export function Tasks({
           {type === "personal" ? "Date" : "Due date"}
           <RequiredMark required />
         </label>
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input
-            id={`task-date-${type}`}
-            type="date"
-            value={formData.dueDate}
-            onChange={(e) => {
-              setFormData((p) => ({ ...p, dueDate: e.target.value }));
-              clearError("dueDate");
-            }}
-            className={[inputBase, formErrors.dueDate ? inputErr : inputOk].join(" ")}
-            aria-invalid={!!formErrors.dueDate}
-          />
-          <button
-            type="button"
-            className="app-btn-secondary h-11 whitespace-nowrap px-3"
-            onClick={() => {
-              const base = formData.dueDate ? new Date(`${formData.dueDate}T12:00:00`) : new Date();
-              setDueDatePickerMonth(new Date(base.getFullYear(), base.getMonth(), 1));
-              setDueDatePickerOpen(true);
-            }}
-          >
+        <button
+          id={`task-date-${type}`}
+          type="button"
+          className={[
+            "flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border bg-input-background px-4 py-2.5 text-left text-sm transition hover:border-primary/35 hover:bg-primary/[0.025] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+            formErrors.dueDate ? inputErr : inputOk,
+          ].join(" ")}
+          onClick={() => {
+            const base = formData.dueDate ? new Date(`${formData.dueDate}T12:00:00`) : new Date();
+            setDueDatePickerMonth(new Date(base.getFullYear(), base.getMonth(), 1));
+            setDueDatePickerOpen(true);
+          }}
+          aria-invalid={!!formErrors.dueDate}
+        >
+          <span className={formData.dueDate ? "font-medium text-foreground" : "text-muted-foreground"}>
+            {formData.dueDate
+              ? new Date(`${formData.dueDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+              : `Choose ${type === "personal" ? "date" : "due date"} on calendar`}
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-primary">
             <Calendar className="h-4 w-4" />
-            Choose on calendar
-          </button>
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">Type a date or choose it visually on the calendar.</div>
+            {formData.dueDate ? "Change" : "Choose"}
+          </span>
+        </button>
+        <div className="mt-1.5 text-xs text-muted-foreground">Click above, then choose the day from the calendar.</div>
         <FieldError message={formErrors.dueDate} />
       </div>
 

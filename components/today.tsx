@@ -127,7 +127,6 @@ export function Today({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [finishNote, setFinishNote] = useState("");
-  const [manualMinutes, setManualMinutes] = useState("");
 
   useEffect(() => {
     try {
@@ -200,12 +199,11 @@ export function Today({
   };
 
   const finishTimer = () => {
-    setManualMinutes(String(Math.max(1, Math.round(elapsedSeconds / 60))));
     setFinishOpen(true);
   };
 
   const saveTimer = () => {
-    const actual = Math.max(1, Number(manualMinutes) || Math.round(elapsedSeconds / 60));
+    const actual = Math.max(1, Math.round(elapsedSeconds / 60));
     const actualDuration = `${actual} min`;
     const linkedTask = timer.linkedTaskId ? tasks.find((task) => task.id === timer.linkedTaskId) : undefined;
     const existing = timer.plannedSessionId ? studySessions.find((session) => session.id === timer.plannedSessionId) : undefined;
@@ -236,7 +234,6 @@ export function Today({
     setTimer(EMPTY_TIMER);
     setFinishOpen(false);
     setFinishNote("");
-    setManualMinutes("");
   };
 
   const dayItems = useMemo(() => {
@@ -347,6 +344,13 @@ export function Today({
       <section className="relative overflow-hidden rounded-[32px] border border-border/80 bg-card px-5 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.04)] sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/[0.035] to-transparent" />
         <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
+          <div className="mb-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
+            Choose what you're studying
+            <span className="mx-1 text-border">→</span>
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
+            Start the timer
+          </div>
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
@@ -397,60 +401,58 @@ export function Today({
       </section>
 
       <section className="mx-auto w-full max-w-4xl">
-        <div className="flex items-end justify-between gap-3 border-b border-border pb-3">
+        <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Your day</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Classes, study and calendar events in time order.</p>
+            <h2 className="text-base font-semibold text-foreground">Today at a glance</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Only what is coming up next. Use Calendar for your full day.</p>
           </div>
-          {allDayItems.length > 0 ? <div className="text-xs text-muted-foreground">{allDayItems.length} all-day</div> : null}
         </div>
 
         {allDayItems.length > 0 ? (
-          <div className="border-b border-border py-3">
-            <div className="flex flex-wrap gap-2">
-              {allDayItems.map((item) => (
-                <div key={item.id} className="rounded-full border border-border bg-muted/25 px-3 py-1.5 text-xs text-foreground">
-                  <span className="font-medium">{item.label}</span>
-                  {item.subject ? <span className="ml-1 text-muted-foreground">· {item.subject}</span> : null}
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-2 border-b border-border py-3">
+            {allDayItems.slice(0, 3).map((item) => (
+              <div key={item.id} className="rounded-full bg-muted/35 px-3 py-1.5 text-xs text-foreground">
+                <span className="font-medium">{item.label}</span>
+                {item.subject ? <span className="ml-1 text-muted-foreground">· {item.subject}</span> : null}
+              </div>
+            ))}
           </div>
         ) : null}
 
-        {dayItems.length === 0 ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Nothing scheduled today. Your study timer is ready whenever you are.</div>
+        {dayItems.filter((item) => item.sort >= currentMinutes - 5).length === 0 ? (
+          <div className="py-7 text-sm text-muted-foreground">Nothing else scheduled today. Your study timer is ready whenever you are.</div>
         ) : (
           <div className="divide-y divide-border">
-            {dayItems.map((item) => {
-              const past = item.sort < currentMinutes - 5;
-              return (
-                <div key={item.id} className={["group flex items-center gap-4 py-4 transition", past ? "opacity-45" : "opacity-100"].join(" ")}>
+            {dayItems
+              .filter((item) => item.sort >= currentMinutes - 5)
+              .slice(0, 4)
+              .map((item, index) => (
+                <div key={item.id} className="flex items-center gap-4 py-3.5">
                   <div className="w-[72px] shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">{displayTime(item.time)}</div>
-                  <div className="relative flex min-w-0 flex-1 items-center gap-3">
-                    <span className="h-9 w-1 shrink-0 rounded-full" style={{ backgroundColor: item.color ?? "#94a3b8" }} />
-                    <div className="min-w-0 flex-1">
+                  <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: item.color ?? "#94a3b8" }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
                       <div className="truncate text-sm font-semibold text-foreground">{item.title}</div>
-                      {item.subtitle ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{item.subtitle}</div> : null}
+                      {index === 0 ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Next</span> : null}
                     </div>
-                    {item.kind === "study" && item.session && !past ? (
-                      <button
-                        type="button"
-                        className="app-btn-secondary h-9 shrink-0 px-3 text-xs"
-                        onClick={() => beginTimer({
-                          subjectId: item.session!.subjectId,
-                          linkedTaskId: item.session!.linkedTaskId,
-                          plannedSessionId: item.session!.id,
-                          title: item.session!.title || "Study session",
-                        })}
-                      >
-                        Start
-                      </button>
-                    ) : null}
+                    {item.subtitle ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{item.subtitle}</div> : null}
                   </div>
+                  {item.kind === "study" && item.session ? (
+                    <button
+                      type="button"
+                      className="app-btn-secondary h-9 shrink-0 px-3 text-xs"
+                      onClick={() => beginTimer({
+                        subjectId: item.session!.subjectId,
+                        linkedTaskId: item.session!.linkedTaskId,
+                        plannedSessionId: item.session!.id,
+                        title: item.session!.title || "Study session",
+                      })}
+                    >
+                      Start
+                    </button>
+                  ) : null}
                 </div>
-              );
-            })}
+              ))}
           </div>
         )}
       </section>
@@ -528,8 +530,11 @@ export function Today({
               <div className="mt-1 text-xs text-muted-foreground">Confirm what you actually studied. This is the time that counts in Insights.</div>
             </div>
             <div className="p-5">
-              <label className="text-sm font-medium text-foreground">Actual minutes</label>
-              <input type="number" min="1" value={manualMinutes} onChange={(event) => setManualMinutes(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-border bg-input-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+              <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recorded by timer</div>
+                <div className="mt-1 font-mono text-2xl font-semibold text-foreground">{formatSeconds(elapsedSeconds)}</div>
+                <div className="mt-1 text-xs text-muted-foreground">This exact session time will be saved automatically.</div>
+              </div>
               <label className="mt-4 block text-sm font-medium text-foreground">What did you work on? <span className="font-normal text-muted-foreground">Optional</span></label>
               <textarea rows={3} value={finishNote} onChange={(event) => setFinishNote(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
               <div className="mt-5 flex gap-2">

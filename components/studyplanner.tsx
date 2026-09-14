@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Edit2, Trash2, X, CheckCircle2, Link2, Lock, Sparkles } from "lucide-react";
+import { Edit2, Trash2, X, Link2, Lock, Sparkles } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { StudyInsights } from "./studyinsights";
 import { trackProductEvent } from "@/lib/productAnalytics";
@@ -176,10 +176,7 @@ export function StudyPlanner({
   const [targetTaskId, setTargetTaskId] = useState<string | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [targetHours, setTargetHours] = useState("3");
-  const [completeSessionId, setCompleteSessionId] = useState<string | null>(null);
   const [showCompletedStudy, setShowCompletedStudy] = useState(false);
-  const [actualMinutes, setActualMinutes] = useState("");
-  const [completionNote, setCompletionNote] = useState("");
 
   const getSubjectById = (id?: string) => (id ? subjects.find((s) => s.id === id) : undefined);
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
@@ -282,31 +279,6 @@ export function StudyPlanner({
     onUpdateTask(task.id, { ...task, targetStudyMinutes: Math.round(hours * 60) });
     setTargetTaskId(null);
   };
-
-  const openCompletion = (session: StudySession) => {
-    setCompleteSessionId(session.id);
-    setActualMinutes(String(parseDurationToMinutes(session.duration)));
-    setCompletionNote(session.notes ?? "");
-  };
-
-  const saveCompletion = () => {
-    if (!completeSessionId) return;
-    const session = studySessions.find((item) => item.id === completeSessionId);
-    if (!session) return;
-    const minutes = Math.max(1, Number(actualMinutes) || parseDurationToMinutes(session.duration));
-    onUpdateStudySession(session.id, {
-      ...session,
-      plannedDuration: session.plannedDuration ?? session.duration,
-      duration: `${minutes} min`,
-      notes: completionNote.trim() || session.notes,
-      completed: true,
-      completedAt: new Date(),
-    });
-    setCompleteSessionId(null);
-    setActualMinutes("");
-    setCompletionNote("");
-  };
-
 
   const openLogForTask = (task: Task) => {
     setSessionIntent("log");
@@ -488,11 +460,10 @@ export function StudyPlanner({
           </div>
         </div>
 
-        {studyView !== "insights" ? (
+        {studyView !== "insights" && onGoToToday ? (
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={openNew} className="app-btn-primary h-9 px-4" type="button">
-              <CheckCircle2 className="h-4 w-4" />
-              Log completed study
+            <button onClick={onGoToToday} className="app-btn-primary h-9 px-4" type="button">
+              Study with timer
             </button>
           </div>
         ) : null}
@@ -500,14 +471,6 @@ export function StudyPlanner({
 
       {studyView === "focus" ? (
         <>
-          <div className="flex justify-end">
-            {onGoToToday ? (
-              <button type="button" className="app-btn-primary h-10 px-4" onClick={onGoToToday}>
-                Study now
-              </button>
-            ) : null}
-          </div>
-
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="border-b border-border px-5 py-4">
               <div className="text-sm font-semibold text-foreground">Upcoming assessments</div>
@@ -605,8 +568,37 @@ export function StudyPlanner({
                     {onGoToToday ? <button type="button" className="app-btn-primary" onClick={onGoToToday}>Study now</button> : null}
                     {onPlanStudy ? <button type="button" className="app-btn-secondary" onClick={() => { setDetailTaskId(null); onPlanStudy(task.id); }}>Plan study</button> : null}
                     <button type="button" className="app-btn-secondary" onClick={() => { setDetailTaskId(null); openLogForTask(task); }}>Log study</button>
-                    <button type="button" className="app-btn-ghost" onClick={() => { setTargetTaskId(task.id); setTargetHours(String((targetMinutes / 60).toFixed(targetMinutes % 60 === 0 ? 0 : 1))); }}>Edit target</button>
+                    <button
+                      type="button"
+                      className="app-btn-ghost"
+                      onClick={() => {
+                        setTargetTaskId(task.id);
+                        setTargetHours(String((targetMinutes / 60).toFixed(targetMinutes % 60 === 0 ? 0 : 1)));
+                      }}
+                    >
+                      Edit target
+                    </button>
                   </div>
+
+                  {targetTaskId === task.id ? (
+                    <div className="mt-4 rounded-2xl border border-border bg-muted/[0.12] p-4">
+                      <div className="text-sm font-semibold text-foreground">Study target</div>
+                      <div className="mt-1 text-xs text-muted-foreground">Set the total preparation time you want for this assessment.</div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0.25"
+                          step="0.25"
+                          value={targetHours}
+                          onChange={(event) => setTargetHours(event.target.value)}
+                          className="h-10 w-28 rounded-xl border border-border bg-input-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                        <span className="text-sm text-muted-foreground">hours</span>
+                        <button type="button" className="app-btn-primary ml-auto h-10 px-4" onClick={saveStudyTarget}>Save</button>
+                        <button type="button" className="app-btn-ghost h-10 px-3" onClick={() => setTargetTaskId(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );
@@ -728,13 +720,15 @@ export function StudyPlanner({
                           ) : null}
                         </div>
                         <div className="flex shrink-0 items-center gap-1 opacity-80 transition group-hover:opacity-100 group-focus-within:opacity-100">
-                          <button
-                            type="button"
-                            onClick={() => openCompletion(session)}
-                            className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Mark complete
-                          </button>
+                          {onGoToToday ? (
+                            <button
+                              type="button"
+                              onClick={onGoToToday}
+                              className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            >
+                              Start with timer
+                            </button>
+                          ) : null}
                           <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button">
                             <Edit2 className="h-4 w-4 text-foreground" />
                           </button>
@@ -783,7 +777,7 @@ export function StudyPlanner({
         />
       )}
 
-      {targetTaskId ? (
+      {targetTaskId && targetTaskId !== detailTaskId ? (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/40 p-4" onMouseDown={() => setTargetTaskId(null)}>
           <div className="app-card w-full max-w-sm p-5" onMouseDown={(event) => event.stopPropagation()}>
             <div className="text-lg font-semibold text-foreground">Study target</div>
@@ -791,20 +785,6 @@ export function StudyPlanner({
             <label className="mt-5 block text-sm font-medium text-foreground">Target hours</label>
             <input type="number" min="0.25" step="0.25" value={targetHours} onChange={(event) => setTargetHours(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
             <div className="mt-5 flex gap-2"><button type="button" className="app-btn-primary flex-1" onClick={saveStudyTarget}>Save target</button><button type="button" className="app-btn-secondary" onClick={() => setTargetTaskId(null)}>Cancel</button></div>
-          </div>
-        </div>
-      ) : null}
-
-      {completeSessionId ? (
-        <div className="fixed inset-0 z-[75] grid place-items-center bg-black/40 p-4" onMouseDown={() => setCompleteSessionId(null)}>
-          <div className="app-card w-full max-w-md p-5" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="text-lg font-semibold text-foreground">How much did you actually study?</div>
-            <div className="mt-1 text-sm text-muted-foreground">The planned duration stays saved separately. Insights only counts your actual completed time.</div>
-            <label className="mt-5 block text-sm font-medium text-foreground">Actual minutes</label>
-            <input type="number" min="1" value={actualMinutes} onChange={(event) => setActualMinutes(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
-            <label className="mt-4 block text-sm font-medium text-foreground">What did you work on? <span className="font-normal text-muted-foreground">Optional</span></label>
-            <textarea rows={3} value={completionNote} onChange={(event) => setCompletionNote(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
-            <div className="mt-5 flex gap-2"><button type="button" className="app-btn-primary flex-1" onClick={saveCompletion}>Save completed study</button><button type="button" className="app-btn-secondary" onClick={() => setCompleteSessionId(null)}>Cancel</button></div>
           </div>
         </div>
       ) : null}
