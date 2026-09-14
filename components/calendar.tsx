@@ -632,6 +632,7 @@ function CalendarView({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [assessmentDetailTaskId, setAssessmentDetailTaskId] = useState<string | null>(null);
   const [planningSlot, setPlanningSlot] = useState<{ date: Date; startTime: string } | null>(null);
+  const [planningDurationMinutes, setPlanningDurationMinutes] = useState(60);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -1774,7 +1775,7 @@ function CalendarView({
                   "min-h-[96px] border-r border-b border-border p-1.5 text-left transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                   planningStudyTask
-                    ? (isPlanningDateEligible(date) ? "cursor-pointer bg-primary/[0.035] hover:bg-primary/[0.075] ring-1 ring-inset ring-primary/10" : "cursor-not-allowed bg-muted/10 opacity-45")
+                    ? (isPlanningDateEligible(date) ? "cursor-pointer bg-primary/[0.09] hover:bg-primary/[0.14] ring-2 ring-inset ring-primary/25" : "cursor-not-allowed bg-muted/10 opacity-45")
                     : (isOtherMonth ? "cursor-pointer bg-muted/10 text-muted-foreground" : "cursor-pointer bg-card hover:bg-muted/25"),
                   isToday ? "bg-primary/[0.04]" : "",
                 ].join(" ")}
@@ -1890,7 +1891,7 @@ function CalendarView({
                   onClick={() => openAddMenuForDate(date)}
                   className={[
                     "border-r border-border px-2 py-3 text-center transition",
-                    planningStudyTask ? (isPlanningDateEligible(date) ? "bg-primary/[0.04] hover:bg-primary/[0.08]" : "opacity-45") : "hover:bg-muted/30",
+                    planningStudyTask ? (isPlanningDateEligible(date) ? "bg-primary/[0.10] hover:bg-primary/[0.16] ring-1 ring-inset ring-primary/20" : "opacity-45") : "hover:bg-muted/30",
                     isToday ? "bg-primary/[0.04]" : "",
                   ].join(" ")}
                 >
@@ -1972,7 +1973,7 @@ function CalendarView({
                     }}
                     className={[
                       "relative border-r border-border bg-card text-left",
-                      planningStudyTask ? (isPlanningDateEligible(date) ? "cursor-crosshair bg-primary/[0.025] hover:bg-primary/[0.05]" : "cursor-not-allowed opacity-45") : "cursor-pointer",
+                      planningStudyTask ? (isPlanningDateEligible(date) ? "cursor-crosshair bg-primary/[0.07] hover:bg-primary/[0.12] ring-1 ring-inset ring-primary/15" : "cursor-not-allowed opacity-45") : "cursor-pointer",
                       isToday ? "bg-primary/[0.025]" : "",
                     ].join(" ")}
                     style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
@@ -2086,7 +2087,7 @@ function CalendarView({
               }}
               className={[
                 "relative bg-card text-left",
-                planningStudyTask ? (isPlanningDateEligible(currentDate) ? "cursor-crosshair bg-primary/[0.025]" : "cursor-not-allowed opacity-45") : "cursor-pointer",
+                planningStudyTask ? (isPlanningDateEligible(currentDate) ? "cursor-crosshair bg-primary/[0.07] ring-1 ring-inset ring-primary/15" : "cursor-not-allowed opacity-45") : "cursor-pointer",
                 isToday ? "bg-primary/[0.025]" : "",
               ].join(" ")}
               style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
@@ -2232,13 +2233,20 @@ function CalendarView({
       </div>
 
       {planningStudyTask ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/[0.035] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-foreground">Plan study · {subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? planningStudyTask.title}</div>
-            <div className="mt-1 text-xs text-muted-foreground">Click any highlighted day before the due date. In Week or Day view, click the exact time you want.</div>
-            {planningStudySummary ? <div className="mt-1 text-xs font-medium text-foreground">{planningStudySummary.unscheduled > 0 ? `${formatMinutes(planningStudySummary.unscheduled)} still to schedule` : "Target fully scheduled"}</div> : null}
+        <div className="sticky top-3 z-30 overflow-hidden rounded-2xl border-2 border-primary/35 bg-card shadow-xl shadow-black/5">
+          <div className="h-1 bg-primary" />
+          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Planning mode</span>
+                <span className="text-xs text-muted-foreground">Due {planningStudyTask.dueDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+              </div>
+              <div className="mt-2 truncate text-base font-semibold text-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? planningStudyTask.title} · {planningStudyTask.type === "exam" ? "Exam" : "Assignment"}</div>
+              <div className="mt-1 text-sm text-muted-foreground">Highlighted dates are available. Click a day, or click the exact time in Week/Day view, to place study there.</div>
+              {planningStudySummary ? <div className="mt-2 text-sm font-semibold text-foreground">{planningStudySummary.unscheduled > 0 ? `${formatMinutes(planningStudySummary.unscheduled)} still needs to be scheduled` : "Your study target is fully scheduled"}</div> : null}
+            </div>
+            <button type="button" className="app-btn-primary h-10 shrink-0 px-4" onClick={onPlanningStudyHandled}>Done planning</button>
           </div>
-          <button type="button" className="app-btn-secondary h-9 px-3" onClick={onPlanningStudyHandled}>Done planning</button>
         </div>
       ) : null}
 
@@ -2291,16 +2299,36 @@ function CalendarView({
 
 
       {planningSlot && planningStudyTask ? (
-        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/30 p-4" onMouseDown={() => setPlanningSlot(null)}>
-          <div className="app-card w-full max-w-sm p-5" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="text-base font-semibold text-foreground">Add study</div>
-            <div className="mt-1 text-sm text-muted-foreground">{planningSlot.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })} · {displayTime(planningSlot.startTime)}</div>
-            <div className="mt-5 grid grid-cols-4 gap-2">
-              {[30, 45, 60, 90].map((minutes) => (
-                <button key={minutes} type="button" className="rounded-xl border border-border bg-card px-3 py-3 text-sm font-medium text-foreground transition hover:border-primary/35 hover:bg-primary/[0.04]" onClick={() => addPlanningSession(minutes)}>{minutes}m</button>
-              ))}
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]" onMouseDown={() => setPlanningSlot(null)}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="border-b border-border px-5 py-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Add study session</div>
+              <div className="mt-1 text-lg font-semibold text-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? planningStudyTask.title}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{planningSlot.date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} · {displayTime(planningSlot.startTime)}</div>
             </div>
-            <button type="button" className="app-btn-ghost mt-4 w-full" onClick={() => setPlanningSlot(null)}>Cancel</button>
+            <div className="px-5 py-5">
+              <div className="text-sm font-medium text-foreground">How long do you want to study?</div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[30, 45, 60, 90, 120, 180].map((minutes) => (
+                  <button key={minutes} type="button" onClick={() => setPlanningDurationMinutes(minutes)} className={[
+                    "rounded-xl border px-3 py-2.5 text-sm font-medium transition",
+                    planningDurationMinutes === minutes ? "border-primary/45 bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-muted/40",
+                  ].join(" ")}>{formatMinutes(minutes)}</button>
+                ))}
+              </div>
+              <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-muted/[0.10] p-2">
+                <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-lg text-foreground transition hover:bg-muted" onClick={() => setPlanningDurationMinutes((value) => Math.max(15, value - 15))}>−</button>
+                <label className="flex items-baseline gap-2">
+                  <input aria-label="Study duration in minutes" type="number" min="15" step="15" value={planningDurationMinutes} onChange={(event) => setPlanningDurationMinutes(Math.max(15, Number(event.target.value) || 15))} className="w-20 bg-transparent text-center text-2xl font-semibold text-foreground outline-none" />
+                  <span className="text-xs font-medium text-muted-foreground">minutes</span>
+                </label>
+                <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-lg text-foreground transition hover:bg-muted" onClick={() => setPlanningDurationMinutes((value) => value + 15)}>+</button>
+              </div>
+              <div className="mt-5 flex gap-2">
+                <button type="button" className="app-btn-primary flex-1" onClick={() => addPlanningSession(planningDurationMinutes)}>Add {formatMinutes(planningDurationMinutes)} study</button>
+                <button type="button" className="app-btn-secondary" onClick={() => setPlanningSlot(null)}>Cancel</button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

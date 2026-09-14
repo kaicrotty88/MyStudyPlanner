@@ -2219,6 +2219,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}
+            importedCalendarEvents={importedCalendarEvents}
             onAddStudySession={handleAddStudySession}
             onUpdateStudySession={handleUpdateStudySession}
             onToggleTaskCompleted={toggleTaskCompleted}

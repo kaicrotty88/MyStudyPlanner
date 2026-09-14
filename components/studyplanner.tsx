@@ -177,6 +177,7 @@ export function StudyPlanner({
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [targetHours, setTargetHours] = useState("3");
   const [completeSessionId, setCompleteSessionId] = useState<string | null>(null);
+  const [showCompletedStudy, setShowCompletedStudy] = useState(false);
   const [actualMinutes, setActualMinutes] = useState("");
   const [completionNote, setCompletionNote] = useState("");
 
@@ -647,60 +648,44 @@ export function StudyPlanner({
           </div>
 
           <div className="space-y-4">
-            <div className="app-card app-session-list overflow-hidden">
-              <div className="app-card-header flex items-center justify-between gap-3 bg-muted/20">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+              <button type="button" onClick={() => setShowCompletedStudy((value) => !value)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-muted/20">
                 <div>
                   <div className="text-sm font-semibold text-foreground">Completed study</div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">Only completed sessions count toward preparation and Insights.</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{completedSessions.length} session{completedSessions.length === 1 ? "" : "s"} · {formatMinutes(totalCompletedMinutesVisible)}</div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {completedSessions.length} session{completedSessions.length === 1 ? "" : "s"} · <span className="font-semibold text-foreground">{formatMinutes(totalCompletedMinutesVisible)}</span>
-                </div>
-              </div>
+                <span className="text-xs font-medium text-muted-foreground">{showCompletedStudy ? "Hide" : "Show history"}</span>
+              </button>
 
-              {completedSessions.length === 0 ? (
-                <div className="app-empty-state border-0">
-                  <div className="text-sm font-medium text-foreground">No completed study yet</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Log completed study or mark a planned session complete.</div>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {completedSessions.map((session) => {
-                    const subject = getSubjectById(session.subjectId);
-                    const mins = parseDurationToMinutes(session.duration);
-                    const linked = session.linkedTaskId ? getTaskById(session.linkedTaskId) : undefined;
-                    return (
-                      <div key={session.id} className="app-session-row group flex items-start justify-between gap-4 px-5 py-3.5 transition">
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium text-foreground">{session.title}</div>
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span>{formatMinutes(mins)} • {session.startTime}</span>
-                            <span>• {session.date.toLocaleDateString()}</span>
-                            {subject ? <span>• {subject.name}</span> : null}
-                          </div>
-                          {linked ? (
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                              <span className="inline-flex items-center gap-1"><Link2 className="h-3.5 w-3.5" />Linked:</span>
-                              <span className="text-foreground/90">{typeLabel(linked.type)} • {linked.title}</span>
+              {showCompletedStudy ? (
+                completedSessions.length === 0 ? (
+                  <div className="border-t border-border px-5 py-5 text-sm text-muted-foreground">No completed study yet.</div>
+                ) : (
+                  <div className="divide-y divide-border border-t border-border">
+                    {completedSessions.map((session) => {
+                      const subject = getSubjectById(session.subjectId);
+                      const mins = parseDurationToMinutes(session.duration);
+                      const linked = session.linkedTaskId ? getTaskById(session.linkedTaskId) : undefined;
+                      return (
+                        <div key={session.id} className="group flex items-start justify-between gap-4 px-5 py-3.5 transition">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium text-foreground">{session.title}</div>
+                            <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              <span>{formatMinutes(mins)} · {session.date.toLocaleDateString()}</span>
+                              {subject ? <span>· {subject.name}</span> : null}
+                              {linked ? <span>· {typeLabel(linked.type)}</span> : null}
                             </div>
-                          ) : null}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1 opacity-70 transition group-hover:opacity-100">
+                            <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button"><Edit2 className="h-4 w-4 text-foreground" /></button>
+                            <button onClick={() => setDeletingId(session.id)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Delete" type="button"><Trash2 className="h-4 w-4 text-muted-foreground" /></button>
+                          </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-1 opacity-75 transition group-hover:opacity-100 group-focus-within:opacity-100">
-                          <span className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2.5 text-[11px] font-medium text-primary">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Completed
-                          </span>
-                          <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button">
-                            <Edit2 className="h-4 w-4 text-foreground" />
-                          </button>
-                          <button onClick={() => setDeletingId(session.id)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Delete" type="button">
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )
+              ) : null}
             </div>
 
             <div className="app-card app-session-list overflow-hidden">
