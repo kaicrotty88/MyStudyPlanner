@@ -489,7 +489,7 @@ export function StudyPlanner({
                             ? "Continue preparing"
                             : lifecycle
                               ? "Start preparing"
-                              : "Best next step"}
+                              : "Recommended next"}
                         </div>
                         {lifecycle ? (
                           <AssessmentLifecycleBadge state={lifecycle.state} label={lifecycle.label} />

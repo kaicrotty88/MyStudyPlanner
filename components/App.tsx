@@ -1959,23 +1959,23 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         <div className="app-shell-header-grid app-shell-header-grid-polished">
           <Link
             href={mode === "demo" ? "/demo" : "/app"}
-            className="group flex min-w-0 items-center gap-2.5"
+            className="group flex min-w-0 items-center gap-2"
           >
-            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-[10px] shadow-sm ring-1 ring-border/60 transition-transform group-hover:scale-[1.02]">
+            <div className="relative h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[9px] shadow-sm ring-1 ring-border/60 transition-transform group-hover:scale-[1.02]">
               <Image
                 src={appIcon}
                 alt="MyStudyPlanner"
                 fill
-                sizes="36px"
+                sizes="34px"
                 className="object-cover"
                 priority
               />
             </div>
             <div className="min-w-0 leading-tight">
-              <div className="truncate text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+              <div className="truncate text-[16px] font-semibold tracking-[-0.02em] text-foreground">
                 MyStudyPlanner
               </div>
-              <div className="mt-0.5 hidden text-[11px] font-medium text-muted-foreground/90 sm:block">
+              <div className="mt-px hidden text-[10px] font-medium tracking-[0.01em] text-muted-foreground/80 sm:block">
                 Made by students, for students
               </div>
             </div>
