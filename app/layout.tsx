@@ -5,7 +5,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/react";
 import GoogleAnalyticsPageView from "@/components/GoogleAnalyticsPageView";
-import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 
 const GA_MEASUREMENT_ID = "G-1ZLJMK2TLL";
@@ -32,17 +31,6 @@ export const metadata: Metadata = {
   },
   description: defaultDescription,
   applicationName: "MyStudyPlanner",
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "MyStudyPlanner",
-  },
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
   robots: {
     index: true,
     follow: true,
@@ -130,7 +118,6 @@ export default function RootLayout({
             <GoogleAnalyticsPageView />
           </Suspense>
 
-          <PWARegister />
           {children}
           <Analytics />
         </ClerkProvider>

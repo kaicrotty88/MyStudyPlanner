@@ -1,11 +1,28 @@
-import { SignUp } from "@clerk/nextjs";
+import { ClerkLoaded, ClerkLoading, SignUp } from "@clerk/nextjs";
 import AuthShell from "@/components/AuthShell";
 import Link from "next/link";
 
 export default function Page() {
   return (
-    <AuthShell title="Create your account" subtitle="Set up once, use it every day.">
+    <AuthShell title="Create your account" subtitle="Add your schoolwork once. MyStudyPlanner keeps the rest connected.">
       <div className="clerk-embed">
+        <ClerkLoading>
+          <div className="space-y-4" aria-label="Loading sign up form">
+            <div className="h-10 animate-pulse rounded-xl bg-muted" />
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <div className="h-3 w-8 animate-pulse rounded bg-muted" />
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+              <div className="h-10 animate-pulse rounded-xl bg-muted" />
+            </div>
+            <div className="h-10 animate-pulse rounded-xl bg-muted" />
+          </div>
+        </ClerkLoading>
+
+        <ClerkLoaded>
         <SignUp
           appearance={{
             elements: {
@@ -37,6 +54,7 @@ export default function Page() {
             },
           }}
         />
+        </ClerkLoaded>
 
         {/* Switch */}
         <div className="mt-6 text-center text-sm text-muted-foreground">
