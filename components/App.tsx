@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import appIcon from "@/app/icon.png";
 
 import { Calendar } from "./calendar";
 import { Tasks } from "./tasks";
@@ -24,7 +26,7 @@ import type {
   TimetableWeek,
 } from "./models";
 
-import { User, X, Lock, Sparkles } from "lucide-react";
+import { User, X, Lock, Sparkles, Clock3 } from "lucide-react";
 import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -1152,6 +1154,29 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [isReady, setIsReady] = useState(false);
 
   const { isLoaded: userLoaded, isSignedIn, user } = useUser();
+  const [navNow, setNavNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const updateNow = () => setNavNow(new Date());
+    updateNow();
+    const timer = window.setInterval(updateNow, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const navDateLabel = navNow
+    ? new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }).format(navNow)
+    : "";
+
+  const navTimeLabel = navNow
+    ? new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(navNow)
+    : "";
   const { session } = useSession();
 
   const supabase = useMemo(() => {
@@ -1957,11 +1982,23 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         <div className="app-shell-header-grid app-shell-header-grid-polished">
           <Link
             href={mode === "demo" ? "/demo" : "/app"}
-            className="flex items-center gap-3"
+            className="group flex min-w-0 items-center gap-2.5"
           >
-            <div className="leading-tight">
-              <div className="text-[17px] font-semibold tracking-[-0.02em] text-foreground">MyStudyPlanner</div>
-              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground/90">
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-[10px] shadow-sm ring-1 ring-border/60 transition-transform group-hover:scale-[1.02]">
+              <Image
+                src={appIcon}
+                alt="MyStudyPlanner"
+                fill
+                sizes="36px"
+                className="object-cover"
+                priority
+              />
+            </div>
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+                MyStudyPlanner
+              </div>
+              <div className="mt-0.5 hidden text-[11px] font-medium text-muted-foreground/90 sm:block">
                 Made by students, for students
               </div>
             </div>
@@ -1991,6 +2028,34 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           </div>
 
           <div className="flex items-center gap-2">
+            {navNow ? (
+              <div
+                className="hidden items-center gap-2 rounded-xl border border-border/70 bg-background/55 px-3 py-1.5 text-right shadow-sm xl:flex"
+                aria-label={`${navDateLabel}, ${navTimeLabel}`}
+                title={`${navDateLabel}, ${navTimeLabel}`}
+              >
+                <Clock3 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <div className="leading-none">
+                  <div className="text-[12px] font-semibold tabular-nums text-foreground">
+                    {navTimeLabel}
+                  </div>
+                  <div className="mt-1 text-[10px] font-medium text-muted-foreground">
+                    {navDateLabel}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {navNow ? (
+              <div
+                className="hidden text-[12px] font-semibold tabular-nums text-foreground sm:block xl:hidden"
+                aria-label={`${navDateLabel}, ${navTimeLabel}`}
+                title={`${navDateLabel}, ${navTimeLabel}`}
+              >
+                {navTimeLabel}
+              </div>
+            ) : null}
+
             {mode === "demo" ? (
               <span className="app-pill hidden sm:inline-flex">
                 Preview Mode
