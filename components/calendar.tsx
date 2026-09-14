@@ -2100,7 +2100,7 @@ function CalendarView({
   );
 
   return (
-    <div className="app-page-wide app-scroll-page page-accent-calendar space-y-5">
+    <div className="app-page-wide app-scroll-page space-y-5">
       <div className="app-page-header app-page-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="app-page-title">Calendar</h1>

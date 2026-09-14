@@ -316,7 +316,7 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
   };
 
   return (
-    <div className="app-page app-scroll-page page-accent-marks space-y-4">
+    <div className="app-page app-scroll-page space-y-4">
       <div className="space-y-1">
         <h1 className="app-page-title">Marks</h1>
         <p className="app-page-subtitle">

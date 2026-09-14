@@ -1117,7 +1117,7 @@ export function Settings({
   };
 
   return (
-    <div className="app-page app-scroll-page page-accent-settings space-y-4">
+    <div className="app-page app-scroll-page space-y-4">
       <div className="space-y-1">
         <h1 className="app-page-title">Settings</h1>
         <p className="app-page-subtitle">

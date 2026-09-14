@@ -1005,7 +1005,7 @@ export function Tasks({
   };
 
   return (
-    <div className="app-page app-scroll-page page-accent-tasks space-y-4">
+    <div className="app-page app-scroll-page space-y-4">
       <div className="app-page-heading">
         <h1 className="app-page-title">Tasks</h1>
         <p className="app-page-subtitle">

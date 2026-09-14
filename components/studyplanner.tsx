@@ -411,7 +411,7 @@ export function StudyPlanner({
   const showPremiumInsightsLock = studyView === "insights" && !hasPremium;
 
   return (
-    <div className="app-page app-scroll-page page-accent-study space-y-4">
+    <div className="app-page app-scroll-page space-y-4">
       {/* Header */}
       <div className="app-page-heading">
         <h1 className="app-page-title">Study</h1>
