@@ -1160,6 +1160,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }, [session]);
 
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
+  const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
 
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []
@@ -1936,6 +1937,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setActiveTab(tab);
   };
 
+  const openStudyForTask = (taskId: string) => {
+    setStudyTaskToOpen(taskId);
+    setActiveTab("study");
+  };
+
   if (!isReady || !profileLoaded) return <LoadingScreen />;
 
   return (
@@ -2188,6 +2194,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateStudySession={handleUpdateStudySession}
             onDeleteStudySession={handleDeleteStudySession}
             onToggleStudySessionCompleted={handleToggleSessionCompleted}
+            onStudyTask={openStudyForTask}
+            onViewTasks={() => setActiveTab("tasks")}
+            onViewMarks={() => setActiveTab("marks")}
           />
         ) : null}
 
@@ -2200,6 +2209,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
             onToggleCompleted={toggleTaskCompleted}
+            onStudyTask={openStudyForTask}
+            onViewMarks={() => setActiveTab("marks")}
           />
         ) : null}
 
@@ -2214,6 +2225,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onToggleSessionCompleted={handleToggleSessionCompleted}
             hasPremium={hasPremium}
             onGoToSettings={() => setActiveTab("settings")}
+            initialTaskId={studyTaskToOpen}
+            onInitialTaskHandled={() => setStudyTaskToOpen(null)}
           />
         ) : null}
 
@@ -2222,7 +2235,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             <Marks
               tasks={tasks}
               subjects={subjects}
+              studySessions={studySessions}
               onUpdateTask={handleUpdateTask}
+              onStudyTask={openStudyForTask}
             />
           ) : (
             <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -2233,7 +2248,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                 <Marks
                   tasks={tasks}
                   subjects={subjects}
+                  studySessions={studySessions}
                   onUpdateTask={handleUpdateTask}
+                  onStudyTask={openStudyForTask}
                 />
               </div>
 

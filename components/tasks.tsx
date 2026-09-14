@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 
 import type { Subject, Task, StudySession } from "./models";
+import {
+  AssessmentLifecycleBadge,
+  AssessmentPreparationLine,
+  getAssessmentLifecycle,
+  isAssessmentTask,
+} from "./assessmentLifecycle";
 
 const ALL_ACCENT = "#7A9B7F";
 
@@ -213,6 +219,8 @@ interface TasksProps {
   onUpdateTask: (id: string, task: Omit<Task, "id">) => void;
   onDeleteTask: (id: string) => void;
   onToggleCompleted: (id: string) => void;
+  onStudyTask?: (taskId: string) => void;
+  onViewMarks?: () => void;
 }
 
 export function Tasks({
@@ -223,8 +231,11 @@ export function Tasks({
   onUpdateTask,
   onDeleteTask,
   onToggleCompleted,
+  onStudyTask,
+  onViewMarks,
 }: TasksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [assessmentAddedMessage, setAssessmentAddedMessage] = useState<string | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<TaskSectionType, boolean>>({
     homework: false,
@@ -434,6 +445,13 @@ export function Tasks({
         createdAt: new Date(),
         source: "manual",
       });
+
+      if (type === "assignment" || type === "exam") {
+        setAssessmentAddedMessage(
+          `${formData.title.trim()} is now connected to Calendar, Study, and Marks.`
+        );
+        window.setTimeout(() => setAssessmentAddedMessage(null), 4500);
+      }
     }
 
     resetForm();
@@ -761,6 +779,9 @@ export function Tasks({
     const studiedMins = getMinutesStudiedForTask(task.id);
     const tone = dueTone(task);
     const hasScheduledBlock = Boolean(task.scheduledDate && task.startTime);
+    const assessmentLifecycle = isAssessmentTask(task)
+      ? getAssessmentLifecycle(task, studySessions)
+      : null;
 
     const isPersonal = task.type === "personal" || !task.subjectId;
     const safeTypeLabel =
@@ -848,10 +869,20 @@ export function Tasks({
                   </>
                 )}
 
-                {studiedMins > 0 ? (
+                {studiedMins > 0 && !assessmentLifecycle ? (
                   <>
                     <span className="text-muted-foreground/50">•</span>
                     <span>Studied {formatMinutes(studiedMins)}</span>
+                  </>
+                ) : null}
+
+                {assessmentLifecycle ? (
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <AssessmentPreparationLine
+                      minutes={assessmentLifecycle.stats.minutes}
+                      sessions={assessmentLifecycle.stats.sessions}
+                    />
                   </>
                 ) : null}
 
@@ -876,6 +907,38 @@ export function Tasks({
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
+            {assessmentLifecycle ? (
+              <AssessmentLifecycleBadge
+                state={assessmentLifecycle.state}
+                label={assessmentLifecycle.label}
+              />
+            ) : null}
+
+            {assessmentLifecycle &&
+            !task.result &&
+            assessmentLifecycle.state !== "awaiting-result" &&
+            onStudyTask ? (
+              <button
+                type="button"
+                onClick={() => onStudyTask(task.id)}
+                className="app-btn-secondary hidden h-8 px-3 text-xs md:inline-flex"
+              >
+                {assessmentLifecycle.actionLabel}
+              </button>
+            ) : null}
+
+            {assessmentLifecycle &&
+            (assessmentLifecycle.state === "awaiting-result" || assessmentLifecycle.state === "completed") &&
+            onViewMarks ? (
+              <button
+                type="button"
+                onClick={onViewMarks}
+                className="app-btn-secondary hidden h-8 px-3 text-xs md:inline-flex"
+              >
+                {assessmentLifecycle.actionLabel}
+              </button>
+            ) : null}
+
             <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
               <Calendar className="h-3.5 w-3.5" />
               <span>{task.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
@@ -946,9 +1009,16 @@ export function Tasks({
       <div className="app-page-heading">
         <h1 className="app-page-title">Tasks</h1>
         <p className="app-page-subtitle">
-          Organise homework, assignments, exams, and personal tasks.
+          Add schoolwork once, then follow assessments from deadline to preparation to result.
         </p>
       </div>
+
+      {assessmentAddedMessage ? (
+        <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3">
+          <div className="text-sm font-semibold text-foreground">Assessment connected</div>
+          <div className="mt-1 text-xs text-muted-foreground">{assessmentAddedMessage}</div>
+        </div>
+      ) : null}
 
       <div className="app-filter-scroll app-filter-scroll-compact">
         <div className="app-filter-scroll-track">
@@ -1016,10 +1086,31 @@ export function Tasks({
       </div>
 
       <div className="space-y-2.5">
-        {renderSection(tasksByType.homework, "homework")}
-        {renderSection(tasksByType.assignment, "assignment")}
-        {renderSection(tasksByType.exam, "exam")}
-        {renderSection(tasksByType.personal, "personal")}
+        <div className="space-y-3">
+          <div className="px-1">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Assessments
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Assignments and exams move through preparation, due date, result, and performance.
+            </div>
+          </div>
+          {renderSection(tasksByType.assignment, "assignment")}
+          {renderSection(tasksByType.exam, "exam")}
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <div className="px-1">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Other work
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Homework and personal tasks stay lightweight and easy to clear.
+            </div>
+          </div>
+          {renderSection(tasksByType.homework, "homework")}
+          {renderSection(tasksByType.personal, "personal")}
+        </div>
       </div>
 
       {deletingId ? (

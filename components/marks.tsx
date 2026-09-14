@@ -4,7 +4,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Edit2, Trash2, X, TrendingUp, Target, Clock3, Award } from "lucide-react";
 
-import type { Task, Subject } from "./models";
+import type { Task, Subject, StudySession } from "./models";
+import {
+  AssessmentLifecycleBadge,
+  AssessmentPreparationLine,
+  getAssessmentLifecycle,
+} from "./assessmentLifecycle";
 
 // Must match Settings + Tasks key
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
@@ -26,7 +31,9 @@ type PeriodHydrated = {
 interface MarksProps {
   tasks: Task[];
   subjects: Subject[];
+  studySessions: StudySession[];
   onUpdateTask: (id: string, task: Omit<Task, "id">) => void;
+  onStudyTask?: (taskId: string) => void;
 }
 
 type SubjectPerformance = {
@@ -38,7 +45,7 @@ type SubjectPerformance = {
   latestDate: Date | null;
 };
 
-export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
+export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTask }: MarksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
@@ -453,16 +460,17 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
 
           <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-border bg-muted/10">
-              <div className="text-sm font-semibold text-foreground">Upcoming marks to enter</div>
-              <div className="text-xs text-muted-foreground">Stay on top of results that are still missing.</div>
+              <div className="text-sm font-semibold text-foreground">Assessment lifecycle</div>
+              <div className="text-xs text-muted-foreground">See what is still being prepared and what is waiting for a result.</div>
             </div>
 
             {upcomingPending.length === 0 ? (
-              <div className="p-5 text-sm text-muted-foreground">No pending assessments in this view.</div>
+              <div className="p-5 text-sm text-muted-foreground">No assessments are waiting for a result in this view.</div>
             ) : (
               <div className="divide-y divide-border">
                 {upcomingPending.map((task) => {
                   const subject = subjectById(task.subjectId);
+                  const lifecycle = getAssessmentLifecycle(task, studySessions);
                   return (
                     <div key={task.id} className="px-5 py-4 flex items-center justify-between gap-3 hover:bg-muted/10 transition">
                       <div className="min-w-0">
@@ -481,15 +489,34 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                             })}
                           </span>
                         </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <AssessmentLifecycleBadge state={lifecycle.state} label={lifecycle.label} />
+                          <AssessmentPreparationLine
+                            minutes={lifecycle.stats.minutes}
+                            sessions={lifecycle.stats.sessions}
+                          />
+                        </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => openEdit(task)}
-                        className="inline-flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                      >
-                        Enter
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {lifecycle.state === "awaiting-result" ? (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(task)}
+                            className="inline-flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                          >
+                            Enter result
+                          </button>
+                        ) : onStudyTask ? (
+                          <button
+                            type="button"
+                            onClick={() => onStudyTask(task.id)}
+                            className="app-btn-secondary h-9 px-3 text-sm"
+                          >
+                            {lifecycle.actionLabel}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   );
                 })}
@@ -616,6 +643,7 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
             {filteredTasks.map((task) => {
               const subject = subjectById(task.subjectId);
               const hasResult = Boolean(task.result);
+              const lifecycle = getAssessmentLifecycle(task, studySessions);
 
               const resultDisplay = hasResult ? `${task.result!.score} / ${task.result!.outOf}` : "Pending";
               const percentValue = hasResult ? percentage(task.result!.score, task.result!.outOf) : null;
@@ -653,6 +681,13 @@ export function Marks({ tasks, subjects, onUpdateTask }: MarksProps) {
                             <span className="truncate">{termLabel}</span>
                           </>
                         ) : null}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <AssessmentLifecycleBadge state={lifecycle.state} label={lifecycle.label} />
+                        <AssessmentPreparationLine
+                          minutes={lifecycle.stats.minutes}
+                          sessions={lifecycle.stats.sessions}
+                        />
                       </div>
                     </div>
 

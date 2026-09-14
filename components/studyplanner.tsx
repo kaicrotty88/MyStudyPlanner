@@ -1,11 +1,16 @@
 // components/studyplanner.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Edit2, Trash2, X, CheckCircle2, Link2, Lock, Sparkles } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { StudyInsights } from "./studyinsights";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import {
+  AssessmentLifecycleBadge,
+  getAssessmentLifecycle,
+  isAssessmentTask,
+} from "./assessmentLifecycle";
 
 /* -------------------- Small form helpers -------------------- */
 type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime", string>>;
@@ -133,6 +138,8 @@ interface StudyPlannerProps {
   onToggleSessionCompleted: (id: string) => void;
   hasPremium?: boolean;
   onGoToSettings?: () => void;
+  initialTaskId?: string | null;
+  onInitialTaskHandled?: () => void;
 }
 
 export function StudyPlanner({
@@ -145,6 +152,8 @@ export function StudyPlanner({
   onToggleSessionCompleted,
   hasPremium = false,
   onGoToSettings,
+  initialTaskId = null,
+  onInitialTaskHandled,
 }: StudyPlannerProps) {
   const [studyView, setStudyView] = useState<"focus" | "log" | "insights">("focus");
   const [activeSubject, setActiveSubject] = useState<string>("all");
@@ -306,6 +315,20 @@ export function StudyPlanner({
     return filtered.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [studySessions, activeSubject, showCompleted]);
 
+  useEffect(() => {
+    if (!initialTaskId) return;
+    const task = tasks.find((item) => item.id === initialTaskId);
+    if (!task) {
+      onInitialTaskHandled?.();
+      return;
+    }
+
+    setStudyView("focus");
+    openForTask(task);
+    onInitialTaskHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTaskId]);
+
   const weeklySummary = useMemo(() => {
     const now = new Date();
     const a = getWeekStart(now);
@@ -454,10 +477,24 @@ export function StudyPlanner({
               {(() => {
                 const top = studyRecommendations[0];
                 const subject = getSubjectById(top.task.subjectId);
+                const lifecycle = isAssessmentTask(top.task)
+                  ? getAssessmentLifecycle(top.task, studySessions)
+                  : null;
                 return (
                   <div className="app-card overflow-hidden">
                     <div className="border-b border-border bg-muted/20 px-5 py-4">
-                      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Best next step</div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          {lifecycle?.state === "preparing" || lifecycle?.state === "due-soon"
+                            ? "Continue preparing"
+                            : lifecycle
+                              ? "Start preparing"
+                              : "Best next step"}
+                        </div>
+                        {lifecycle ? (
+                          <AssessmentLifecycleBadge state={lifecycle.state} label={lifecycle.label} />
+                        ) : null}
+                      </div>
                     </div>
                     <div className="p-6">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -494,7 +531,7 @@ export function StudyPlanner({
                       </div>
 
                       <button type="button" onClick={() => openForTask(top.task)} className="app-btn-primary mt-6 h-10 px-5">
-                        Study now
+                        {lifecycle?.actionLabel ?? "Study now"}
                       </button>
                     </div>
                   </div>
@@ -540,18 +577,10 @@ export function StudyPlanner({
             </div>
           )}
 
-          <div className="app-card px-5 py-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-foreground">The loop is connected</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Tasks create priorities, study sessions attach to them, and completed sessions become progress you can review in Insights.
-                </div>
-              </div>
-              <button type="button" onClick={() => setStudyView("log")} className="app-btn-secondary h-9 shrink-0 px-3">
-                View study log
-              </button>
-            </div>
+          <div className="flex justify-end">
+            <button type="button" onClick={() => setStudyView("log")} className="app-btn-secondary h-9 px-3">
+              View study history
+            </button>
           </div>
         </>
       ) : studyView === "log" ? (

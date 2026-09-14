@@ -19,6 +19,12 @@ import type {
   TimetableWeek,
   ImportedCalendarEvent,
 } from "./models";
+import {
+  AssessmentLifecycleBadge,
+  AssessmentPreparationLine,
+  getAssessmentLifecycle,
+  isAssessmentTask,
+} from "./assessmentLifecycle";
 
 type ViewMode = "day" | "week" | "month";
 type AddFormType = "study" | "assignment" | "exam" | "homework" | "personal" | null;
@@ -100,7 +106,9 @@ interface CalendarProps {
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession?: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession?: (id: string) => void;
-
+  onStudyTask?: (taskId: string) => void;
+  onViewTasks?: () => void;
+  onViewMarks?: () => void;
 
 }
 
@@ -588,6 +596,9 @@ function CalendarView({
   onAddStudySession,
   onUpdateStudySession,
   onDeleteStudySession,
+  onStudyTask,
+  onViewTasks,
+  onViewMarks,
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -606,6 +617,7 @@ function CalendarView({
 
   const [editingTaskId, setEditingtaskId] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [assessmentDetailTaskId, setAssessmentDetailTaskId] = useState<string | null>(null);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -1162,9 +1174,20 @@ function CalendarView({
 
   const openCalendarItem = (item: CalendarItem) => {
     if (item.isTimetableClass) return;
+    if (item.task && isAssessmentTask(item.task)) {
+      setAssessmentDetailTaskId(item.task.id);
+      return;
+    }
     if (item.task) openEditTask(item.task);
     else if (item.session) openEditSession(item.session);
   };
+
+  const assessmentDetailTask = assessmentDetailTaskId
+    ? tasks.find((task) => task.id === assessmentDetailTaskId) ?? null
+    : null;
+  const assessmentDetailLifecycle = assessmentDetailTask
+    ? getAssessmentLifecycle(assessmentDetailTask, studySessions)
+    : null;
 
   const validateTaskForm = () => {
     const next: TaskFormErrors = {};
@@ -2194,6 +2217,151 @@ function CalendarView({
 
               <div className="rounded-xl border border-border bg-muted/[0.08] px-3 py-2 text-[11px] leading-5 text-muted-foreground">
                 Timetable classes are added from Settings → Timetable.
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+
+      {assessmentDetailTask && assessmentDetailLifecycle ? (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setAssessmentDetailTaskId(null)}
+          />
+          <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>{typeLabel(assessmentDetailTask.type)}</span>
+                  <span>•</span>
+                  <span>{subjectById.get(assessmentDetailTask.subjectId ?? "")?.name ?? "Unassigned"}</span>
+                </div>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
+                  {assessmentDetailTask.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssessmentDetailTaskId(null)}
+                className="app-iconbtn shrink-0"
+                aria-label="Close assessment details"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <AssessmentLifecycleBadge
+                  state={assessmentDetailLifecycle.state}
+                  label={assessmentDetailLifecycle.label}
+                />
+                <span className="text-sm text-muted-foreground">
+                  Due {assessmentDetailTask.dueDate.toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <div className="text-[11px] text-muted-foreground">Preparation</div>
+                  <div className="mt-1 text-sm font-semibold text-foreground">
+                    <AssessmentPreparationLine
+                      minutes={assessmentDetailLifecycle.stats.minutes}
+                      sessions={assessmentDetailLifecycle.stats.sessions}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <div className="text-[11px] text-muted-foreground">Last studied</div>
+                  <div className="mt-1 text-sm font-semibold text-foreground">
+                    {assessmentDetailLifecycle.stats.lastStudiedAt
+                      ? assessmentDetailLifecycle.stats.lastStudiedAt.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "Not yet"}
+                  </div>
+                </div>
+              </div>
+
+              {assessmentDetailTask.result ? (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                  <div className="text-xs text-muted-foreground">Result</div>
+                  <div className="mt-1 text-lg font-semibold text-foreground">
+                    {assessmentDetailTask.result.score} / {assessmentDetailTask.result.outOf}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                {!assessmentDetailTask.result &&
+                assessmentDetailLifecycle.state !== "awaiting-result" &&
+                onStudyTask ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = assessmentDetailTask.id;
+                      setAssessmentDetailTaskId(null);
+                      onStudyTask(id);
+                    }}
+                    className="app-btn-primary"
+                  >
+                    {assessmentDetailLifecycle.actionLabel}
+                  </button>
+                ) : null}
+                {assessmentDetailLifecycle.state === "awaiting-result" && onViewMarks ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssessmentDetailTaskId(null);
+                      onViewMarks();
+                    }}
+                    className="app-btn-primary"
+                  >
+                    Add result
+                  </button>
+                ) : null}
+                {assessmentDetailLifecycle.state === "completed" && onViewMarks ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssessmentDetailTaskId(null);
+                      onViewMarks();
+                    }}
+                    className="app-btn-primary"
+                  >
+                    View performance
+                  </button>
+                ) : null}
+                {onViewTasks ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssessmentDetailTaskId(null);
+                      onViewTasks();
+                    }}
+                    className="app-btn-secondary"
+                  >
+                    View in Tasks
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const task = assessmentDetailTask;
+                    setAssessmentDetailTaskId(null);
+                    openEditTask(task);
+                  }}
+                  className="app-btn-secondary"
+                >
+                  Edit
+                </button>
               </div>
             </div>
           </div>
