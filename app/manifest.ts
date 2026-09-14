@@ -5,6 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "MyStudyPlanner",
     short_name: "MyStudyPlanner",
     description: "Keep your timetable, tasks, study sessions and results together in one student planner.",
+    id: "/",
     start_url: "/app",
     scope: "/",
     display: "standalone",
