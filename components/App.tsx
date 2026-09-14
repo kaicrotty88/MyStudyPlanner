@@ -37,6 +37,7 @@ import {
 import { type ProfileRow } from "@/lib/profileSupabase";
 
 import WhatsNewModal from "@/components/WhatsNewModal";
+import { trackProductEvent } from "@/lib/productAnalytics";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -1503,6 +1504,35 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }, [mode, userLoaded, isSignedIn, user?.id]);
 
   useEffect(() => {
+    if (mode !== "app" || !isSignedIn || !isReady || !profileLoaded) return;
+
+    try {
+      const sessionKey = "mystudyplanner-analytics-app-opened";
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, "1");
+        trackProductEvent("app_opened", { plan });
+      }
+    } catch {
+      trackProductEvent("app_opened", { plan });
+    }
+  }, [mode, isSignedIn, isReady, profileLoaded, plan]);
+
+  useEffect(() => {
+    if (mode !== "app" || !isSignedIn || !isReady || !profileLoaded) return;
+
+    trackProductEvent("feature_opened", { feature: activeTab, plan });
+
+    if (activeTab === "marks" && !hasPremium) {
+      trackProductEvent("marks_paywall_viewed");
+    }
+  }, [activeTab, mode, isSignedIn, isReady, profileLoaded, plan, hasPremium]);
+
+  useEffect(() => {
+    if (mode !== "app" || !isSignedIn || settingsOpenSection !== "premium") return;
+    trackProductEvent("premium_viewed", { plan });
+  }, [settingsOpenSection, mode, isSignedIn, plan]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const finishLoading = () => {
@@ -1758,8 +1788,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     }
   };
 
-  const handleAddSubject = (name: string, color: string) =>
+  const handleAddSubject = (name: string, color: string) => {
     setSubjects((prev) => [...prev, { id: Date.now().toString(), name, color }]);
+    if (mode === "app" && isSignedIn) trackProductEvent("subject_created");
+  };
 
   const handleUpdateSubject = (id: string, name: string, color: string) =>
     setSubjects((prev) =>
@@ -1773,8 +1805,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setTimetableClasses((prev) => prev.filter((item) => item.subjectId !== id));
   };
 
-  const handleAddTask = (task: Omit<Task, "id">) =>
+  const handleAddTask = (task: Omit<Task, "id">) => {
     setTasks((prev) => [...prev, { ...task, id: Date.now().toString() }]);
+    if (mode === "app" && isSignedIn) {
+      trackProductEvent("task_created", { taskType: task.type });
+    }
+  };
 
   const handleUpdateTask = (id: string, task: Omit<Task, "id">) =>
     setTasks((prev) => prev.map((item) => (item.id === id ? { ...task, id } : item)));
@@ -1797,7 +1833,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       })
     );
 
-  const handleAddStudySession = (session: Omit<StudySession, "id">) =>
+  const handleAddStudySession = (session: Omit<StudySession, "id">) => {
     setStudySessions((prev) => [
       ...prev,
       {
@@ -1805,6 +1841,10 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         id: Date.now().toString(),
       },
     ]);
+    if (mode === "app" && isSignedIn) {
+      trackProductEvent("study_session_created", { linkedToTask: Boolean(session.linkedTaskId) });
+    }
+  };
 
   const handleUpdateStudySession = (id: string, session: Omit<StudySession, "id">) =>
     setStudySessions((prev) =>
@@ -1814,20 +1854,28 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const handleDeleteStudySession = (id: string) =>
     setStudySessions((prev) => prev.filter((session) => session.id !== id));
 
-  const handleToggleSessionCompleted = (id: string) =>
-    setStudySessions((prev) =>
-      prev.map((session) => {
-        if (session.id !== id) return session;
+  const handleToggleSessionCompleted = (id: string) => {
+    const session = studySessions.find((item) => item.id === id);
+    const willComplete = session ? !session.completed : false;
 
-        const nextCompleted = !session.completed;
+    setStudySessions((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+
+        const nextCompleted = !item.completed;
 
         return {
-          ...session,
+          ...item,
           completed: nextCompleted,
           completedAt: nextCompleted ? new Date() : undefined,
         };
       })
     );
+
+    if (willComplete && mode === "app" && isSignedIn) {
+      trackProductEvent("study_session_completed", { linkedToTask: Boolean(session?.linkedTaskId) });
+    }
+  };
 
 
   const handleUpdatePeriods = (nextPeriods: Period[]) => {
@@ -1868,6 +1916,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
         createdAt: timetableClass.createdAt ?? new Date(),
       },
     ]);
+    if (mode === "app" && isSignedIn) trackProductEvent("timetable_class_created");
   };
 
   const handleUpdateTimetableClass = (

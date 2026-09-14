@@ -16,6 +16,7 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import { CalendarImports } from "./calendar/CalendarImports";
+import { trackProductEvent } from "@/lib/productAnalytics";
 
 import type {
   Subject,
@@ -1051,6 +1052,7 @@ export function Settings({
 
     setBillingError("");
     setBillingLoading(true);
+    trackProductEvent("premium_checkout_started", { interval: billingInterval });
 
     try {
       const response = await fetch("/api/stripe/checkout", {
@@ -1078,6 +1080,7 @@ export function Settings({
 
     setBillingError("");
     setBillingLoading(true);
+    trackProductEvent("premium_portal_opened");
 
     try {
       const response = await fetch("/api/stripe/portal", {
