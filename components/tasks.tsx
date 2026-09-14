@@ -238,9 +238,9 @@ export function Tasks({
   const [assessmentAddedMessage, setAssessmentAddedMessage] = useState<string | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<TaskSectionType, boolean>>({
-    homework: true,
-    assignment: true,
-    exam: true,
+    homework: false,
+    assignment: false,
+    exam: false,
     personal: false,
   });
 

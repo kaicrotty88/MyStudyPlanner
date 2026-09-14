@@ -109,6 +109,8 @@ interface CalendarProps {
   onStudyTask?: (taskId: string) => void;
   onViewTasks?: () => void;
   onViewMarks?: () => void;
+  planningStudyTaskId?: string | null;
+  onPlanningStudyHandled?: () => void;
 
 }
 
@@ -599,6 +601,8 @@ function CalendarView({
   onStudyTask,
   onViewTasks,
   onViewMarks,
+  planningStudyTaskId = null,
+  onPlanningStudyHandled,
 }: CalendarProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -760,6 +764,14 @@ function CalendarView({
     tasks.forEach((t) => map.set(t.id, t));
     return map;
   }, [tasks]);
+
+  const planningStudyTask = planningStudyTaskId ? taskById.get(planningStudyTaskId) ?? null : null;
+
+  useEffect(() => {
+    if (!planningStudyTaskId) return;
+    setViewMode("week");
+    setCurrentDate(new Date());
+  }, [planningStudyTaskId]);
 
   const activeTasks = useMemo(() => tasks.filter((t: any) => !t.completed), [tasks]);
   const activeSessions = useMemo(
@@ -1093,12 +1105,12 @@ function CalendarView({
 
     if (type === "study") {
       setSessionFormData({
-        title: "",
-        subjectId: "",
+        title: planningStudyTask ? `${planningStudyTask.title} study` : "",
+        subjectId: planningStudyTask?.subjectId ?? "",
         date: dateStr,
         startTime: "16:00",
         duration: "60 min",
-        linkedTaskId: "",
+        linkedTaskId: planningStudyTask?.id ?? "",
       });
     } else if (type === "personal") {
       setTaskFormData({
@@ -1316,6 +1328,10 @@ function CalendarView({
       onUpdateStudySession(editingSessionId, payload);
     } else {
       onAddStudySession(payload);
+    }
+
+    if (planningStudyTaskId && payload.linkedTaskId === planningStudyTaskId) {
+      onPlanningStudyHandled?.();
     }
 
     setEditingSessionId(null);
@@ -2118,6 +2134,16 @@ function CalendarView({
           Add item
         </button>
       </div>
+
+      {planningStudyTask ? (
+        <div className="app-card flex flex-col gap-3 border-primary/20 bg-primary/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-foreground">Planning study for {planningStudyTask.title}</div>
+            <div className="mt-1 text-xs text-muted-foreground">Choose a day in the calendar, add a Study Session, and this assessment will already be linked.</div>
+          </div>
+          <button type="button" className="app-btn-ghost h-9 px-3" onClick={onPlanningStudyHandled}>Cancel planning</button>
+        </div>
+      ) : null}
 
       <CalendarShell>
         <div className="calendar-toolbar calendar-toolbar-polished">

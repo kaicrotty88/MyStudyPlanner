@@ -299,6 +299,9 @@ export interface Task {
    */
   notes?: string;
 
+  /** Optional study target for assignments and exams, stored in minutes. */
+  targetStudyMinutes?: number;
+
   completed?: boolean;
   completedAt?: Date;
 
@@ -341,6 +344,9 @@ export interface TaskStored {
 
   notes?: string;
 
+  /** Optional study target for assignments and exams, stored in minutes. */
+  targetStudyMinutes?: number;
+
   completed?: boolean;
   completedAt?: string; // ISO
 
@@ -361,8 +367,10 @@ export interface StudySession {
   title?: string; // UI falls back to "Study session"
   date: Date;
   startTime: string; // "HH:MM" 24h preferred
-  duration: string; // e.g. "60 min", "1h 30m"
+  duration: string; // actual duration when completed, planned duration while upcoming
+  plannedDuration?: string; // preserves the original plan after completion
   linkedTaskId?: string;
+  notes?: string;
   completed?: boolean;
   completedAt?: Date;
 }

@@ -6,6 +6,7 @@ import Image from "next/image";
 import appIcon from "@/app/icon.png";
 
 import { Calendar } from "./calendar";
+import { Today } from "./today";
 import { Tasks } from "./tasks";
 import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
@@ -56,6 +57,7 @@ const WHATS_NEW_UPDATES = [
 ];
 
 type Tab =
+  | "today"
   | "calendar"
   | "tasks"
   | "study"
@@ -1162,8 +1164,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
   }, [session]);
 
-  const [activeTab, setActiveTab] = useState<Tab>("calendar");
+  const [activeTab, setActiveTab] = useState<Tab>("today");
   const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
+  const [calendarPlanningTaskId, setCalendarPlanningTaskId] = useState<string | null>(null);
 
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []
@@ -1235,6 +1238,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     mode === "app" && activeTab !== "settings" && missingSetupItems.length > 0;
 
   const tabs = [
+    { id: "today", label: "Today" },
     { id: "calendar", label: "Calendar" },
     { id: "tasks", label: "Tasks" },
     { id: "study", label: "Study" },
@@ -1773,7 +1777,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTimetableClasses(demo.timetableClasses);
       setImportedCalendarEvents([]);
       seedPeriodsStorage(demo.periods);
-      setActiveTab("calendar");
+      setActiveTab("today");
       return;
     }
 
@@ -1785,7 +1789,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
     setTimetableClasses([]);
     setImportedCalendarEvents([]);
-    setActiveTab("calendar");
+    setActiveTab("today");
 
     if (Boolean(isSignedIn) && supabase) {
       try {
@@ -1955,6 +1959,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setActiveTab("study");
   };
 
+  const planStudyOnCalendar = (taskId: string) => {
+    setCalendarPlanningTaskId(taskId);
+    setActiveTab("calendar");
+  };
+
   if (!isReady || !profileLoaded) return <LoadingScreen />;
 
   return (
@@ -2072,9 +2081,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             <div className="lg:hidden">
               <button
                 type="button"
-                onClick={() => setActiveTab("calendar")}
+                onClick={() => setActiveTab("today")}
                 className="app-iconbtn h-10 w-10 border border-border bg-card"
-                aria-label="Open dashboard"
+                aria-label="Open Today"
               >
                 <User className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -2202,6 +2211,22 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       ) : null}
 
       <main className="app-shell-content">
+        {activeTab === "today" ? (
+          <Today
+            tasks={tasks}
+            subjects={subjects}
+            studySessions={studySessions}
+            timetableSettings={timetableSettings}
+            timetablePeriods={timetablePeriods}
+            timetableClasses={timetableClasses}
+            onAddStudySession={handleAddStudySession}
+            onUpdateStudySession={handleUpdateStudySession}
+            onToggleTaskCompleted={toggleTaskCompleted}
+            onOpenTask={() => setActiveTab("tasks")}
+            onPlanStudy={planStudyOnCalendar}
+          />
+        ) : null}
+
         {activeTab === "calendar" ? (
           <Calendar
             studySessions={studySessions}
@@ -2222,6 +2247,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onStudyTask={openStudyForTask}
             onViewTasks={() => setActiveTab("tasks")}
             onViewMarks={() => setActiveTab("marks")}
+            planningStudyTaskId={calendarPlanningTaskId}
+            onPlanningStudyHandled={() => setCalendarPlanningTaskId(null)}
           />
         ) : null}
 
@@ -2234,7 +2261,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
             onToggleCompleted={toggleTaskCompleted}
-            onStudyTask={openStudyForTask}
+            onStudyTask={planStudyOnCalendar}
             onViewMarks={() => setActiveTab("marks")}
           />
         ) : null}
@@ -2247,7 +2274,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onAddStudySession={handleAddStudySession}
             onUpdateStudySession={handleUpdateStudySession}
             onDeleteStudySession={handleDeleteStudySession}
-            onToggleSessionCompleted={handleToggleSessionCompleted}
+            onUpdateTask={handleUpdateTask}
+            onPlanStudy={planStudyOnCalendar}
             hasPremium={hasPremium}
             onGoToSettings={() => setActiveTab("settings")}
             initialTaskId={studyTaskToOpen}

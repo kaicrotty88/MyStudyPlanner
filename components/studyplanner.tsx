@@ -2,15 +2,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, X, CheckCircle2, Link2, Lock, Sparkles } from "lucide-react";
+import { Edit2, Trash2, X, CheckCircle2, Link2, Lock, Sparkles } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { StudyInsights } from "./studyinsights";
 import { trackProductEvent } from "@/lib/productAnalytics";
-import {
-  AssessmentLifecycleBadge,
-  getAssessmentLifecycle,
-  isAssessmentTask,
-} from "./assessmentLifecycle";
+import { isAssessmentTask } from "./assessmentLifecycle";
 
 /* -------------------- Small form helpers -------------------- */
 type SessionFormErrors = Partial<Record<"title" | "subjectId" | "date" | "startTime", string>>;
@@ -135,7 +131,8 @@ interface StudyPlannerProps {
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
   onDeleteStudySession: (id: string) => void;
-  onToggleSessionCompleted: (id: string) => void;
+  onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
+  onPlanStudy?: (taskId: string) => void;
   hasPremium?: boolean;
   onGoToSettings?: () => void;
   initialTaskId?: string | null;
@@ -149,7 +146,8 @@ export function StudyPlanner({
   onAddStudySession,
   onUpdateStudySession,
   onDeleteStudySession,
-  onToggleSessionCompleted,
+  onUpdateTask,
+  onPlanStudy,
   hasPremium = false,
   onGoToSettings,
   initialTaskId = null,
@@ -173,6 +171,11 @@ export function StudyPlanner({
   });
 
   const [formErrors, setFormErrors] = useState<SessionFormErrors>({});
+  const [targetTaskId, setTargetTaskId] = useState<string | null>(null);
+  const [targetHours, setTargetHours] = useState("3");
+  const [completeSessionId, setCompleteSessionId] = useState<string | null>(null);
+  const [actualMinutes, setActualMinutes] = useState("");
+  const [completionNote, setCompletionNote] = useState("");
 
   const getSubjectById = (id?: string) => (id ? subjects.find((s) => s.id === id) : undefined);
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
@@ -286,25 +289,71 @@ export function StudyPlanner({
       .slice(0, 4);
   }, [tasks, studyStatsByTask]);
 
-  const openForTask = (task: Task) => {
-    trackProductEvent("study_recommendation_started", { taskType: task.type });
-    setSessionIntent("plan");
-    const now = new Date();
-    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
-      .toISOString()
-      .slice(0, 10);
-    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
-    const rounded = new Date(now);
-    rounded.setMinutes(roundedMinutes, 0, 0);
+  const assessmentOverview = useMemo(() => {
+    return tasks
+      .filter((task) => isAssessmentTask(task) && !task.completed)
+      .map((task) => {
+        const completedMinutes = studySessions
+          .filter((session) => session.completed && session.linkedTaskId === task.id)
+          .reduce((sum, session) => sum + parseDurationToMinutes(session.duration), 0);
+        const plannedMinutes = studySessions
+          .filter((session) => !session.completed && session.linkedTaskId === task.id)
+          .reduce((sum, session) => sum + parseDurationToMinutes(session.duration), 0);
+        const targetMinutes = task.targetStudyMinutes ?? 180;
+        const remainingMinutes = Math.max(0, targetMinutes - completedMinutes);
+        const unscheduledMinutes = Math.max(0, targetMinutes - completedMinutes - plannedMinutes);
+        const daysLeft = Math.ceil((startOfDay(task.dueDate).getTime() - startOfDay(new Date()).getTime()) / 86_400_000);
+        return { task, completedMinutes, plannedMinutes, targetMinutes, remainingMinutes, unscheduledMinutes, daysLeft };
+      })
+      .sort((a, b) => a.task.dueDate.getTime() - b.task.dueDate.getTime());
+  }, [tasks, studySessions]);
 
+  const saveStudyTarget = () => {
+    if (!targetTaskId || !onUpdateTask) return;
+    const task = tasks.find((item) => item.id === targetTaskId);
+    if (!task) return;
+    const hours = Math.max(0.25, Number(targetHours) || 3);
+    onUpdateTask(task.id, { ...task, targetStudyMinutes: Math.round(hours * 60) });
+    setTargetTaskId(null);
+  };
+
+  const openCompletion = (session: StudySession) => {
+    setCompleteSessionId(session.id);
+    setActualMinutes(String(parseDurationToMinutes(session.duration)));
+    setCompletionNote(session.notes ?? "");
+  };
+
+  const saveCompletion = () => {
+    if (!completeSessionId) return;
+    const session = studySessions.find((item) => item.id === completeSessionId);
+    if (!session) return;
+    const minutes = Math.max(1, Number(actualMinutes) || parseDurationToMinutes(session.duration));
+    onUpdateStudySession(session.id, {
+      ...session,
+      plannedDuration: session.plannedDuration ?? session.duration,
+      duration: `${minutes} min`,
+      notes: completionNote.trim() || session.notes,
+      completed: true,
+      completedAt: new Date(),
+    });
+    setCompleteSessionId(null);
+    setActualMinutes("");
+    setCompletionNote("");
+  };
+
+
+  const openLogForTask = (task: Task) => {
+    setSessionIntent("log");
     setEditingId(null);
     setDeletingId(null);
     setPanelOpen(true);
+    const now = new Date();
+    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
     resetForm({
       title: task.title,
       subjectId: task.subjectId ?? "",
       date: localDate,
-      startTime: rounded.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      startTime: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
       duration: "60 min",
       linkedTaskId: task.id,
     });
@@ -327,17 +376,9 @@ export function StudyPlanner({
 
   useEffect(() => {
     if (!initialTaskId) return;
-    const task = tasks.find((item) => item.id === initialTaskId);
-    if (!task) {
-      onInitialTaskHandled?.();
-      return;
-    }
-
     setStudyView("focus");
-    openForTask(task);
     onInitialTaskHandled?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTaskId]);
+  }, [initialTaskId, onInitialTaskHandled]);
 
   const weeklySummary = useMemo(() => {
     const now = new Date();
@@ -379,13 +420,6 @@ export function StudyPlanner({
     resetForm(getNowPreset());
   };
 
-  const openPlanNew = () => {
-    setSessionIntent("plan");
-    setEditingId(null);
-    setDeletingId(null);
-    setPanelOpen(true);
-    resetForm(getNowPreset());
-  };
 
   const openEdit = (s: StudySession) => {
     setSessionIntent(s.completed ? "log" : "plan");
@@ -490,10 +524,6 @@ export function StudyPlanner({
 
         {studyView !== "insights" ? (
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={openPlanNew} className="app-btn-secondary h-9 px-4" type="button">
-              <Plus className="h-4 w-4" />
-              Plan session
-            </button>
             <button onClick={openNew} className="app-btn-primary h-9 px-4" type="button">
               <CheckCircle2 className="h-4 w-4" />
               Log completed study
@@ -504,123 +534,73 @@ export function StudyPlanner({
 
       {studyView === "focus" ? (
         <>
-          {studyRecommendations.length === 0 ? (
-            <div className="app-card p-8 text-center">
-              <div className="text-sm font-semibold text-foreground">Nothing needs attention right now</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Add homework, an assignment or an exam and Study will connect it to your sessions automatically.
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-              {(() => {
-                const top = studyRecommendations[0];
-                const subject = getSubjectById(top.task.subjectId);
-                const lifecycle = isAssessmentTask(top.task)
-                  ? getAssessmentLifecycle(top.task, studySessions)
-                  : null;
-                return (
-                  <div className="app-card overflow-hidden">
-                    <div className="border-b border-border bg-muted/20 px-5 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                          {lifecycle?.state === "preparing" || lifecycle?.state === "due-soon"
-                            ? "Continue preparing"
-                            : lifecycle
-                              ? "Start preparing"
-                              : "Recommended next"}
-                        </div>
-                        {lifecycle ? (
-                          <AssessmentLifecycleBadge state={lifecycle.state} label={lifecycle.label} />
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
-                        <span className="font-medium text-foreground">{subject?.name ?? "Subject"}</span>
-                        <span>•</span>
-                        <span>{typeLabel(top.task.type)}</span>
-                        <span>•</span>
-                        <span>{top.reason}</span>
-                      </div>
-
-                      <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">{top.task.title}</h2>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Due {top.task.dueDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                      </p>
-
-                      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <div className="rounded-xl border border-border bg-muted/20 p-3">
-                          <div className="text-[11px] text-muted-foreground">Preparation</div>
-                          <div className="mt-1 text-sm font-semibold text-foreground">{formatMinutes(top.stats.minutes)}</div>
-                        </div>
-                        <div className="rounded-xl border border-border bg-muted/20 p-3">
-                          <div className="text-[11px] text-muted-foreground">Sessions</div>
-                          <div className="mt-1 text-sm font-semibold text-foreground">{top.stats.sessions}</div>
-                        </div>
-                        <div className="col-span-2 rounded-xl border border-border bg-muted/20 p-3 sm:col-span-1">
-                          <div className="text-[11px] text-muted-foreground">Last studied</div>
-                          <div className="mt-1 text-sm font-semibold text-foreground">
-                            {top.stats.lastStudiedAt
-                              ? top.stats.lastStudiedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                              : "Not yet"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <button type="button" onClick={() => openForTask(top.task)} className="app-btn-primary mt-6 h-10 px-5">
-                        {lifecycle?.actionLabel ?? "Plan session"}
-                      </button>
-                    </div>
+          {studyRecommendations[0] ? (() => {
+            const top = studyRecommendations[0];
+            const subject = getSubjectById(top.task.subjectId);
+            const overview = assessmentOverview.find((item) => item.task.id === top.task.id);
+            return (
+              <div className="app-card flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recommended next</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
+                    <h2 className="truncate text-lg font-semibold text-foreground">{top.task.title}</h2>
                   </div>
-                );
-              })()}
-
-              <div className="app-card overflow-hidden">
-                <div className="app-card-header bg-muted/20">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">Also needs attention</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">Ranked from your deadlines and study history.</div>
-                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">{top.reason}{overview ? ` · ${formatMinutes(overview.unscheduledMinutes)} still unscheduled` : ""}</div>
                 </div>
-                <div className="divide-y divide-border">
-                  {studyRecommendations.slice(1).length === 0 ? (
-                    <div className="px-5 py-5 text-sm text-muted-foreground">Your next priority will appear here.</div>
-                  ) : (
-                    studyRecommendations.slice(1).map(({ task, stats, reason }) => {
-                      const subject = getSubjectById(task.subjectId);
-                      return (
-                        <button
-                          key={task.id}
-                          type="button"
-                          onClick={() => openForTask(task)}
-                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-muted/35"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              {subject ? <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
-                              <span className="truncate text-sm font-medium text-foreground">{task.title}</span>
-                            </div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {reason} · {formatMinutes(stats.minutes)} studied
-                            </div>
-                          </div>
-                          <span className="shrink-0 text-xs font-medium text-foreground">Plan</span>
-                        </button>
-                      );
-                    })
-                  )}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="app-btn-primary h-9 px-4" onClick={() => openLogForTask(top.task)}>Log study</button>
+                  {onPlanStudy ? <button type="button" className="app-btn-secondary h-9 px-4" onClick={() => onPlanStudy(top.task.id)}>Plan on Calendar</button> : null}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })() : null}
 
-          <div className="flex justify-end">
-            <button type="button" onClick={() => setStudyView("log")} className="app-btn-secondary h-9 px-3">
-              View study history
-            </button>
+          <div className="app-card overflow-hidden">
+            <div className="app-card-header bg-muted/20">
+              <div>
+                <div className="text-sm font-semibold text-foreground">Your assessments</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">Set a study target, schedule preparation, then track the time you actually complete.</div>
+              </div>
+            </div>
+            {assessmentOverview.length === 0 ? (
+              <div className="app-empty-state border-0"><div className="text-sm font-medium text-foreground">No active assessments</div><div className="mt-1 text-xs text-muted-foreground">Assignments and exams will appear here automatically.</div></div>
+            ) : (
+              <div className="divide-y divide-border">
+                {assessmentOverview.map(({ task, completedMinutes, plannedMinutes, targetMinutes, remainingMinutes, unscheduledMinutes, daysLeft }) => {
+                  const subject = getSubjectById(task.subjectId);
+                  const progress = Math.min(100, (completedMinutes / Math.max(1, targetMinutes)) * 100);
+                  return (
+                    <div key={task.id} className="px-5 py-5">
+                      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {subject ? <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} /> : null}
+                            <span className="text-xs font-medium text-muted-foreground">{subject?.name ?? "Subject"}</span><span className="text-xs text-muted-foreground">•</span><span className="text-xs text-muted-foreground">{daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</span>
+                          </div>
+                          <div className="mt-2 text-base font-semibold text-foreground">{task.title}</div>
+                          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div>
+                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Target</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(targetMinutes)}</div></div>
+                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Completed</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(completedMinutes)}</div></div>
+                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Planned</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(plannedMinutes)}</div></div>
+                            <div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">Remaining</div><div className="mt-0.5 text-sm font-semibold text-foreground">{formatMinutes(remainingMinutes)}</div></div>
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">{unscheduledMinutes > 0 ? `${formatMinutes(unscheduledMinutes)} of your target still needs to be scheduled.` : "Your remaining target is fully scheduled."}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 xl:max-w-[330px] xl:justify-end">
+                          <button type="button" className="app-btn-ghost h-9 px-3" onClick={() => { setTargetTaskId(task.id); setTargetHours(String((targetMinutes / 60).toFixed(targetMinutes % 60 === 0 ? 0 : 1))); }}>Edit target</button>
+                          {onPlanStudy ? <button type="button" className="app-btn-secondary h-9 px-3" onClick={() => onPlanStudy(task.id)}>Plan study</button> : null}
+                          <button type="button" className="app-btn-primary h-9 px-3" onClick={() => openLogForTask(task)}>Log study</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+          <div className="flex justify-end"><button type="button" onClick={() => setStudyView("log")} className="app-btn-secondary h-9 px-3">View study history</button></div>
         </>
       ) : studyView === "log" ? (
         <>
@@ -729,7 +709,7 @@ export function StudyPlanner({
               {plannedSessions.length === 0 ? (
                 <div className="app-empty-state border-0">
                   <div className="text-sm font-medium text-foreground">Nothing planned</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Use Focus or Plan session to schedule preparation.</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Use Plan study on an assessment to schedule preparation on Calendar.</div>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
@@ -756,7 +736,7 @@ export function StudyPlanner({
                         <div className="flex shrink-0 items-center gap-1 opacity-80 transition group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             type="button"
-                            onClick={() => onToggleSessionCompleted(session.id)}
+                            onClick={() => openCompletion(session)}
                             className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" /> Mark complete
@@ -808,6 +788,32 @@ export function StudyPlanner({
           studySessions={studySessions}
         />
       )}
+
+      {targetTaskId ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/40 p-4" onMouseDown={() => setTargetTaskId(null)}>
+          <div className="app-card w-full max-w-sm p-5" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="text-lg font-semibold text-foreground">Study target</div>
+            <div className="mt-1 text-sm text-muted-foreground">How much total preparation are you aiming to complete for this assessment?</div>
+            <label className="mt-5 block text-sm font-medium text-foreground">Target hours</label>
+            <input type="number" min="0.25" step="0.25" value={targetHours} onChange={(event) => setTargetHours(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+            <div className="mt-5 flex gap-2"><button type="button" className="app-btn-primary flex-1" onClick={saveStudyTarget}>Save target</button><button type="button" className="app-btn-secondary" onClick={() => setTargetTaskId(null)}>Cancel</button></div>
+          </div>
+        </div>
+      ) : null}
+
+      {completeSessionId ? (
+        <div className="fixed inset-0 z-[75] grid place-items-center bg-black/40 p-4" onMouseDown={() => setCompleteSessionId(null)}>
+          <div className="app-card w-full max-w-md p-5" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="text-lg font-semibold text-foreground">How much did you actually study?</div>
+            <div className="mt-1 text-sm text-muted-foreground">The planned duration stays saved separately. Insights only counts your actual completed time.</div>
+            <label className="mt-5 block text-sm font-medium text-foreground">Actual minutes</label>
+            <input type="number" min="1" value={actualMinutes} onChange={(event) => setActualMinutes(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+            <label className="mt-4 block text-sm font-medium text-foreground">What did you work on? <span className="font-normal text-muted-foreground">Optional</span></label>
+            <textarea rows={3} value={completionNote} onChange={(event) => setCompletionNote(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+            <div className="mt-5 flex gap-2"><button type="button" className="app-btn-primary flex-1" onClick={saveCompletion}>Save completed study</button><button type="button" className="app-btn-secondary" onClick={() => setCompleteSessionId(null)}>Cancel</button></div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Add / Edit panel */}
       {studyView !== "insights" && panelOpen && (
