@@ -358,11 +358,17 @@ export function Tasks({
       next.subjectId = "Subject is required";
     }
     if (!formData.dueDate) {
-      next.dueDate = showAddForm === "exam" ? "Exam date is required" : showAddForm === "personal" ? "Date is required" : "Due date is required";
+      next.dueDate =
+        showAddForm === "exam"
+          ? "Exam date is required"
+          : showAddForm === "personal"
+            ? "Date is required"
+            : "Due date is required";
     }
 
-    const hasScheduledDate = Boolean(formData.scheduledDate);
-    const hasStartTime = Boolean(formData.startTime);
+    const supportsScheduledTime = showAddForm !== "personal" && showAddForm !== "exam" && showAddForm !== "assignment";
+    const hasScheduledDate = supportsScheduledTime && Boolean(formData.scheduledDate);
+    const hasStartTime = supportsScheduledTime && Boolean(formData.startTime);
 
     if ((hasScheduledDate || hasStartTime) && !hasScheduledDate) {
       next.scheduledDate = "Scheduled date is required when adding a calendar block";
@@ -393,10 +399,15 @@ export function Tasks({
     if (!validateForm()) return;
 
     const newDueDate = new Date(formData.dueDate);
-    const nextScheduledDate = formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
-    const nextStartTime = formData.startTime.trim() ? formData.startTime.trim() : undefined;
+    const supportsScheduledTime = type !== "personal" && type !== "exam" && type !== "assignment";
+    const nextScheduledDate =
+      supportsScheduledTime && formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
+    const nextStartTime =
+      supportsScheduledTime && formData.startTime.trim() ? formData.startTime.trim() : undefined;
     const nextDuration =
-      nextScheduledDate && nextStartTime ? formData.duration.trim() || "60 min" : undefined;
+      supportsScheduledTime && nextScheduledDate && nextStartTime
+        ? formData.duration.trim() || "60 min"
+        : undefined;
 
     if (editingId) {
       const existing = tasks.find((t) => t.id === editingId);
@@ -560,7 +571,7 @@ export function Tasks({
 
       <div>
         <label className={labelClass} htmlFor={`task-date-${type}`}>
-          {type === "exam" ? "Exam date" : type === "personal" ? "Date" : "Due date"}
+          {type === "personal" ? "Date" : type === "exam" ? "Exam date" : "Due date"}
           <RequiredMark required />
         </label>
         <input
@@ -577,7 +588,7 @@ export function Tasks({
         <FieldError message={formErrors.dueDate} />
       </div>
 
-      {type !== "assignment" && type !== "exam" ? (
+      {type === "homework" ? (
       <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
         <div className="flex items-start gap-2">
           <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card">
