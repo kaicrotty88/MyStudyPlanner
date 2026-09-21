@@ -598,9 +598,7 @@ export function Tasks({
           <div>
             <div className="text-sm font-medium text-foreground">Schedule on calendar</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {type === "personal"
-                ? "Optional. Add a time if this personal task should appear on the Calendar."
-                : "Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid."}
+              Optional. Add a planned work block to the Calendar.
             </div>
           </div>
         </div>
