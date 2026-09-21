@@ -2219,7 +2219,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}
-            importedCalendarEvents={importedCalendarEvents}
             onAddStudySession={handleAddStudySession}
             onUpdateStudySession={handleUpdateStudySession}
             onToggleTaskCompleted={toggleTaskCompleted}
@@ -2279,7 +2278,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onPlanStudy={planStudyOnCalendar}
             hasPremium={hasPremium}
             onGoToSettings={() => setActiveTab("settings")}
-            onGoToToday={() => setActiveTab("today")}
             initialTaskId={studyTaskToOpen}
             onInitialTaskHandled={() => setStudyTaskToOpen(null)}
           />
