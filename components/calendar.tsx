@@ -1170,7 +1170,7 @@ function CalendarView({
         type: "personal",
         scheduledDate: "",
         startTime: "",
-        duration: "60 min",
+        duration: "",
       });
     } else if (type) {
       setTaskFormData({
@@ -1180,7 +1180,7 @@ function CalendarView({
         type,
         scheduledDate: type === "exam" ? "" : dateStr,
         startTime: type === "exam" ? "" : "16:00",
-        duration: "60 min",
+        duration: type === "exam" ? "" : "60 min",
       });
     }
 
@@ -1258,19 +1258,12 @@ function CalendarView({
     if (taskFormData.type !== "personal" && !taskFormData.subjectId) {
       next.subjectId = "Subject is required";
     }
-    const usesSimpleDateOnly = taskFormData.type === "personal" || taskFormData.type === "exam";
-    if (!usesSimpleDateOnly) {
-      if (!taskFormData.scheduledDate) next.scheduledDate = "Scheduled date is required";
-      if (!taskFormData.startTime) next.startTime = "Start time is required";
-      if (!taskFormData.duration) next.duration = "Duration is required";
-    }
+    const needsScheduledBlock = taskFormData.type !== "personal" && taskFormData.type !== "exam";
+    if (needsScheduledBlock && !taskFormData.scheduledDate) next.scheduledDate = "Scheduled date is required";
+    if (needsScheduledBlock && !taskFormData.startTime) next.startTime = "Start time is required";
+    if (needsScheduledBlock && !taskFormData.duration) next.duration = "Duration is required";
     if (!taskFormData.dueDate) {
-      next.dueDate =
-        taskFormData.type === "exam"
-          ? "Exam date is required"
-          : taskFormData.type === "personal"
-            ? "Date is required"
-            : "Due date is required";
+      next.dueDate = taskFormData.type === "exam" ? "Exam date is required" : taskFormData.type === "personal" ? "Date is required" : "Due date is required";
     }
 
     setTaskErrors(next);
@@ -1297,13 +1290,10 @@ function CalendarView({
     if (!validateTaskForm()) return;
 
     const newDueDate = new Date(taskFormData.dueDate);
-    const usesSimpleDateOnly = taskFormData.type === "personal" || taskFormData.type === "exam";
-    const nextScheduledDate =
-      !usesSimpleDateOnly && taskFormData.scheduledDate
-        ? new Date(taskFormData.scheduledDate)
-        : undefined;
-    const nextStartTime = !usesSimpleDateOnly ? taskFormData.startTime.trim() || undefined : undefined;
-    const nextDuration = !usesSimpleDateOnly ? taskFormData.duration.trim() || "60 min" : undefined;
+    const usesScheduledBlock = taskFormData.type !== "personal" && taskFormData.type !== "exam";
+    const nextScheduledDate = usesScheduledBlock && taskFormData.scheduledDate ? new Date(taskFormData.scheduledDate) : undefined;
+    const nextStartTime = usesScheduledBlock ? taskFormData.startTime.trim() || undefined : undefined;
+    const nextDuration = usesScheduledBlock ? taskFormData.duration.trim() || "60 min" : undefined;
 
     if (editingTaskId && onUpdateTask) {
       const existing = tasks.find((t) => t.id === editingTaskId);
@@ -1313,8 +1303,7 @@ function CalendarView({
         startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
       const computedPeriodId = taskFormData.type === "personal" ? undefined : findMatchingPeriodId(newDueDate, periods);
-      const nextPeriodId =
-        taskFormData.type === "personal" ? undefined : dueChanged ? computedPeriodId : existing?.periodId;
+      const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
 
       const payload: Omit<Task, "id"> = {
         title: taskFormData.title.trim(),
@@ -2808,67 +2797,74 @@ function CalendarView({
                     </div>
                   ) : null}
 
-                  {taskFormData.type !== "personal" && taskFormData.type !== "exam"
-                    ? renderSharedTimeFields({
-                    dateLabel: showAddForm === "exam" ? "Exam date" : "Planned work date",
-                    dateValue: taskFormData.scheduledDate,
-                    onDateChange: (value) => {
-                      setTaskFormData((p) => ({
-                        ...p,
-                        scheduledDate: value,
-                        dueDate: p.type === "exam" && !p.dueDate ? value : p.dueDate,
-                      }));
-                      clearError(setTaskErrors, "scheduledDate");
-                    },
-                    dateError: taskErrors.scheduledDate,
-                    startTimeValue: taskStartTimeUiValue,
-                    onStartTimeChange: (value) => {
-                      setTaskFormData({
-                        ...taskFormData,
-                        startTime: value,
-                      });
-                      clearError(setTaskErrors, "startTime");
-                    },
-                    startTimeError: taskErrors.startTime,
-                    durationValue: taskFormData.duration,
-                    onDurationChange: (value) => {
-                      setTaskFormData({ ...taskFormData, duration: value });
-                      clearError(setTaskErrors, "duration");
-                    },
-                    durationError: taskErrors.duration,
-                  })
-                    : null}
-
-                  <div>
-                    <label className={labelClass}>
-                      {taskFormData.type === "exam" ? "Exam date" : taskFormData.type === "personal" ? "Date" : "Due date"}
-                      <RequiredMark required />
-                    </label>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {taskFormData.type === "exam"
-                        ? "Choose the day the exam happens."
-                        : taskFormData.type === "personal"
-                          ? "Choose the day this task happens."
-                          : "This is the deadline. If you have a matching class on that day, the due label can attach to that class."}
+                  {taskFormData.type === "personal" || taskFormData.type === "exam" ? (
+                    <div>
+                      <label className={labelClass}>
+                        {taskFormData.type === "exam" ? "Exam date" : "Date"}
+                        <RequiredMark required />
+                      </label>
+                      <input
+                        type="date"
+                        value={taskFormData.dueDate}
+                        onChange={(e) => {
+                          setTaskFormData({ ...taskFormData, dueDate: e.target.value });
+                          clearError(setTaskErrors, "dueDate");
+                        }}
+                        className={[inputBase, taskErrors.dueDate ? inputErr : inputOk].join(" ")}
+                        aria-invalid={!!taskErrors.dueDate}
+                      />
+                      <FieldError message={taskErrors.dueDate} />
                     </div>
-                    <input
-                      type="date"
-                      value={taskFormData.dueDate}
-                      onChange={(e) => {
-                        setTaskFormData({ ...taskFormData, dueDate: e.target.value });
-                        clearError(setTaskErrors, "dueDate");
-                      }}
-                      className={[inputBase, taskErrors.dueDate ? inputErr : inputOk].join(" ")}
-                      aria-invalid={!!taskErrors.dueDate}
-                    />
-                    <FieldError message={taskErrors.dueDate} />
-                  </div>
+                  ) : (
+                    <>
+                      {renderSharedTimeFields({
+                        dateLabel: "Planned work date",
+                        dateValue: taskFormData.scheduledDate,
+                        onDateChange: (value) => {
+                          setTaskFormData((p) => ({ ...p, scheduledDate: value }));
+                          clearError(setTaskErrors, "scheduledDate");
+                        },
+                        dateError: taskErrors.scheduledDate,
+                        startTimeValue: taskStartTimeUiValue,
+                        onStartTimeChange: (value) => {
+                          setTaskFormData({ ...taskFormData, startTime: value });
+                          clearError(setTaskErrors, "startTime");
+                        },
+                        startTimeError: taskErrors.startTime,
+                        durationValue: taskFormData.duration,
+                        onDurationChange: (value) => {
+                          setTaskFormData({ ...taskFormData, duration: value });
+                          clearError(setTaskErrors, "duration");
+                        },
+                        durationError: taskErrors.duration,
+                      })}
 
-                  {taskFormData.type !== "personal" && taskFormData.type !== "exam" ? (
-                    <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
-                      The calendar block shows when you are doing it. The due date appears as a clean deadline label on the item.
-                    </div>
-                  ) : null}
+                      <div>
+                        <label className={labelClass}>
+                          Due date
+                          <RequiredMark required />
+                        </label>
+                        <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                          This is the deadline. If you have a matching class on that day, the due label can attach to that class.
+                        </div>
+                        <input
+                          type="date"
+                          value={taskFormData.dueDate}
+                          onChange={(e) => {
+                            setTaskFormData({ ...taskFormData, dueDate: e.target.value });
+                            clearError(setTaskErrors, "dueDate");
+                          }}
+                          className={[inputBase, taskErrors.dueDate ? inputErr : inputOk].join(" ")}
+                          aria-invalid={!!taskErrors.dueDate}
+                        />
+                        <FieldError message={taskErrors.dueDate} />
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
+                        The calendar block shows when you are doing it. The due date appears as a clean deadline label on the item.
+                      </div>
+                    </>
+                  )}
 
                   <div className="flex gap-2 pt-1">
                     {editingTaskId && onDeleteTask ? (
