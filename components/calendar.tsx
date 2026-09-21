@@ -275,6 +275,15 @@ const parseTimeToMinutes = (value?: string) => {
   return hh * 60 + mm;
 };
 
+const formatMinutes = (minutes: number) => {
+  const mins = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(mins / 60);
+  const rest = mins % 60;
+  if (!hours) return `${rest}m`;
+  if (!rest) return `${hours}h`;
+  return `${hours}h ${rest}m`;
+};
+
 const parseDurationToMinutes = (value?: string) => {
   if (!value) return 60;
 
@@ -622,6 +631,8 @@ function CalendarView({
   const [editingTaskId, setEditingtaskId] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [assessmentDetailTaskId, setAssessmentDetailTaskId] = useState<string | null>(null);
+  const [planningSlot, setPlanningSlot] = useState<{ date: Date; startTime: string } | null>(null);
+  const [planningDurationMinutes, setPlanningDurationMinutes] = useState(60);
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -766,6 +777,20 @@ function CalendarView({
   }, [tasks]);
 
   const planningStudyTask = planningStudyTaskId ? taskById.get(planningStudyTaskId) ?? null : null;
+
+  const planningStudySummary = useMemo(() => {
+    if (!planningStudyTask) return null;
+    const completed = studySessions.filter((session) => session.completed && session.linkedTaskId === planningStudyTask.id).reduce((sum, session) => sum + parseDurationToMinutes(session.duration), 0);
+    const planned = studySessions.filter((session) => !session.completed && session.linkedTaskId === planningStudyTask.id).reduce((sum, session) => sum + parseDurationToMinutes(session.duration), 0);
+    const target = planningStudyTask.targetStudyMinutes ?? 180;
+    return { completed, planned, target, unscheduled: Math.max(0, target - completed - planned) };
+  }, [planningStudyTask, studySessions]);
+
+  const isPlanningDateEligible = (date: Date) => {
+    if (!planningStudyTask) return true;
+    const day = startOfDay(date).getTime();
+    return day >= startOfDay(new Date()).getTime() && day <= startOfDay(planningStudyTask.dueDate).getTime();
+  };
 
   useEffect(() => {
     if (!planningStudyTaskId) return;
@@ -1017,8 +1042,11 @@ function CalendarView({
   const getItemsForDate = (date: Date) =>
     calendarItems.filter((item) => isSameDay(item.start, date));
 
+  const getAllDayItemsForDate = (date: Date) =>
+    getItemsForDate(date).filter((item) => item.isDeadlineMarker || item.importedEvent?.allDay);
+
   const getVisibleTimedItemsForDate = (date: Date) => {
-    const normalItems = getItemsForDate(date);
+    const normalItems = getItemsForDate(date).filter((item) => !item.isDeadlineMarker && !item.importedEvent?.allDay);
     const classItems = viewMode === "month" ? [] : getTimetableItemsForDate(date);
 
     return [...classItems, ...normalItems].sort((a, b) => {
@@ -1077,9 +1105,31 @@ function CalendarView({
     setCurrentDate(addDays(currentDate, direction === "next" ? 1 : -1));
   };
 
-  const openAddMenuForDate = (date: Date) => {
+  const openAddMenuForDate = (date: Date, startTime = "16:00") => {
+    if (planningStudyTask) {
+      const day = startOfDay(date).getTime();
+      const today = startOfDay(new Date()).getTime();
+      const due = startOfDay(planningStudyTask.dueDate).getTime();
+      if (day < today || day > due) return;
+      setPlanningSlot({ date, startTime });
+      return;
+    }
     setSelectedDate(date);
     setShowAddMenu(true);
+  };
+
+  const addPlanningSession = (durationMinutes: number) => {
+    if (!planningStudyTask || !planningSlot) return;
+    onAddStudySession({
+      title: `${planningStudyTask.title} study`,
+      subjectId: planningStudyTask.subjectId ?? "",
+      date: planningSlot.date,
+      startTime: planningSlot.startTime,
+      duration: `${durationMinutes} min`,
+      linkedTaskId: planningStudyTask.id,
+      completed: false,
+    });
+    setPlanningSlot(null);
   };
 
   const closeAddMenu = () => {
@@ -1118,9 +1168,9 @@ function CalendarView({
         subjectId: "",
         dueDate: dateStr,
         type: "personal",
-        scheduledDate: dateStr,
-        startTime: "09:00",
-        duration: "15 min",
+        scheduledDate: "",
+        startTime: "",
+        duration: "60 min",
       });
     } else if (type) {
       setTaskFormData({
@@ -1128,9 +1178,9 @@ function CalendarView({
         subjectId: "",
         dueDate: type === "exam" ? dateStr : "",
         type,
-        scheduledDate: dateStr,
-        startTime: "16:00",
-        duration: type === "exam" ? "2h" : "60 min",
+        scheduledDate: type === "exam" ? "" : dateStr,
+        startTime: type === "exam" ? "" : "16:00",
+        duration: "60 min",
       });
     }
 
@@ -1208,18 +1258,11 @@ function CalendarView({
     if (taskFormData.type !== "personal" && !taskFormData.subjectId) {
       next.subjectId = "Subject is required";
     }
-
-    const usesTimedCalendarBlock =
-      taskFormData.type !== "personal" && taskFormData.type !== "exam";
-
-    if (usesTimedCalendarBlock && !taskFormData.scheduledDate) {
-      next.scheduledDate = "Scheduled date is required";
-    }
-    if (usesTimedCalendarBlock && !taskFormData.startTime) {
-      next.startTime = "Start time is required";
-    }
-    if (usesTimedCalendarBlock && !taskFormData.duration) {
-      next.duration = "Duration is required";
+    const usesSimpleDateOnly = taskFormData.type === "personal" || taskFormData.type === "exam";
+    if (!usesSimpleDateOnly) {
+      if (!taskFormData.scheduledDate) next.scheduledDate = "Scheduled date is required";
+      if (!taskFormData.startTime) next.startTime = "Start time is required";
+      if (!taskFormData.duration) next.duration = "Duration is required";
     }
     if (!taskFormData.dueDate) {
       next.dueDate =
@@ -1254,14 +1297,13 @@ function CalendarView({
     if (!validateTaskForm()) return;
 
     const newDueDate = new Date(taskFormData.dueDate);
-    const usesTimedCalendarBlock =
-      taskFormData.type !== "personal" && taskFormData.type !== "exam";
+    const usesSimpleDateOnly = taskFormData.type === "personal" || taskFormData.type === "exam";
     const nextScheduledDate =
-      usesTimedCalendarBlock && taskFormData.scheduledDate
+      !usesSimpleDateOnly && taskFormData.scheduledDate
         ? new Date(taskFormData.scheduledDate)
         : undefined;
-    const nextStartTime = usesTimedCalendarBlock ? taskFormData.startTime.trim() || undefined : undefined;
-    const nextDuration = usesTimedCalendarBlock ? taskFormData.duration.trim() || "60 min" : undefined;
+    const nextStartTime = !usesSimpleDateOnly ? taskFormData.startTime.trim() || undefined : undefined;
+    const nextDuration = !usesSimpleDateOnly ? taskFormData.duration.trim() || "60 min" : undefined;
 
     if (editingTaskId && onUpdateTask) {
       const existing = tasks.find((t) => t.id === editingTaskId);
@@ -1271,7 +1313,8 @@ function CalendarView({
         startOfDay(existing.dueDate).getTime() !== startOfDay(newDueDate).getTime();
 
       const computedPeriodId = taskFormData.type === "personal" ? undefined : findMatchingPeriodId(newDueDate, periods);
-      const nextPeriodId = dueChanged ? computedPeriodId : existing?.periodId;
+      const nextPeriodId =
+        taskFormData.type === "personal" ? undefined : dueChanged ? computedPeriodId : existing?.periodId;
 
       const payload: Omit<Task, "id"> = {
         title: taskFormData.title.trim(),
@@ -1441,43 +1484,38 @@ function CalendarView({
     // This avoids nested-scroll behaviour in week/day views.
   }, [viewMode, currentDate, calendarItems.length, timetableClasses.length, timetablePeriods.length]);
 
+  const minimalPrimary = (item: CalendarItem) => {
+    const subjectName = item.subjectId ? subjectById.get(item.subjectId)?.name : undefined;
+    if (item.kind === "study") return subjectName ?? "Study";
+    if (item.task && item.task.type !== "personal") return subjectName ?? item.title;
+    if (item.importedEvent?.allDay) return item.title;
+    return subjectName ?? item.title;
+  };
+
+  const minimalSecondary = (item: CalendarItem) => {
+    if (item.isDeadlineMarker && item.task) return typeLabel(item.task.type);
+    if (item.kind === "study") return "Study";
+    if (item.isTimetableClass) return "Class";
+    if (item.kind === "imported") return item.importedEvent?.allDay ? "All day" : "Event";
+    if (item.task) return typeLabel(item.task.type);
+    return getItemLabel(item);
+  };
+
   const renderMonthItem = (item: CalendarItem) => {
     const color = getItemColor(item);
     const palette = createEventPalette(color, item.kind, item.isTimetableClass);
-    const subjectName = item.subjectId ? subjectById.get(item.subjectId)?.name : undefined;
 
     return (
       <button
         key={item.id}
         type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          openCalendarItem(item);
-        }}
+        onClick={(event) => { event.stopPropagation(); openCalendarItem(item); }}
         className="calendar-month-chip border"
-        style={{
-          backgroundColor: palette.background,
-          borderColor: palette.border,
-          color: palette.text,
-        }}
-        title={item.isDeadlineMarker ? `Due: ${item.title}` : `${getItemLabel(item)}: ${item.title}`}
+        style={{ backgroundColor: palette.background, borderColor: palette.border, color: palette.text }}
+        title={`${minimalSecondary(item)}: ${item.title}`}
       >
-        <span
-          className="shrink-0 text-[10px] font-semibold"
-          style={{ color: palette.mutedText }}
-        >
-          {item.isDeadlineMarker ? "Due:" : item.timeLabel}
-        </span>
-
-        <span className="min-w-0 truncate font-semibold" style={{ color: palette.text }}>
-          {subjectName ? (
-            <>
-              <span className="font-medium opacity-75">{subjectName}</span>
-              <span className="mx-1 opacity-40">·</span>
-            </>
-          ) : null}
-          {item.title}
-        </span>
+        <span className="min-w-0 truncate font-semibold" style={{ color: palette.text }}>{minimalPrimary(item)}</span>
+        <span className="shrink-0 text-[10px] font-medium" style={{ color: palette.mutedText }}>{minimalSecondary(item)}</span>
       </button>
     );
   };
@@ -1658,19 +1696,11 @@ function CalendarView({
                 ].join(" ")}
                 style={{ color: palette.text }}
               >
-                {item.title}
+                {minimalPrimary(item)}
               </div>
 
               <div className="truncate text-[10px] font-medium" style={{ color: palette.mutedText }}>
-                {item.isDeadlineMarker ? (
-                  "Due"
-                ) : (
-                  <>
-                    Planned {getItemLabel(item)}
-                    {item.timeLabel ? ` · ${item.timeLabel}` : ""}
-                    {item.durationLabel ? ` · ${item.durationLabel}` : ""}
-                  </>
-                )}
+                {minimalSecondary(item)}{item.timeLabel ? ` · ${item.timeLabel}` : ""}
               </div>
             </div>
           </div>
@@ -1757,9 +1787,11 @@ function CalendarView({
                 role="button"
                 tabIndex={0}
                 className={[
-                  "min-h-[96px] cursor-pointer border-r border-b border-border p-1.5 text-left transition",
+                  "min-h-[96px] border-r border-b border-border p-1.5 text-left transition",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-                  isOtherMonth ? "bg-muted/10 text-muted-foreground" : "bg-card hover:bg-muted/25",
+                  planningStudyTask
+                    ? (isPlanningDateEligible(date) ? "cursor-pointer bg-primary/[0.15] hover:bg-primary/[0.22] ring-2 ring-inset ring-primary/40" : "cursor-not-allowed bg-muted/10 opacity-35")
+                    : (isOtherMonth ? "cursor-pointer bg-muted/10 text-muted-foreground" : "cursor-pointer bg-card hover:bg-muted/25"),
                   isToday ? "bg-primary/[0.04]" : "",
                 ].join(" ")}
               >
@@ -1873,7 +1905,8 @@ function CalendarView({
                   type="button"
                   onClick={() => openAddMenuForDate(date)}
                   className={[
-                    "border-r border-border px-2 py-3 text-center transition hover:bg-muted/30",
+                    "border-r border-border px-2 py-3 text-center transition",
+                    planningStudyTask ? (isPlanningDateEligible(date) ? "bg-primary/[0.15] hover:bg-primary/[0.22] ring-2 ring-inset ring-primary/35" : "opacity-35") : "hover:bg-muted/30",
                     isToday ? "bg-primary/[0.04]" : "",
                   ].join(" ")}
                 >
@@ -1895,6 +1928,28 @@ function CalendarView({
                     </div>
                   ) : null}
                 </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/[0.08]">
+            <div className="border-r border-border px-2 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">All day</div>
+            {days.map((date) => {
+              const items = getAllDayItemsForDate(date);
+              return (
+                <div key={`all-day-${date.toISOString()}`} className="min-h-[44px] border-r border-border p-1.5">
+                  <div className="space-y-1">
+                    {items.slice(0, 2).map((item) => {
+                      const color = getItemColor(item);
+                      const palette = createEventPalette(color, item.kind, false);
+                      return (
+                        <button key={item.id} type="button" onClick={(event) => { event.stopPropagation(); openCalendarItem(item); }} className="flex w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-left text-[10px] font-medium" style={{ borderColor: palette.border, backgroundColor: palette.background, color: palette.text }}>
+                          <span className="truncate">{minimalPrimary(item)}</span><span className="ml-auto shrink-0 opacity-65">{minimalSecondary(item)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1922,9 +1977,18 @@ function CalendarView({
                     key={date.toISOString()}
                     role="button"
                     tabIndex={0}
-                    onClick={() => openAddMenuForDate(date)}
+                    onClick={(event) => {
+                      if (!planningStudyTask) { openAddMenuForDate(date); return; }
+                      if (!isPlanningDateEligible(date)) return;
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      const rawMinutes = DAY_START_HOUR * 60 + ((event.clientY - rect.top) / HOUR_HEIGHT) * 60;
+                      const rounded = Math.round(rawMinutes / 15) * 15;
+                      const clamped = clamp(rounded, DAY_START_HOUR * 60, DAY_END_HOUR * 60 - 15);
+                      openAddMenuForDate(date, `${String(Math.floor(clamped / 60)).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`);
+                    }}
                     className={[
-                      "relative cursor-pointer border-r border-border bg-card text-left",
+                      "relative border-r border-border bg-card text-left",
+                      planningStudyTask ? (isPlanningDateEligible(date) ? "cursor-crosshair bg-primary/[0.13] hover:bg-primary/[0.20] ring-2 ring-inset ring-primary/30" : "cursor-not-allowed opacity-35") : "cursor-pointer",
                       isToday ? "bg-primary/[0.025]" : "",
                     ].join(" ")}
                     style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
@@ -1993,6 +2057,23 @@ function CalendarView({
           </div>
         </div>
 
+        {getAllDayItemsForDate(currentDate).length > 0 ? (
+          <div className="grid grid-cols-[72px_minmax(0,1fr)] border-b border-border bg-muted/[0.08]">
+            <div className="border-r border-border px-3 py-3 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">All day</div>
+            <div className="flex flex-wrap gap-2 p-2">
+              {getAllDayItemsForDate(currentDate).map((item) => {
+                const color = getItemColor(item);
+                const palette = createEventPalette(color, item.kind, false);
+                return (
+                  <button key={item.id} type="button" onClick={() => openCalendarItem(item)} className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium" style={{ borderColor: palette.border, backgroundColor: palette.background, color: palette.text }}>
+                    <span>{minimalPrimary(item)}</span><span className="opacity-65">{minimalSecondary(item)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div ref={timeGridScrollRef}>
           <div className="grid grid-cols-[72px_minmax(0,1fr)]">
             <div className="border-r border-border bg-card">
@@ -2010,9 +2091,18 @@ function CalendarView({
             <div
               role="button"
               tabIndex={0}
-              onClick={() => openAddMenuForDate(currentDate)}
+              onClick={(event) => {
+                if (!planningStudyTask) { openAddMenuForDate(currentDate); return; }
+                if (!isPlanningDateEligible(currentDate)) return;
+                const rect = event.currentTarget.getBoundingClientRect();
+                const rawMinutes = DAY_START_HOUR * 60 + ((event.clientY - rect.top) / HOUR_HEIGHT) * 60;
+                const rounded = Math.round(rawMinutes / 15) * 15;
+                const clamped = clamp(rounded, DAY_START_HOUR * 60, DAY_END_HOUR * 60 - 15);
+                openAddMenuForDate(currentDate, `${String(Math.floor(clamped / 60)).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`);
+              }}
               className={[
-                "relative cursor-pointer bg-card text-left",
+                "relative bg-card text-left",
+                planningStudyTask ? (isPlanningDateEligible(currentDate) ? "cursor-crosshair bg-primary/[0.13] ring-2 ring-inset ring-primary/30" : "cursor-not-allowed opacity-35") : "cursor-pointer",
                 isToday ? "bg-primary/[0.025]" : "",
               ].join(" ")}
               style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
@@ -2158,12 +2248,21 @@ function CalendarView({
       </div>
 
       {planningStudyTask ? (
-        <div className="app-card flex flex-col gap-3 border-primary/20 bg-primary/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-foreground">Planning study for {planningStudyTask.title}</div>
-            <div className="mt-1 text-xs text-muted-foreground">Choose a day in the calendar, add a Study Session, and this assessment will already be linked.</div>
+        <div className="sticky top-3 z-30 overflow-hidden rounded-3xl border-2 border-primary/45 bg-card shadow-2xl shadow-black/10">
+          <div className="h-1.5 bg-primary" />
+          <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground">Planning study</span>
+                <span className="text-xs font-medium text-muted-foreground">Due {planningStudyTask.dueDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>
+              </div>
+              <div className="mt-2 text-xs font-medium text-muted-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? "Assessment"} · {planningStudyTask.type === "exam" ? "Exam" : "Assignment"}</div>
+              <div className="mt-0.5 truncate text-lg font-semibold text-foreground">{planningStudyTask.title}</div>
+              <div className="mt-2 text-sm font-medium text-foreground">Choose a highlighted day below. In Week or Day view, click the exact time you want to study.</div>
+              {planningStudySummary ? <div className="mt-2 text-sm text-muted-foreground">{planningStudySummary.unscheduled > 0 ? <><span className="font-semibold text-primary">{formatMinutes(planningStudySummary.unscheduled)}</span> still needs to be scheduled.</> : <span className="font-semibold text-primary">Your study target is fully scheduled.</span>}</div> : null}
+            </div>
+            <button type="button" className="app-btn-primary h-11 shrink-0 px-5" onClick={onPlanningStudyHandled}>Done planning</button>
           </div>
-          <button type="button" className="app-btn-ghost h-9 px-3" onClick={onPlanningStudyHandled}>Cancel planning</button>
         </div>
       ) : null}
 
@@ -2214,6 +2313,41 @@ function CalendarView({
         {viewMode === "day" ? renderDayView() : null}
       </CalendarShell>
 
+
+      {planningSlot && planningStudyTask ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]" onMouseDown={() => setPlanningSlot(null)}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="border-b border-border px-5 py-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Add study session</div>
+              <div className="mt-1 text-lg font-semibold text-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? planningStudyTask.title}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{planningSlot.date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} · {displayTime(planningSlot.startTime)}</div>
+            </div>
+            <div className="px-5 py-5">
+              <div className="text-sm font-medium text-foreground">How long do you want to study?</div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[30, 45, 60, 90, 120, 180].map((minutes) => (
+                  <button key={minutes} type="button" onClick={() => setPlanningDurationMinutes(minutes)} className={[
+                    "rounded-xl border px-3 py-2.5 text-sm font-medium transition",
+                    planningDurationMinutes === minutes ? "border-primary/45 bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-muted/40",
+                  ].join(" ")}>{formatMinutes(minutes)}</button>
+                ))}
+              </div>
+              <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-muted/[0.10] p-2">
+                <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-lg text-foreground transition hover:bg-muted" onClick={() => setPlanningDurationMinutes((value) => Math.max(15, value - 15))}>−</button>
+                <label className="flex items-baseline gap-2">
+                  <input aria-label="Study duration in minutes" type="number" min="15" step="15" value={planningDurationMinutes} onChange={(event) => setPlanningDurationMinutes(Math.max(15, Number(event.target.value) || 15))} className="w-20 bg-transparent text-center text-2xl font-semibold text-foreground outline-none" />
+                  <span className="text-xs font-medium text-muted-foreground">minutes</span>
+                </label>
+                <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-lg text-foreground transition hover:bg-muted" onClick={() => setPlanningDurationMinutes((value) => value + 15)}>+</button>
+              </div>
+              <div className="mt-5 flex gap-2">
+                <button type="button" className="app-btn-primary flex-1" onClick={() => addPlanningSession(planningDurationMinutes)}>Add {formatMinutes(planningDurationMinutes)} study</button>
+                <button type="button" className="app-btn-secondary" onClick={() => setPlanningSlot(null)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {showAddMenu && selectedDate ? (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={closeAddMenu} />
@@ -2674,39 +2808,49 @@ function CalendarView({
                     </div>
                   ) : null}
 
-                  {taskFormData.type === "homework" || taskFormData.type === "assignment"
+                  {taskFormData.type !== "personal" && taskFormData.type !== "exam"
                     ? renderSharedTimeFields({
-                        dateLabel: "Planned work date",
-                        dateValue: taskFormData.scheduledDate,
-                        onDateChange: (value) => {
-                          setTaskFormData((p) => ({ ...p, scheduledDate: value }));
-                          clearError(setTaskErrors, "scheduledDate");
-                        },
-                        dateError: taskErrors.scheduledDate,
-                        startTimeValue: taskStartTimeUiValue,
-                        onStartTimeChange: (value) => {
-                          setTaskFormData({ ...taskFormData, startTime: value });
-                          clearError(setTaskErrors, "startTime");
-                        },
-                        startTimeError: taskErrors.startTime,
-                        durationValue: taskFormData.duration,
-                        onDurationChange: (value) => {
-                          setTaskFormData({ ...taskFormData, duration: value });
-                          clearError(setTaskErrors, "duration");
-                        },
-                        durationError: taskErrors.duration,
-                      })
+                    dateLabel: showAddForm === "exam" ? "Exam date" : "Planned work date",
+                    dateValue: taskFormData.scheduledDate,
+                    onDateChange: (value) => {
+                      setTaskFormData((p) => ({
+                        ...p,
+                        scheduledDate: value,
+                        dueDate: p.type === "exam" && !p.dueDate ? value : p.dueDate,
+                      }));
+                      clearError(setTaskErrors, "scheduledDate");
+                    },
+                    dateError: taskErrors.scheduledDate,
+                    startTimeValue: taskStartTimeUiValue,
+                    onStartTimeChange: (value) => {
+                      setTaskFormData({
+                        ...taskFormData,
+                        startTime: value,
+                      });
+                      clearError(setTaskErrors, "startTime");
+                    },
+                    startTimeError: taskErrors.startTime,
+                    durationValue: taskFormData.duration,
+                    onDurationChange: (value) => {
+                      setTaskFormData({ ...taskFormData, duration: value });
+                      clearError(setTaskErrors, "duration");
+                    },
+                    durationError: taskErrors.duration,
+                  })
                     : null}
 
                   <div>
                     <label className={labelClass}>
-                      {taskFormData.type === "exam"
-                        ? "Exam date"
-                        : taskFormData.type === "personal"
-                          ? "Date"
-                          : "Due date"}
+                      {taskFormData.type === "exam" ? "Exam date" : taskFormData.type === "personal" ? "Date" : "Due date"}
                       <RequiredMark required />
                     </label>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {taskFormData.type === "exam"
+                        ? "Choose the day the exam happens."
+                        : taskFormData.type === "personal"
+                          ? "Choose the day this task happens."
+                          : "This is the deadline. If you have a matching class on that day, the due label can attach to that class."}
+                    </div>
                     <input
                       type="date"
                       value={taskFormData.dueDate}
@@ -2720,9 +2864,9 @@ function CalendarView({
                     <FieldError message={taskErrors.dueDate} />
                   </div>
 
-                  {taskFormData.type === "homework" || taskFormData.type === "assignment" ? (
+                  {taskFormData.type !== "personal" && taskFormData.type !== "exam" ? (
                     <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
-                      The planned work block shows when you intend to do it. The due date remains the deadline.
+                      The calendar block shows when you are doing it. The due date appears as a clean deadline label on the item.
                     </div>
                   ) : null}
 

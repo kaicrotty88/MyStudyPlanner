@@ -5,11 +5,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Clock,
   Edit2,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 
 import type { Subject, Task, StudySession } from "./models";
@@ -245,6 +248,11 @@ export function Tasks({
   });
 
   const [showAddForm, setShowAddForm] = useState<TaskSectionType | null>(null);
+  const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
+  const [dueDatePickerMonth, setDueDatePickerMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -366,9 +374,8 @@ export function Tasks({
             : "Due date is required";
     }
 
-    const supportsScheduledTime = showAddForm !== "personal" && showAddForm !== "exam" && showAddForm !== "assignment";
-    const hasScheduledDate = supportsScheduledTime && Boolean(formData.scheduledDate);
-    const hasStartTime = supportsScheduledTime && Boolean(formData.startTime);
+    const hasScheduledDate = Boolean(formData.scheduledDate);
+    const hasStartTime = Boolean(formData.startTime);
 
     if ((hasScheduledDate || hasStartTime) && !hasScheduledDate) {
       next.scheduledDate = "Scheduled date is required when adding a calendar block";
@@ -399,15 +406,13 @@ export function Tasks({
     if (!validateForm()) return;
 
     const newDueDate = new Date(formData.dueDate);
-    const supportsScheduledTime = type !== "personal" && type !== "exam" && type !== "assignment";
+    const usesSimpleDateOnly = type === "personal" || type === "exam";
     const nextScheduledDate =
-      supportsScheduledTime && formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
+      !usesSimpleDateOnly && formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
     const nextStartTime =
-      supportsScheduledTime && formData.startTime.trim() ? formData.startTime.trim() : undefined;
+      !usesSimpleDateOnly && formData.startTime.trim() ? formData.startTime.trim() : undefined;
     const nextDuration =
-      supportsScheduledTime && nextScheduledDate && nextStartTime
-        ? formData.duration.trim() || "60 min"
-        : undefined;
+      nextScheduledDate && nextStartTime ? formData.duration.trim() || "60 min" : undefined;
 
     if (editingId) {
       const existing = tasks.find((t) => t.id === editingId);
@@ -515,8 +520,10 @@ export function Tasks({
         <div className="mt-1 text-xs text-muted-foreground">
           {type === "personal"
             ? "Personal tasks do not need a subject."
-            : type === "assignment" || type === "exam"
-              ? "Add the deadline first. Plan preparation separately when you are ready."
+            : type === "exam"
+              ? "Add the exam date first. Plan preparation separately when you are ready."
+              : type === "assignment"
+                ? "Add the deadline first. Plan preparation separately when you are ready."
               : "School tasks use subject colours across Calendar and Tasks."}
         </div>
       </div>
@@ -571,24 +578,38 @@ export function Tasks({
 
       <div>
         <label className={labelClass} htmlFor={`task-date-${type}`}>
-          {type === "personal" ? "Date" : type === "exam" ? "Exam date" : "Due date"}
+          {type === "exam" ? "Exam date" : type === "personal" ? "Date" : "Due date"}
           <RequiredMark required />
         </label>
-        <input
+        <button
           id={`task-date-${type}`}
-          type="date"
-          value={formData.dueDate}
-          onChange={(e) => {
-            setFormData((p) => ({ ...p, dueDate: e.target.value }));
-            clearError("dueDate");
+          type="button"
+          className={[
+            "flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border bg-input-background px-4 py-2.5 text-left text-sm transition hover:border-primary/35 hover:bg-primary/[0.025] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+            formErrors.dueDate ? inputErr : inputOk,
+          ].join(" ")}
+          onClick={() => {
+            const base = formData.dueDate ? new Date(`${formData.dueDate}T12:00:00`) : new Date();
+            setDueDatePickerMonth(new Date(base.getFullYear(), base.getMonth(), 1));
+            setDueDatePickerOpen(true);
           }}
-          className={[inputBase, formErrors.dueDate ? inputErr : inputOk].join(" ")}
           aria-invalid={!!formErrors.dueDate}
-        />
+        >
+          <span className={formData.dueDate ? "font-medium text-foreground" : "text-muted-foreground"}>
+            {formData.dueDate
+              ? new Date(`${formData.dueDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+              : `Choose ${type === "exam" ? "exam date" : type === "personal" ? "date" : "due date"} on calendar`}
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-primary">
+            <Calendar className="h-4 w-4" />
+            {formData.dueDate ? "Change" : "Choose"}
+          </span>
+        </button>
+        <div className="mt-1.5 text-xs text-muted-foreground">Click above, then choose the day from the calendar.</div>
         <FieldError message={formErrors.dueDate} />
       </div>
 
-      {type === "homework" ? (
+      {type !== "personal" && type !== "exam" && (editingId || type !== "assignment") ? (
       <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
         <div className="flex items-start gap-2">
           <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card">
@@ -598,7 +619,9 @@ export function Tasks({
           <div>
             <div className="text-sm font-medium text-foreground">Schedule on calendar</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              Optional. Add a planned work block to the Calendar.
+              {type === "personal"
+                ? "Optional. Add a time if this personal task should appear on the Calendar."
+                : "Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid."}
             </div>
           </div>
         </div>
@@ -1129,6 +1152,75 @@ export function Tasks({
           {renderSection(tasksByType.personal, "personal")}
         </div>
       </div>
+
+
+      {dueDatePickerOpen ? (() => {
+        const year = dueDatePickerMonth.getFullYear();
+        const month = dueDatePickerMonth.getMonth();
+        const first = new Date(year, month, 1);
+        const startOffset = (first.getDay() + 6) % 7;
+        const gridStart = new Date(year, month, 1 - startOffset);
+        const days = Array.from({ length: 42 }, (_, index) => {
+          const d = new Date(gridStart);
+          d.setDate(gridStart.getDate() + index);
+          return d;
+        });
+        const selected = formData.dueDate ? new Date(`${formData.dueDate}T12:00:00`) : null;
+        return (
+          <div className="fixed inset-0 z-[90] bg-black/40 p-4 backdrop-blur-[2px]" onMouseDown={() => setDueDatePickerOpen(false)}>
+            <div className="mx-auto mt-[6vh] w-full max-w-4xl overflow-hidden rounded-3xl border border-border bg-card shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+              <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Choose due date</div>
+                  <div className="mt-1 text-lg font-semibold text-foreground">Click the day this {showAddForm === "exam" ? "exam" : showAddForm === "assignment" ? "assignment" : "task"} is due.</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Your form stays open. Selecting a day returns you straight to it.</div>
+                </div>
+                <button type="button" className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-muted" onClick={() => setDueDatePickerOpen(false)} aria-label="Close">
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <button type="button" className="grid h-9 w-9 place-items-center rounded-lg border border-border transition hover:bg-muted" onClick={() => setDueDatePickerMonth(new Date(year, month - 1, 1))} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
+                  <div className="text-base font-semibold text-foreground">{dueDatePickerMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</div>
+                  <button type="button" className="grid h-9 w-9 place-items-center rounded-lg border border-border transition hover:bg-muted" onClick={() => setDueDatePickerMonth(new Date(year, month + 1, 1))} aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
+                </div>
+
+                <div className="grid grid-cols-7 border-b border-border pb-2 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day) => <div key={day}>{day}</div>)}
+                </div>
+                <div className="mt-2 grid grid-cols-7 gap-1">
+                  {days.map((date) => {
+                    const inMonth = date.getMonth() === month;
+                    const isSelected = selected && date.getFullYear() === selected.getFullYear() && date.getMonth() === selected.getMonth() && date.getDate() === selected.getDate();
+                    const isToday = date.toDateString() === new Date().toDateString();
+                    return (
+                      <button
+                        key={date.toISOString()}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, dueDate: toLocalDateInputValue(date) }));
+                          clearError("dueDate");
+                          setDueDatePickerOpen(false);
+                        }}
+                        className={[
+                          "group relative min-h-[74px] rounded-xl border p-2 text-left transition sm:min-h-[88px]",
+                          inMonth ? "border-border/70 bg-background hover:border-primary/35 hover:bg-primary/[0.04]" : "border-transparent bg-muted/[0.08] text-muted-foreground/45",
+                          isSelected ? "border-primary bg-primary/[0.08] ring-2 ring-primary/20" : "",
+                        ].join(" ")}
+                      >
+                        <div className={["inline-grid h-7 w-7 place-items-center rounded-full text-xs font-medium", isToday ? "bg-primary text-primary-foreground" : "text-foreground"].join(" ")}>{date.getDate()}</div>
+                        <div className="mt-2 hidden text-[10px] font-medium text-primary opacity-0 transition group-hover:opacity-100 sm:block">Choose this day</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
 
       {deletingId ? (
         <>
