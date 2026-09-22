@@ -6,7 +6,6 @@ import Image from "next/image";
 import appIcon from "@/app/icon.png";
 
 import { Calendar } from "./calendar";
-import { Today } from "./today";
 import { Tasks } from "./tasks";
 import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
@@ -27,7 +26,7 @@ import type {
   TimetableWeek,
 } from "./models";
 
-import { User, X, Lock, Sparkles } from "lucide-react";
+import { X, Lock, Sparkles } from "lucide-react";
 import { UserButton, useSession, useUser, SignInButton } from "@clerk/nextjs";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -57,7 +56,6 @@ const WHATS_NEW_UPDATES = [
 ];
 
 type Tab =
-  | "today"
   | "calendar"
   | "tasks"
   | "study"
@@ -1164,7 +1162,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     return getSupabaseClient(() => session.getToken() ?? Promise.resolve(null));
   }, [session]);
 
-  const [activeTab, setActiveTab] = useState<Tab>("today");
+  const [activeTab, setActiveTab] = useState<Tab>("calendar");
   const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
   const [calendarPlanningTaskId, setCalendarPlanningTaskId] = useState<string | null>(null);
 
@@ -1238,7 +1236,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     mode === "app" && activeTab !== "settings" && missingSetupItems.length > 0;
 
   const tabs = [
-    { id: "today", label: "Today" },
     { id: "calendar", label: "Calendar" },
     { id: "tasks", label: "Tasks" },
     { id: "study", label: "Study" },
@@ -1777,7 +1774,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTimetableClasses(demo.timetableClasses);
       setImportedCalendarEvents([]);
       seedPeriodsStorage(demo.periods);
-      setActiveTab("today");
+      setActiveTab("calendar");
       return;
     }
 
@@ -1789,7 +1786,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     setTimetablePeriods(DEFAULT_SCHOOL_TIMETABLE_PERIODS);
     setTimetableClasses([]);
     setImportedCalendarEvents([]);
-    setActiveTab("today");
+    setActiveTab("calendar");
 
     if (Boolean(isSignedIn) && supabase) {
       try {
@@ -2078,16 +2075,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               </div>
             )}
 
-            <div className="lg:hidden">
-              <button
-                type="button"
-                onClick={() => setActiveTab("today")}
-                className="app-iconbtn h-10 w-10 border border-border bg-card"
-                aria-label="Open Today"
-              >
-                <User className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -2211,21 +2198,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       ) : null}
 
       <main className="app-shell-content">
-        {activeTab === "today" ? (
-          <Today
-            tasks={tasks}
-            subjects={subjects}
-            studySessions={studySessions}
-            timetableSettings={timetableSettings}
-            timetablePeriods={timetablePeriods}
-            timetableClasses={timetableClasses}
-            importedCalendarEvents={importedCalendarEvents}
-            onToggleTaskCompleted={toggleTaskCompleted}
-            onOpenTask={() => setActiveTab("tasks")}
-            onPlanStudy={planStudyOnCalendar}
-          />
-        ) : null}
-
         {activeTab === "calendar" ? (
           <Calendar
             studySessions={studySessions}

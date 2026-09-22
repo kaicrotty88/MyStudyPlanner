@@ -445,7 +445,7 @@ export function StudyPlanner({
       {/* Header */}
       <div className="app-page-heading">
         <h1 className="app-page-title">Study</h1>
-        <p className="app-page-subtitle">Turn upcoming work into focused study sessions, then see what you actually did.</p>
+        <p className="app-page-subtitle">Plan preparation, focus on the work, and keep a clear record of what you completed.</p>
       </div>
 
       <div className="app-control-bar flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -463,7 +463,7 @@ export function StudyPlanner({
               onClick={() => setStudyView("log")}
               className={["app-switch-item", studyView === "log" ? "app-switch-item-active" : ""].join(" ")}
             >
-              Log
+              Plan & Log
             </button>
             <button
               type="button"
