@@ -1,10 +1,11 @@
 // components/studyplanner.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Edit2, Trash2, X, Link2, Lock, Sparkles } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { StudyInsights } from "./studyinsights";
+import { StudyTimer, type StudyTimerStartRequest } from "./studytimer";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { isAssessmentTask } from "./assessmentLifecycle";
 
@@ -135,7 +136,6 @@ interface StudyPlannerProps {
   onPlanStudy?: (taskId: string) => void;
   hasPremium?: boolean;
   onGoToSettings?: () => void;
-  onGoToToday?: () => void;
   initialTaskId?: string | null;
   onInitialTaskHandled?: () => void;
 }
@@ -151,7 +151,6 @@ export function StudyPlanner({
   onPlanStudy,
   hasPremium = false,
   onGoToSettings,
-  onGoToToday,
   initialTaskId = null,
   onInitialTaskHandled,
 }: StudyPlannerProps) {
@@ -177,6 +176,8 @@ export function StudyPlanner({
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [targetHours, setTargetHours] = useState("3");
   const [showCompletedStudy, setShowCompletedStudy] = useState(false);
+  const [timerStartRequest, setTimerStartRequest] = useState<StudyTimerStartRequest | null>(null);
+  const timerSectionRef = useRef<HTMLDivElement>(null);
 
   const getSubjectById = (id?: string) => (id ? subjects.find((s) => s.id === id) : undefined);
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
@@ -295,6 +296,30 @@ export function StudyPlanner({
       duration: "60 min",
       linkedTaskId: task.id,
     });
+  };
+
+  const startTimerForTask = (task: Task) => {
+    setStudyView("focus");
+    setDetailTaskId(null);
+    setTimerStartRequest({
+      key: Date.now(),
+      subjectId: task.subjectId ?? "",
+      linkedTaskId: task.id,
+      title: task.title,
+    });
+    requestAnimationFrame(() => timerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  const startTimerForSession = (session: StudySession) => {
+    setStudyView("focus");
+    setTimerStartRequest({
+      key: Date.now(),
+      subjectId: session.subjectId,
+      linkedTaskId: session.linkedTaskId,
+      plannedSessionId: session.id,
+      title: session.title || "Study session",
+    });
+    requestAnimationFrame(() => timerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const filteredSessions = useMemo(() => {
@@ -460,14 +485,20 @@ export function StudyPlanner({
           </div>
         </div>
 
-        {studyView !== "insights" && onGoToToday ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={onGoToToday} className="app-btn-primary h-9 px-4" type="button">
-              Study with timer
-            </button>
-          </div>
-        ) : null}
       </div>
+
+      {studyView === "focus" ? (
+        <div ref={timerSectionRef} className="scroll-mt-4">
+          <StudyTimer
+            tasks={tasks}
+            subjects={subjects}
+            studySessions={studySessions}
+            onAddStudySession={onAddStudySession}
+            onUpdateStudySession={onUpdateStudySession}
+            startRequest={timerStartRequest}
+          />
+        </div>
+      ) : null}
 
       {studyView === "focus" ? (
         <>
@@ -493,7 +524,7 @@ export function StudyPlanner({
                       onClick={() => setDetailTaskId(task.id)}
                       className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-muted/25"
                     >
-                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
+                      <span className="h-3 w-3 shrink-0 rounded-full border border-border" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                           <span className="font-medium">{subject?.name ?? "Assessment"}</span>
@@ -529,7 +560,7 @@ export function StudyPlanner({
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
+                        <span className="h-2.5 w-2.5 rounded-full border border-border" style={{ backgroundColor: subject?.color ?? "#94a3b8" }} />
                         <span>{subject?.name ?? "Subject"}</span><span>·</span><span>{typeLabel(task.type)}</span>
                       </div>
                       <div className="mt-2 text-xl font-semibold text-foreground">{task.title}</div>
@@ -565,7 +596,7 @@ export function StudyPlanner({
                   ) : null}
 
                   <div className="mt-6 flex flex-wrap gap-2">
-                    {onGoToToday ? <button type="button" className="app-btn-primary" onClick={onGoToToday}>Study now</button> : null}
+                    <button type="button" className="app-btn-primary" onClick={() => startTimerForTask(task)}>Study now</button>
                     {onPlanStudy ? <button type="button" className="app-btn-secondary" onClick={() => { setDetailTaskId(null); onPlanStudy(task.id); }}>Plan study</button> : null}
                     <button type="button" className="app-btn-secondary" onClick={() => { setDetailTaskId(null); openLogForTask(task); }}>Log study</button>
                     <button
@@ -633,7 +664,7 @@ export function StudyPlanner({
                     type="button"
                   >
                     <span className="inline-flex min-w-0 items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: subject.color }} />
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-border" style={{ backgroundColor: subject.color }} />
                       <span className="truncate">{subject.name}</span>
                     </span>
                   </button>
@@ -720,15 +751,13 @@ export function StudyPlanner({
                           ) : null}
                         </div>
                         <div className="flex shrink-0 items-center gap-1 opacity-80 transition group-hover:opacity-100 group-focus-within:opacity-100">
-                          {onGoToToday ? (
-                            <button
-                              type="button"
-                              onClick={onGoToToday}
-                              className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            >
-                              Start with timer
-                            </button>
-                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => startTimerForSession(session)}
+                            className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                          >
+                            Start with timer
+                          </button>
                           <button onClick={() => openEdit(session)} className="grid h-9 w-9 place-items-center rounded-xl transition hover:bg-muted" aria-label="Edit" type="button">
                             <Edit2 className="h-4 w-4 text-foreground" />
                           </button>

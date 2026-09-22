@@ -365,7 +365,7 @@ export function Tasks({
     if (showAddForm !== "personal" && !formData.subjectId) {
       next.subjectId = "Subject is required";
     }
-    if (!formData.dueDate) next.dueDate = showAddForm === "exam" ? "Exam date is required" : showAddForm === "personal" ? "Date is required" : "Due date is required";
+    if (!formData.dueDate) next.dueDate = "Due date is required";
 
     const hasScheduledDate = Boolean(formData.scheduledDate);
     const hasStartTime = Boolean(formData.startTime);
@@ -399,9 +399,8 @@ export function Tasks({
     if (!validateForm()) return;
 
     const newDueDate = new Date(formData.dueDate);
-    const usesScheduledBlock = type !== "personal" && type !== "exam";
-    const nextScheduledDate = usesScheduledBlock && formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
-    const nextStartTime = usesScheduledBlock && formData.startTime.trim() ? formData.startTime.trim() : undefined;
+    const nextScheduledDate = formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
+    const nextStartTime = formData.startTime.trim() ? formData.startTime.trim() : undefined;
     const nextDuration =
       nextScheduledDate && nextStartTime ? formData.duration.trim() || "60 min" : undefined;
 
@@ -538,36 +537,34 @@ export function Tasks({
         <FieldError message={formErrors.title} />
       </div>
 
-      {type !== "personal" ? (
-        <div>
-          <label className={labelClass} htmlFor={`task-subject-${type}`}>
-            Subject
-            <RequiredMark required />
-          </label>
-          <select
-            id={`task-subject-${type}`}
-            value={formData.subjectId}
-            onChange={(e) => {
-              setFormData((p) => ({ ...p, subjectId: e.target.value }));
-              clearError("subjectId");
-            }}
-            className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
-            aria-invalid={!!formErrors.subjectId}
-          >
-            <option value="">Select subject</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <FieldError message={formErrors.subjectId} />
-        </div>
-      ) : null}
+      <div>
+        <label className={labelClass} htmlFor={`task-subject-${type}`}>
+          Subject
+          <RequiredMark required={type !== "personal"} />
+        </label>
+        <select
+          id={`task-subject-${type}`}
+          value={formData.subjectId}
+          onChange={(e) => {
+            setFormData((p) => ({ ...p, subjectId: e.target.value }));
+            clearError("subjectId");
+          }}
+          className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
+          aria-invalid={!!formErrors.subjectId}
+        >
+          {type === "personal" ? <option value="">No subject / personal</option> : <option value="">Select subject</option>}
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <FieldError message={formErrors.subjectId} />
+      </div>
 
       <div>
         <label className={labelClass} htmlFor={`task-date-${type}`}>
-          {type === "personal" ? "Date" : type === "exam" ? "Exam date" : "Due date"}
+          {type === "personal" ? "Date" : "Due date"}
           <RequiredMark required />
         </label>
         <button
@@ -587,7 +584,7 @@ export function Tasks({
           <span className={formData.dueDate ? "font-medium text-foreground" : "text-muted-foreground"}>
             {formData.dueDate
               ? new Date(`${formData.dueDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
-              : `Choose ${type === "personal" ? "date" : type === "exam" ? "exam date" : "due date"} on calendar`}
+              : `Choose ${type === "personal" ? "date" : "due date"} on calendar`}
           </span>
           <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-primary">
             <Calendar className="h-4 w-4" />
@@ -598,7 +595,7 @@ export function Tasks({
         <FieldError message={formErrors.dueDate} />
       </div>
 
-      {type !== "personal" && type !== "exam" ? (
+      {(editingId || (type !== "assignment" && type !== "exam")) ? (
       <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
         <div className="flex items-start gap-2">
           <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card">
@@ -608,7 +605,9 @@ export function Tasks({
           <div>
             <div className="text-sm font-medium text-foreground">Schedule on calendar</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              Optional. Use this for planned work blocks that should appear in the Calendar hourly grid.
+              {type === "personal"
+                ? "Optional. Add a time if this personal task should appear on the Calendar."
+                : "Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid."}
             </div>
           </div>
         </div>

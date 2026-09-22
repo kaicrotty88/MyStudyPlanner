@@ -144,6 +144,16 @@ const SUBJECT_COLOR_PALETTE = [
   "#854D0E",
   "#065F46",
   "#5B21B6",
+  "#F9A8D4",
+  "#FDA4AF",
+  "#FBCFE8",
+  "#C4B5FD",
+  "#93C5FD",
+  "#A7F3D0",
+  "#FDE68A",
+  "#FED7AA",
+  "#CBD5E1",
+  "#FFFFFF",
 ];
 
 const SCHOOL_DAYS: Array<{ value: TimetableDayOfWeek; label: string; short: string }> = [
@@ -195,6 +205,12 @@ function safeUUID() {
 
 function normalizeHex(hex: string) {
   return String(hex || "").trim().toLowerCase();
+}
+
+function toValidHexColor(value: string) {
+  const trimmed = String(value || "").trim();
+  const candidate = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toUpperCase() : null;
 }
 
 function pickNextColor(usedColors: string[]) {
@@ -556,12 +572,13 @@ export function Settings({
 
   const saveSubject = () => {
     const name = subjectForm.name.trim();
-    if (!name) return;
+    const color = toValidHexColor(subjectForm.color);
+    if (!name || !color) return;
 
     if (editingSubjectId) {
-      onUpdateSubject(editingSubjectId, name, subjectForm.color);
+      onUpdateSubject(editingSubjectId, name, color);
     } else {
-      onAddSubject(name, subjectForm.color);
+      onAddSubject(name, color);
     }
 
     setShowAddSubjectForm(false);
@@ -1317,8 +1334,11 @@ export function Settings({
                     autoFocus
                   />
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">Colour</label>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Colour</label>
+                      <p className="mt-1 text-xs text-muted-foreground">Choose a preset or use any custom shade.</p>
+                    </div>
 
                     <div className="grid grid-cols-8 gap-2 sm:grid-cols-10 md:grid-cols-12">
                       {SUBJECT_COLOR_PALETTE.map((color) => {
@@ -1341,12 +1361,49 @@ export function Settings({
                         );
                       })}
                     </div>
+
+                    <div className="flex flex-col gap-3 rounded-xl border border-border bg-background/50 p-3 sm:flex-row sm:items-center">
+                      <label className="flex min-w-0 flex-1 items-center gap-3">
+                        <input
+                          type="color"
+                          value={toValidHexColor(subjectForm.color) ?? "#2563EB"}
+                          onChange={(event) => setSubjectForm((current) => ({ ...current, color: event.target.value.toUpperCase() }))}
+                          className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-border bg-transparent p-1"
+                          aria-label="Choose a custom subject colour"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-foreground">Custom colour</span>
+                          <span className="block text-xs text-muted-foreground">Pick visually or enter a hex value.</span>
+                        </span>
+                      </label>
+
+                      <div className="flex items-center gap-2 sm:w-40">
+                        <span
+                          className="h-8 w-8 shrink-0 rounded-lg border border-border shadow-sm"
+                          style={{ backgroundColor: toValidHexColor(subjectForm.color) ?? "transparent" }}
+                          aria-hidden="true"
+                        />
+                        <input
+                          type="text"
+                          value={subjectForm.color}
+                          maxLength={7}
+                          placeholder="#F9A8D4"
+                          onChange={(event) => setSubjectForm((current) => ({ ...current, color: event.target.value }))}
+                          onBlur={() => {
+                            const color = toValidHexColor(subjectForm.color);
+                            if (color) setSubjectForm((current) => ({ ...current, color }));
+                          }}
+                          className="min-w-0 flex-1 rounded-lg border border-border bg-input-background px-3 py-2 text-sm uppercase outline-none focus:ring-2 focus:ring-primary/30"
+                          aria-label="Custom subject colour hex value"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={saveSubject}
-                      disabled={!subjectForm.name.trim()}
+                      disabled={!subjectForm.name.trim() || !toValidHexColor(subjectForm.color)}
                       className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                       type="button"
                     >
