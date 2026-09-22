@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Edit2, Trash2, X, Link2, Lock, Sparkles } from "lucide-react";
+import { Edit2, Trash2, X, Link2, Lock } from "lucide-react";
 import type { Subject, Task, StudySession } from "./models";
 import { StudyInsights } from "./studyinsights";
 import { StudyTimer, type StudyTimerStartRequest } from "./studytimer";
@@ -487,7 +487,6 @@ export function StudyPlanner({
               onClick={() => setStudyView("insights")}
               className={["app-switch-item", studyView === "insights" ? "app-switch-item-active" : ""].join(" ")}
             >
-              <Sparkles className="h-3.5 w-3.5" />
               Insights
               {!hasPremium ? <Lock className="h-3.5 w-3.5" /> : null}
             </button>
@@ -523,15 +522,20 @@ export function StudyPlanner({
             const { task, completedMinutes, targetMinutes, daysLeft } = recommendedAssessment;
             const subject = getSubjectById(task.subjectId);
             return (
-              <div className="rounded-2xl border border-primary/25 bg-primary/[0.035] p-5">
+              <div className="rounded-2xl border border-primary/25 bg-primary/[0.035] p-4 sm:p-5">
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Recommended next</div>
-                <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="min-w-0">
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <div className="text-lg font-semibold text-foreground">{task.title}</div>
                     <div className="mt-1 text-sm text-muted-foreground">{subject?.name ?? "Assessment"} · {typeLabel(task.type)} · {daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</div>
-                    <div className="mt-2 text-xs text-muted-foreground">{formatMinutes(completedMinutes)} of {formatMinutes(targetMinutes)} completed</div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (completedMinutes / Math.max(1, targetMinutes)) * 100)}%` }} />
+                      </div>
+                      <div className="shrink-0 text-xs text-muted-foreground">{formatMinutes(completedMinutes)} / {formatMinutes(targetMinutes)}</div>
+                    </div>
                   </div>
-                  <button type="button" className="app-btn-primary shrink-0" onClick={() => startTimerForTask(task)}>Start studying</button>
+                  <button type="button" className="app-btn-primary shrink-0 sm:ml-2" onClick={() => startTimerForTask(task)}>Start studying</button>
                 </div>
               </div>
             );

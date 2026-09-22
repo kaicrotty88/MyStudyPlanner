@@ -214,7 +214,7 @@ export function StudyTimer({
   return (
     <>
       <section className="app-card overflow-hidden">
-        <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <div className="text-sm font-semibold text-foreground">Study timer</div>
@@ -228,14 +228,14 @@ export function StudyTimer({
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
-              className="group mt-4 inline-flex max-w-full items-center gap-2 rounded-xl border border-border bg-background/70 px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted/40"
+              className="group mt-3 inline-flex max-w-full items-center gap-2 rounded-xl border border-border bg-background/70 px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted/40"
             >
               <span className="truncate">{timerSelectionLabel}</span>
               <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
           </div>
 
-          <div className="flex shrink-0 flex-col items-start gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
+          <div className="flex shrink-0 flex-col items-start gap-2.5 sm:flex-row sm:items-center lg:flex-col lg:items-end">
             <div className="font-mono text-4xl font-semibold tracking-[-0.06em] text-foreground sm:text-5xl">
               {formatSeconds(elapsedSeconds)}
             </div>

@@ -1282,7 +1282,8 @@ export function Settings({
               </div>
 
               {showAddSubjectForm ? (
-                <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4 backdrop-blur-[2px]" onMouseDown={cancelSubjectForm}>
+                  <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
                   <div className="text-sm font-semibold text-foreground">
                     {editingSubjectId ? "Edit subject" : "New subject"}
                   </div>
@@ -1362,6 +1363,7 @@ export function Settings({
                     >
                       Cancel
                     </button>
+                  </div>
                   </div>
                 </div>
               ) : null}

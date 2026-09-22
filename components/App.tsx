@@ -1172,6 +1172,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     }
   }, [activeTab, calendarPlanningTaskId]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+    document.querySelectorAll<HTMLElement>(".app-scroll-page").forEach((page) => {
+      page.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }, [activeTab]);
+
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []
   );

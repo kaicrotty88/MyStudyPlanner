@@ -48,6 +48,7 @@ type SubjectPerformance = {
 export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTask }: MarksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingMarkTask, setDeletingMarkTask] = useState<Task | null>(null);
@@ -317,7 +318,7 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
 
   return (
     <div className="app-page app-scroll-page space-y-4">
-      <div className="space-y-1">
+      <div className="app-page-heading space-y-1">
         <h1 className="app-page-title">Marks</h1>
         <p className="app-page-subtitle">
           Track your assessment results, spot trends, and see where you are improving.
@@ -380,11 +381,20 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
         </div>
       </div>
 
-      <div className="marks-layout grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-border bg-muted/10">
-            <div className="text-sm font-semibold text-foreground">Subject performance</div>
-            <div className="text-xs text-muted-foreground">See where you are strongest and where you need more attention.</div>
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-border bg-muted/10 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-foreground">Subject performance</div>
+              <div className="text-xs text-muted-foreground">See where you are strongest and where you need more attention.</div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full border border-border bg-card px-3 py-1.5 text-muted-foreground">
+                Recent average <span className="font-semibold text-foreground">{recentAverage === null ? "—" : formatPercent(recentAverage)}</span>
+              </span>
+              <span className="rounded-full border border-border bg-card px-3 py-1.5 text-muted-foreground">
+                Focus <span className="font-semibold text-foreground">{weakestSubject ? weakestSubject.subjectName : "—"}</span>
+              </span>
+            </div>
           </div>
 
           {subjectPerformance.length === 0 ? (
@@ -424,41 +434,6 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
               ))}
             </div>
           )}
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-border bg-muted/10">
-              <div className="text-sm font-semibold text-foreground">Performance snapshot</div>
-              <div className="text-xs text-muted-foreground">A quick read on how your results are tracking.</div>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="rounded-2xl border border-border bg-background/50 p-4">
-                <div className="text-xs font-medium text-muted-foreground">Recent average</div>
-                <div className="mt-2 text-xl font-semibold text-foreground">
-                  {recentAverage === null ? "—" : formatPercent(recentAverage)}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Based on your latest {Math.min(recentRecordedTasks.length, 3)} recorded results.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-background/50 p-4">
-                <div className="text-xs font-medium text-muted-foreground">Current focus</div>
-                <div className="mt-2 text-sm font-semibold text-foreground">
-                  {weakestSubject ? weakestSubject.subjectName : "Add more marks first"}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {weakestSubject
-                    ? `${formatPercent(weakestSubject.average)} average so far. This is your best area to improve next.`
-                    : "Once you have results across subjects, this will show where to focus."}
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
@@ -483,7 +458,18 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((open) => !open)}
+                  className="app-btn-secondary h-9 px-3"
+                  aria-expanded={filtersOpen}
+                >
+                  Filter{selectedSubject !== "all" || selectedPeriod !== "all" ? " · Active" : ""}
+                </button>
+
+                {filtersOpen ? (
+                  <div className="flex max-w-full flex-wrap justify-end gap-2">
                 <div className="inline-flex items-center rounded-xl border border-border bg-card/80 p-1">
                   <button
                     type="button"
@@ -554,6 +540,8 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
                         </button>
                       );
                     })}
+                  </div>
+                ) : null}
                   </div>
                 ) : null}
               </div>

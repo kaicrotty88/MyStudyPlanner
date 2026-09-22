@@ -10,6 +10,7 @@ import {
   ChevronUp,
   Clock,
   Edit2,
+  MoreHorizontal,
   Plus,
   Trash2,
   X,
@@ -261,6 +262,8 @@ export function Tasks({
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const taskDateInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -390,7 +393,8 @@ export function Tasks({
   const handleSubmit = (type: TaskSectionType) => {
     if (!validateForm()) return;
 
-    const newDueDate = parseLocalDateInput(formData.dueDate);
+    const submittedDateValue = taskDateInputRef.current?.value || formData.dueDate;
+    const newDueDate = parseLocalDateInput(submittedDateValue);
     const existingTask = editingId ? tasks.find((t) => t.id === editingId) : undefined;
     const nextScheduledDate = existingTask?.scheduledDate;
     const nextStartTime = existingTask?.startTime;
@@ -724,7 +728,7 @@ export function Tasks({
         style={{ borderLeftWidth: 4, borderLeftColor: subject?.color ?? "#64748b" }}
       >
         <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-1 item-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
               onClick={() => onToggleCompleted(task.id)}
@@ -841,24 +845,43 @@ export function Tasks({
               {dueChip(task.dueDate)}
             </span>
 
-            <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 group-focus-within:opacity-100">
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => handleEdit(task)}
+                onClick={() => setOpenActionMenuId((current) => current === task.id ? null : task.id)}
                 className="app-iconbtn"
-                aria-label="Edit"
+                aria-label="More actions"
+                aria-expanded={openActionMenuId === task.id}
               >
-                <Edit2 className="h-4 w-4 text-foreground" />
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => setDeletingId(task.id)}
-                className="app-iconbtn"
-                aria-label="Delete"
-              >
-                <Trash2 className="h-4 w-4 text-muted-foreground" />
-              </button>
+              {openActionMenuId === task.id ? (
+                <div className="absolute right-0 top-9 z-30 w-36 overflow-hidden rounded-xl border border-border bg-card p-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenActionMenuId(null);
+                      handleEdit(task);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted/50"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenActionMenuId(null);
+                      setDeletingId(task.id);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-muted/50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

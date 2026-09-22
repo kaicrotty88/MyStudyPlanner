@@ -628,6 +628,7 @@ function CalendarView({
   const timeGridScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const taskDateInputRef = useRef<HTMLInputElement | null>(null);
   const [monthOverflowDate, setMonthOverflowDate] = useState<Date | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddForm, setShowAddForm] = useState<AddFormType>(null);
@@ -1294,7 +1295,8 @@ function CalendarView({
   const handleTaskSubmit = () => {
     if (!validateTaskForm()) return;
 
-    const newDueDate = parseLocalDateInput(taskFormData.dueDate);
+    const submittedDateValue = taskDateInputRef.current?.value || taskFormData.dueDate;
+    const newDueDate = parseLocalDateInput(submittedDateValue);
     const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : undefined;
     const nextScheduledDate = existingTask?.scheduledDate;
     const nextStartTime = existingTask?.startTime;
@@ -1504,12 +1506,12 @@ function CalendarView({
         key={item.id}
         type="button"
         onClick={(event) => { event.stopPropagation(); openCalendarItem(item); }}
-        className="calendar-month-chip border"
+        className="calendar-month-chip min-w-0 overflow-hidden border"
         style={{ backgroundColor: palette.background, borderColor: palette.border, color: palette.text }}
         title={`${minimalSecondary(item)}: ${item.title}`}
       >
-        <span className="min-w-0 truncate font-semibold" style={{ color: palette.text }}>{minimalPrimary(item)}</span>
-        <span className="shrink-0 text-[10px] font-medium" style={{ color: palette.mutedText }}>{minimalSecondary(item)}</span>
+        <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: palette.text }}>{minimalPrimary(item)}</span>
+        <span className="shrink-0 text-xs font-medium max-[1180px]:hidden" style={{ color: palette.mutedText }}>{minimalSecondary(item)}</span>
       </button>
     );
   };
@@ -1938,7 +1940,7 @@ function CalendarView({
                       const palette = createEventPalette(color, item.kind, false);
                       return (
                         <button key={item.id} type="button" onClick={(event) => { event.stopPropagation(); openCalendarItem(item); }} className="flex w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-left text-[10px] font-medium" style={{ borderColor: palette.border, backgroundColor: palette.background, color: palette.text }}>
-                          <span className="truncate">{minimalPrimary(item)}</span><span className="ml-auto shrink-0 opacity-65">{minimalSecondary(item)}</span>
+                          <span className="min-w-0 flex-1 truncate">{minimalPrimary(item)}</span><span className="ml-auto shrink-0 opacity-65 max-[1180px]:hidden">{minimalSecondary(item)}</span>
                         </button>
                       );
                     })}
@@ -2223,7 +2225,7 @@ function CalendarView({
 
   return (
     <div className="app-page-wide app-scroll-page space-y-5">
-      <div className="app-page-header app-page-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="app-page-header app-page-heading mx-auto w-full max-w-[1240px] px-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h1 className="app-page-title">Calendar</h1>
           <p className="app-page-subtitle">
@@ -2252,7 +2254,7 @@ function CalendarView({
               </div>
               <div className="mt-2 text-xs font-medium text-muted-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? "Assessment"} · {planningStudyTask.type === "exam" ? "Exam" : "Assignment"}</div>
               <div className="mt-0.5 truncate text-lg font-semibold text-foreground">{planningStudyTask.title}</div>
-              <div className="mt-2 text-sm font-medium text-foreground">Choose a highlighted day below. In Week or Day view, click the exact time you want to study.</div>
+              <div className="mt-2 text-sm font-medium text-foreground">Choose the days you want to prepare. Setting an exact time is optional.</div>
               {planningStudySummary ? <div className="mt-2 text-sm text-muted-foreground">{planningStudySummary.unscheduled > 0 ? <><span className="font-semibold text-primary">{formatMinutes(planningStudySummary.unscheduled)}</span> still needs to be scheduled.</> : <span className="font-semibold text-primary">Your study target is fully scheduled.</span>}</div> : null}
             </div>
             <button type="button" className="app-btn-primary h-11 shrink-0 px-5" onClick={onPlanningStudyHandled}>Done planning</button>
@@ -2799,10 +2801,12 @@ function CalendarView({
                       <RequiredMark required />
                     </label>
                     <input
+                      ref={taskDateInputRef}
                       type="date"
                       value={taskFormData.dueDate}
                       onChange={(e) => {
-                        setTaskFormData({ ...taskFormData, dueDate: e.target.value });
+                        const value = e.currentTarget.value;
+                        setTaskFormData((prev) => ({ ...prev, dueDate: value }));
                         clearError(setTaskErrors, "dueDate");
                       }}
                       className={[inputBase, taskErrors.dueDate ? inputErr : inputOk].join(" ")}
