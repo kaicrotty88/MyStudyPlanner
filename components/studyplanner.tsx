@@ -272,6 +272,23 @@ export function StudyPlanner({
       .sort((a, b) => a.task.dueDate.getTime() - b.task.dueDate.getTime());
   }, [tasks, studySessions]);
 
+  const recommendedAssessment = useMemo(() => {
+    if (assessmentOverview.length === 0) return null;
+    const today = startOfDay(new Date()).getTime();
+    return assessmentOverview
+      .map((item) => {
+        const plannedToday = studySessions.some((session) =>
+          !session.completed &&
+          session.linkedTaskId === item.task.id &&
+          startOfDay(session.date).getTime() === today
+        );
+        const remainingRatio = item.remainingMinutes / Math.max(1, item.targetMinutes);
+        const urgency = item.daysLeft <= 0 ? 1000 : 200 / Math.max(1, item.daysLeft);
+        return { ...item, score: (plannedToday ? 500 : 0) + urgency + remainingRatio * 100 };
+      })
+      .sort((a, b) => b.score - a.score)[0];
+  }, [assessmentOverview, studySessions]);
+
   const saveStudyTarget = () => {
     if (!targetTaskId || !onUpdateTask) return;
     const task = tasks.find((item) => item.id === targetTaskId);
@@ -502,10 +519,28 @@ export function StudyPlanner({
 
       {studyView === "focus" ? (
         <>
+          {recommendedAssessment ? (() => {
+            const { task, completedMinutes, targetMinutes, daysLeft } = recommendedAssessment;
+            const subject = getSubjectById(task.subjectId);
+            return (
+              <div className="rounded-2xl border border-primary/25 bg-primary/[0.035] p-5">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Recommended next</div>
+                <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-lg font-semibold text-foreground">{task.title}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{subject?.name ?? "Assessment"} · {typeLabel(task.type)} · {daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</div>
+                    <div className="mt-2 text-xs text-muted-foreground">{formatMinutes(completedMinutes)} of {formatMinutes(targetMinutes)} completed</div>
+                  </div>
+                  <button type="button" className="app-btn-primary shrink-0" onClick={() => startTimerForTask(task)}>Start studying</button>
+                </div>
+              </div>
+            );
+          })() : null}
+
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="border-b border-border px-5 py-4">
-              <div className="text-sm font-semibold text-foreground">Upcoming assessments</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Choose an assessment to plan, study or review your preparation.</div>
+              <div className="text-sm font-semibold text-foreground">Other upcoming assessments</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Plan, study or review another assessment.</div>
             </div>
             {assessmentOverview.length === 0 ? (
               <div className="app-empty-state border-0">
@@ -514,7 +549,7 @@ export function StudyPlanner({
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {assessmentOverview.map(({ task, completedMinutes, targetMinutes, daysLeft }) => {
+                {assessmentOverview.filter(({ task }) => task.id !== recommendedAssessment?.task.id).map(({ task, completedMinutes, targetMinutes, daysLeft }) => {
                   const subject = getSubjectById(task.subjectId);
                   const progress = Math.min(100, (completedMinutes / Math.max(1, targetMinutes)) * 100);
                   return (

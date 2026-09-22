@@ -168,7 +168,7 @@ export function StudyTimer({
   };
 
   const saveTimer = () => {
-    const actualMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+    const actualMinutes = Math.max(0, Math.round(elapsedSeconds / 60));
     const actualDuration = `${actualMinutes} min`;
     const linkedTask = timer.linkedTaskId
       ? tasks.find((task) => task.id === timer.linkedTaskId)

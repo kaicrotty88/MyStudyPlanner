@@ -1135,7 +1135,7 @@ function LockedPremiumView({
                   ))}
                 </div>
                 <div className="mt-3 rounded-2xl border border-border bg-background/40 px-4 py-3 text-xs leading-5 text-muted-foreground">
-                  Your planner still works fully on Free. Premium adds marks tracking and performance analytics without turning the free screen into a dead end.
+                  Your planner still works fully on Free. Premium connects your preparation to results, subject averages and performance trends while Free stays fully useful.
                 </div>
               </div>
             ) : (
@@ -1165,6 +1165,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
   const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
   const [calendarPlanningTaskId, setCalendarPlanningTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== "calendar" && calendarPlanningTaskId) {
+      setCalendarPlanningTaskId(null);
+    }
+  }, [activeTab, calendarPlanningTaskId]);
 
   const [subjects, setSubjects] = useState<Subject[]>(
     mode === "demo" ? defaultSubjects : []

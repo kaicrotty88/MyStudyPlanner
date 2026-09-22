@@ -144,6 +144,11 @@ const toLocalDateInputValue = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseLocalDateInput = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+};
+
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
@@ -636,6 +641,7 @@ function CalendarView({
   const [assessmentDetailTaskId, setAssessmentDetailTaskId] = useState<string | null>(null);
   const [planningSlot, setPlanningSlot] = useState<{ date: Date; startTime: string } | null>(null);
   const [planningDurationMinutes, setPlanningDurationMinutes] = useState(60);
+  const [planningTime, setPlanningTime] = useState("");
 
   const [taskFormData, setTaskFormData] = useState({
     title: "",
@@ -915,7 +921,8 @@ function CalendarView({
     });
 
     const sessionItems: CalendarItem[] = activeSessions.map((session) => {
-      const startMins = parseTimeToMinutes(session.startTime) ?? 16 * 60;
+      const hasExactTime = Boolean((session.startTime ?? "").trim());
+      const startMins = parseTimeToMinutes(session.startTime) ?? DAY_START_HOUR * 60;
       const durationMins = parseDurationToMinutes(session.duration);
       const start = dateWithMinutes(session.date, startMins);
       const end = dateWithMinutes(session.date, startMins + durationMins);
@@ -929,7 +936,7 @@ function CalendarView({
         subjectId: session.subjectId,
         start,
         end,
-        timeLabel: displayTime(session.startTime),
+        timeLabel: hasExactTime ? displayTime(session.startTime) : "Time not set",
         durationLabel: session.duration,
         session,
       };
@@ -1114,7 +1121,8 @@ function CalendarView({
       const today = startOfDay(new Date()).getTime();
       const due = startOfDay(planningStudyTask.dueDate).getTime();
       if (day < today || day > due) return;
-      setPlanningSlot({ date, startTime });
+      setPlanningSlot({ date, startTime: "" });
+      setPlanningTime("");
       return;
     }
     setSelectedDate(date);
@@ -1127,7 +1135,7 @@ function CalendarView({
       title: `${planningStudyTask.title} study`,
       subjectId: planningStudyTask.subjectId ?? "",
       date: planningSlot.date,
-      startTime: planningSlot.startTime,
+      startTime: planningTime,
       duration: `${durationMinutes} min`,
       linkedTaskId: planningStudyTask.id,
       completed: false,
@@ -1171,19 +1179,19 @@ function CalendarView({
         subjectId: "",
         dueDate: dateStr,
         type: "personal",
-        scheduledDate: dateStr,
-        startTime: "09:00",
-        duration: "15 min",
+        scheduledDate: "",
+        startTime: "",
+        duration: "60 min",
       });
     } else if (type) {
       setTaskFormData({
         title: "",
         subjectId: "",
-        dueDate: type === "exam" ? dateStr : "",
+        dueDate: dateStr,
         type,
-        scheduledDate: dateStr,
-        startTime: "16:00",
-        duration: type === "exam" ? "2h" : "60 min",
+        scheduledDate: "",
+        startTime: "",
+        duration: "60 min",
       });
     }
 
@@ -1261,9 +1269,6 @@ function CalendarView({
     if (taskFormData.type !== "personal" && !taskFormData.subjectId) {
       next.subjectId = "Subject is required";
     }
-    if (!taskFormData.scheduledDate) next.scheduledDate = "Scheduled date is required";
-    if (!taskFormData.startTime) next.startTime = "Start time is required";
-    if (!taskFormData.duration) next.duration = "Duration is required";
     if (!taskFormData.dueDate) next.dueDate = "Due date is required";
 
     setTaskErrors(next);
@@ -1289,10 +1294,11 @@ function CalendarView({
   const handleTaskSubmit = () => {
     if (!validateTaskForm()) return;
 
-    const newDueDate = new Date(taskFormData.dueDate);
-    const nextScheduledDate = new Date(taskFormData.scheduledDate);
-    const nextStartTime = taskFormData.startTime.trim();
-    const nextDuration = taskFormData.duration.trim() || "60 min";
+    const newDueDate = parseLocalDateInput(taskFormData.dueDate);
+    const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : undefined;
+    const nextScheduledDate = existingTask?.scheduledDate;
+    const nextStartTime = existingTask?.startTime;
+    const nextDuration = existingTask?.duration;
 
     if (editingTaskId && onUpdateTask) {
       const existing = tasks.find((t) => t.id === editingTaskId);
@@ -1475,7 +1481,7 @@ function CalendarView({
   const minimalPrimary = (item: CalendarItem) => {
     const subjectName = item.subjectId ? subjectById.get(item.subjectId)?.name : undefined;
     if (item.kind === "study") return subjectName ?? "Study";
-    if (item.task && item.task.type !== "personal") return subjectName ?? item.title;
+    if (item.task) return item.title;
     if (item.importedEvent?.allDay) return item.title;
     return subjectName ?? item.title;
   };
@@ -2308,7 +2314,7 @@ function CalendarView({
             <div className="border-b border-border px-5 py-4">
               <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Add study session</div>
               <div className="mt-1 text-lg font-semibold text-foreground">{subjectById.get(planningStudyTask.subjectId ?? "")?.name ?? planningStudyTask.title}</div>
-              <div className="mt-1 text-sm text-muted-foreground">{planningSlot.date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} · {displayTime(planningSlot.startTime)}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{planningSlot.date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} · {planningTime ? displayTime(planningTime) : "Time not set"}</div>
             </div>
             <div className="px-5 py-5">
               <div className="text-sm font-medium text-foreground">How long do you want to study?</div>
@@ -2328,8 +2334,13 @@ function CalendarView({
                 </label>
                 <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-lg text-foreground transition hover:bg-muted" onClick={() => setPlanningDurationMinutes((value) => value + 15)}>+</button>
               </div>
+              <div className="mt-4 rounded-xl border border-border bg-muted/[0.08] p-3">
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="planning-time">Set a time <span className="font-normal">(optional)</span></label>
+                <input id="planning-time" type="time" value={planningTime} onChange={(event) => setPlanningTime(event.target.value)} className="mt-2 h-10 w-full rounded-xl border border-border bg-input-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+                {planningTime ? <button type="button" onClick={() => setPlanningTime("")} className="mt-2 text-xs font-medium text-primary hover:underline">Clear time</button> : <div className="mt-1 text-xs text-muted-foreground">Leave blank to plan only the study day.</div>}
+              </div>
               <div className="mt-5 flex gap-2">
-                <button type="button" className="app-btn-primary flex-1" onClick={() => addPlanningSession(planningDurationMinutes)}>Add {formatMinutes(planningDurationMinutes)} study</button>
+                <button type="button" className="app-btn-primary flex-1" onClick={() => addPlanningSession(planningDurationMinutes)}>Plan {formatMinutes(planningDurationMinutes)}</button>
                 <button type="button" className="app-btn-secondary" onClick={() => setPlanningSlot(null)}>Cancel</button>
               </div>
             </div>
@@ -2770,67 +2781,23 @@ function CalendarView({
                     <FieldError message={taskErrors.title} />
                   </div>
 
-                  <div>
-                    <label className={labelClass}>
-                      Subject
-                      <RequiredMark required={taskFormData.type !== "personal"} />
-                    </label>
-                    <select
-                      value={taskFormData.subjectId}
-                      onChange={(e) => {
-                        setTaskFormData({ ...taskFormData, subjectId: e.target.value });
-                        clearError(setTaskErrors, "subjectId");
-                      }}
-                      className={[inputBase, taskErrors.subjectId ? inputErr : inputOk].join(" ")}
-                      aria-invalid={!!taskErrors.subjectId}
-                    >
-                      <option value="">Select subject</option>
-                      {subjects.map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.name}
-                        </option>
-                      ))}
-                    </select>
-                    <FieldError message={taskErrors.subjectId} />
-                  </div>
+                  {taskFormData.type !== "personal" ? (
+                    <div>
+                      <label className={labelClass}>Subject<RequiredMark required /></label>
+                      <select value={taskFormData.subjectId} onChange={(e) => { setTaskFormData({ ...taskFormData, subjectId: e.target.value }); clearError(setTaskErrors, "subjectId"); }} className={[inputBase, taskErrors.subjectId ? inputErr : inputOk].join(" ")} aria-invalid={!!taskErrors.subjectId}>
+                        <option value="">Select subject</option>
+                        {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                      </select>
+                      <FieldError message={taskErrors.subjectId} />
+                    </div>
+                  ) : null}
 
-                  {renderSharedTimeFields({
-                    dateLabel: showAddForm === "exam" ? "Exam date" : "Planned work date",
-                    dateValue: taskFormData.scheduledDate,
-                    onDateChange: (value) => {
-                      setTaskFormData((p) => ({
-                        ...p,
-                        scheduledDate: value,
-                        dueDate: p.type === "exam" && !p.dueDate ? value : p.dueDate,
-                      }));
-                      clearError(setTaskErrors, "scheduledDate");
-                    },
-                    dateError: taskErrors.scheduledDate,
-                    startTimeValue: taskStartTimeUiValue,
-                    onStartTimeChange: (value) => {
-                      setTaskFormData({
-                        ...taskFormData,
-                        startTime: value,
-                      });
-                      clearError(setTaskErrors, "startTime");
-                    },
-                    startTimeError: taskErrors.startTime,
-                    durationValue: taskFormData.duration,
-                    onDurationChange: (value) => {
-                      setTaskFormData({ ...taskFormData, duration: value });
-                      clearError(setTaskErrors, "duration");
-                    },
-                    durationError: taskErrors.duration,
-                  })}
 
                   <div>
                     <label className={labelClass}>
-                      Due date
+                      {taskFormData.type === "exam" ? "Exam date" : taskFormData.type === "personal" ? "Date" : "Due date"}
                       <RequiredMark required />
                     </label>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      This is the deadline. If you have a matching class on that day, the due label can attach to that class.
-                    </div>
                     <input
                       type="date"
                       value={taskFormData.dueDate}
@@ -2844,9 +2811,6 @@ function CalendarView({
                     <FieldError message={taskErrors.dueDate} />
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-muted/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground">
-                    The calendar block shows when you are doing it. The due date appears as a clean deadline label on the item.
-                  </div>
 
                   <div className="flex gap-2 pt-1">
                     {editingTaskId && onDeleteTask ? (

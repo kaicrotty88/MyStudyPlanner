@@ -162,6 +162,11 @@ const toLocalDateInputValue = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseLocalDateInput = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+};
+
 const daysUntil = (due: Date) => {
   const a = startOfDay(new Date()).getTime();
   const b = startOfDay(due).getTime();
@@ -239,12 +244,13 @@ export function Tasks({
 }: TasksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [assessmentAddedMessage, setAssessmentAddedMessage] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [expandedSections, setExpandedSections] = useState<Record<TaskSectionType, boolean>>({
-    homework: false,
-    assignment: false,
-    exam: false,
-    personal: false,
+    homework: true,
+    assignment: true,
+    exam: true,
+    personal: true,
   });
 
   const [showAddForm, setShowAddForm] = useState<TaskSectionType | null>(null);
@@ -367,20 +373,6 @@ export function Tasks({
     }
     if (!formData.dueDate) next.dueDate = "Due date is required";
 
-    const hasScheduledDate = Boolean(formData.scheduledDate);
-    const hasStartTime = Boolean(formData.startTime);
-
-    if ((hasScheduledDate || hasStartTime) && !hasScheduledDate) {
-      next.scheduledDate = "Scheduled date is required when adding a calendar block";
-    }
-
-    if ((hasScheduledDate || hasStartTime) && !hasStartTime) {
-      next.startTime = "Start time is required when adding a calendar block";
-    }
-
-    if ((hasScheduledDate || hasStartTime) && !formData.duration) {
-      next.duration = "Duration is required when adding a calendar block";
-    }
 
     setFormErrors(next);
     return Object.keys(next).length === 0;
@@ -398,11 +390,11 @@ export function Tasks({
   const handleSubmit = (type: TaskSectionType) => {
     if (!validateForm()) return;
 
-    const newDueDate = new Date(formData.dueDate);
-    const nextScheduledDate = formData.scheduledDate ? new Date(formData.scheduledDate) : undefined;
-    const nextStartTime = formData.startTime.trim() ? formData.startTime.trim() : undefined;
-    const nextDuration =
-      nextScheduledDate && nextStartTime ? formData.duration.trim() || "60 min" : undefined;
+    const newDueDate = parseLocalDateInput(formData.dueDate);
+    const existingTask = editingId ? tasks.find((t) => t.id === editingId) : undefined;
+    const nextScheduledDate = existingTask?.scheduledDate;
+    const nextStartTime = existingTask?.startTime;
+    const nextDuration = existingTask?.duration;
 
     if (editingId) {
       const existing = tasks.find((t) => t.id === editingId);
@@ -456,7 +448,7 @@ export function Tasks({
 
       if (type === "assignment" || type === "exam") {
         setAssessmentAddedMessage(
-          `${formData.title.trim()} has been added. Open Study when you are ready to plan preparation.`
+          `${formData.title.trim()} added for ${newDueDate.toLocaleDateString(undefined, { day: "numeric", month: "long" })}. Plan study days when you are ready.`
         );
         window.setTimeout(() => setAssessmentAddedMessage(null), 4500);
       }
@@ -537,34 +529,34 @@ export function Tasks({
         <FieldError message={formErrors.title} />
       </div>
 
-      <div>
-        <label className={labelClass} htmlFor={`task-subject-${type}`}>
-          Subject
-          <RequiredMark required={type !== "personal"} />
-        </label>
-        <select
-          id={`task-subject-${type}`}
-          value={formData.subjectId}
-          onChange={(e) => {
-            setFormData((p) => ({ ...p, subjectId: e.target.value }));
-            clearError("subjectId");
-          }}
-          className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
-          aria-invalid={!!formErrors.subjectId}
-        >
-          {type === "personal" ? <option value="">No subject / personal</option> : <option value="">Select subject</option>}
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <FieldError message={formErrors.subjectId} />
-      </div>
+      {type !== "personal" ? (
+        <div>
+          <label className={labelClass} htmlFor={`task-subject-${type}`}>
+            Subject
+            <RequiredMark required />
+          </label>
+          <select
+            id={`task-subject-${type}`}
+            value={formData.subjectId}
+            onChange={(e) => {
+              setFormData((p) => ({ ...p, subjectId: e.target.value }));
+              clearError("subjectId");
+            }}
+            className={[inputBase, formErrors.subjectId ? inputErr : inputOk].join(" ")}
+            aria-invalid={!!formErrors.subjectId}
+          >
+            <option value="">Select subject</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>{subject.name}</option>
+            ))}
+          </select>
+          <FieldError message={formErrors.subjectId} />
+        </div>
+      ) : null}
 
       <div>
         <label className={labelClass} htmlFor={`task-date-${type}`}>
-          {type === "personal" ? "Date" : "Due date"}
+          {type === "exam" ? "Exam date" : type === "personal" ? "Date" : "Due date"}
           <RequiredMark required />
         </label>
         <button
@@ -584,7 +576,7 @@ export function Tasks({
           <span className={formData.dueDate ? "font-medium text-foreground" : "text-muted-foreground"}>
             {formData.dueDate
               ? new Date(`${formData.dueDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
-              : `Choose ${type === "personal" ? "date" : "due date"} on calendar`}
+              : `Choose ${type === "exam" ? "exam date" : type === "personal" ? "date" : "due date"} on calendar`}
           </span>
           <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-primary">
             <Calendar className="h-4 w-4" />
@@ -595,131 +587,6 @@ export function Tasks({
         <FieldError message={formErrors.dueDate} />
       </div>
 
-      {(editingId || (type !== "assignment" && type !== "exam")) ? (
-      <div className="rounded-2xl border border-border bg-muted/[0.08] p-4">
-        <div className="flex items-start gap-2">
-          <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </div>
-
-          <div>
-            <div className="text-sm font-medium text-foreground">Schedule on calendar</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {type === "personal"
-                ? "Optional. Add a time if this personal task should appear on the Calendar."
-                : "Optional. Use this for exams or planned work blocks that should appear in the Calendar hourly grid."}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-3">
-          <div>
-            <label
-              className="text-sm font-medium text-foreground"
-              htmlFor={`task-scheduled-date-${type}`}
-            >
-              Scheduled date
-            </label>
-            <input
-              id={`task-scheduled-date-${type}`}
-              type="date"
-              value={formData.scheduledDate}
-              onChange={(e) => {
-                setFormData((p) => ({ ...p, scheduledDate: e.target.value }));
-                clearError("scheduledDate");
-              }}
-              className={[inputBase, formErrors.scheduledDate ? inputErr : inputOk].join(" ")}
-              aria-invalid={!!formErrors.scheduledDate}
-            />
-            <FieldError message={formErrors.scheduledDate} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor={`task-start-time-${type}`}
-              >
-                Start time
-              </label>
-              <input
-                id={`task-start-time-${type}`}
-                type="time"
-                value={formData.startTime}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, startTime: e.target.value }));
-                  clearError("startTime");
-                }}
-                className={[
-                  "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                  formErrors.startTime
-                    ? "border-red-500/50 focus-visible:ring-red-500/20"
-                    : "border-border focus-visible:ring-primary/30",
-                ].join(" ")}
-                aria-invalid={!!formErrors.startTime}
-              />
-              <FieldError message={formErrors.startTime} />
-            </div>
-
-            <div>
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor={`task-duration-${type}`}
-              >
-                Duration
-              </label>
-              <select
-                id={`task-duration-${type}`}
-                value={formData.duration}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, duration: e.target.value }));
-                  clearError("duration");
-                }}
-                className={[
-                  "h-11 w-full rounded-xl border bg-input-background px-4 text-sm focus:outline-none focus-visible:ring-2",
-                  formErrors.duration
-                    ? "border-red-500/50 focus-visible:ring-red-500/20"
-                    : "border-border focus-visible:ring-primary/30",
-                ].join(" ")}
-                aria-invalid={!!formErrors.duration}
-              >
-                <option value="">Select duration</option>
-                {DURATION_OPTIONS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-              <FieldError message={formErrors.duration} />
-            </div>
-          </div>
-
-          {formData.scheduledDate || formData.startTime ? (
-            <button
-              type="button"
-              onClick={() => {
-                setFormData((p) => ({
-                  ...p,
-                  scheduledDate: "",
-                  startTime: "",
-                  duration: "60 min",
-                }));
-                setFormErrors((e) => {
-                  const copy = { ...e };
-                  delete copy.scheduledDate;
-                  delete copy.startTime;
-                  delete copy.duration;
-                  return copy;
-                });
-              }}
-              className="app-btn-tertiary h-9 px-3"
-            >
-              Clear scheduled time
-            </button>
-          ) : null}
-        </div>
-      </div>
-      ) : null}
 
       <div className="flex gap-2 pt-1">
         <button
@@ -1046,6 +913,16 @@ export function Tasks({
         </div>
       ) : null}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="app-btn-secondary h-9 px-3">
+          Filter{selectedSubject !== "all" ? " · Active" : ""}
+        </button>
+        <button type="button" onClick={() => setShowCompleted((v) => !v)} className="app-btn-secondary h-9 px-3">
+          {showCompleted ? "Hide completed" : "Show completed"}
+        </button>
+      </div>
+
+      {filtersOpen ? (
       <div className="app-filter-scroll app-filter-scroll-compact">
         <div className="app-filter-scroll-track">
           <button
@@ -1095,6 +972,7 @@ export function Tasks({
           })}
         </div>
       </div>
+      ) : null}
 
       <div className="app-list-toolbar flex items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">
@@ -1102,13 +980,6 @@ export function Tasks({
           {selectedSubject !== "all" ? " in this filter" : " showing"}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowCompleted((v) => !v)}
-          className="app-btn-secondary h-9 px-3"
-        >
-          {showCompleted ? "Hide completed" : "Show completed"}
-        </button>
       </div>
 
       <div className="space-y-2.5">

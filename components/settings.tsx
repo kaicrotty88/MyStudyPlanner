@@ -114,46 +114,9 @@ interface SettingsProps {
 }
 
 const SUBJECT_COLOR_PALETTE = [
-  "#2563EB",
-  "#DC2626",
-  "#16A34A",
-  "#7C3AED",
-  "#EA580C",
-  "#0EA5E9",
-  "#DB2777",
-  "#CA8A04",
-  "#059669",
-  "#9333EA",
-  "#4F46E5",
-  "#B91C1C",
-  "#15803D",
-  "#A21CAF",
-  "#C2410C",
-  "#0284C7",
-  "#BE185D",
-  "#A16207",
-  "#047857",
-  "#6D28D9",
-  "#1D4ED8",
-  "#991B1B",
-  "#166534",
-  "#86198F",
-  "#9A3412",
-  "#0369A1",
-  "#9D174D",
-  "#854D0E",
-  "#065F46",
-  "#5B21B6",
-  "#F9A8D4",
-  "#FDA4AF",
-  "#FBCFE8",
-  "#C4B5FD",
-  "#93C5FD",
-  "#A7F3D0",
-  "#FDE68A",
-  "#FED7AA",
-  "#CBD5E1",
-  "#FFFFFF",
+  "#2563EB", "#DC2626", "#16A34A", "#7C3AED",
+  "#EA580C", "#0EA5E9", "#DB2777", "#CA8A04",
+  "#059669", "#4F46E5", "#F9A8D4", "#FFFFFF",
 ];
 
 const SCHOOL_DAYS: Array<{ value: TimetableDayOfWeek; label: string; short: string }> = [
@@ -299,6 +262,7 @@ export function Settings({
   const [premiumOpen, setPremiumOpen] = useState(false);
 
   const [showAddSubjectForm, setShowAddSubjectForm] = useState(false);
+  const [customColourOpen, setCustomColourOpen] = useState(false);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
   const [subjectForm, setSubjectForm] = useState({
@@ -1247,8 +1211,8 @@ export function Settings({
                     Premium unlocks
                   </div>
                   <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                    <div>Marks tracking and assessment performance</div>
-                    <div>Deeper study insights and future Premium tools</div>
+                    <div>See how preparation translates into results</div>
+                    <div>Track marks, subject averages, trends and study insights</div>
                   </div>
                 </div>
               </div>
@@ -1362,41 +1326,22 @@ export function Settings({
                       })}
                     </div>
 
-                    <div className="flex flex-col gap-3 rounded-xl border border-border bg-background/50 p-3 sm:flex-row sm:items-center">
-                      <label className="flex min-w-0 flex-1 items-center gap-3">
-                        <input
-                          type="color"
-                          value={toValidHexColor(subjectForm.color) ?? "#2563EB"}
-                          onChange={(event) => setSubjectForm((current) => ({ ...current, color: event.target.value.toUpperCase() }))}
-                          className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-border bg-transparent p-1"
-                          aria-label="Choose a custom subject colour"
-                        />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium text-foreground">Custom colour</span>
-                          <span className="block text-xs text-muted-foreground">Pick visually or enter a hex value.</span>
-                        </span>
-                      </label>
-
-                      <div className="flex items-center gap-2 sm:w-40">
-                        <span
-                          className="h-8 w-8 shrink-0 rounded-lg border border-border shadow-sm"
-                          style={{ backgroundColor: toValidHexColor(subjectForm.color) ?? "transparent" }}
-                          aria-hidden="true"
-                        />
-                        <input
-                          type="text"
-                          value={subjectForm.color}
-                          maxLength={7}
-                          placeholder="#F9A8D4"
-                          onChange={(event) => setSubjectForm((current) => ({ ...current, color: event.target.value }))}
-                          onBlur={() => {
-                            const color = toValidHexColor(subjectForm.color);
-                            if (color) setSubjectForm((current) => ({ ...current, color }));
-                          }}
-                          className="min-w-0 flex-1 rounded-lg border border-border bg-input-background px-3 py-2 text-sm uppercase outline-none focus:ring-2 focus:ring-primary/30"
-                          aria-label="Custom subject colour hex value"
-                        />
-                      </div>
+                    <div>
+                      <button type="button" onClick={() => setCustomColourOpen((open) => !open)} className="app-btn-secondary h-9 px-3 text-sm">
+                        {customColourOpen ? "Hide custom colour" : "Custom colour"}
+                      </button>
+                      {customColourOpen ? (
+                        <div className="mt-3 flex flex-col gap-3 rounded-xl border border-border bg-background/50 p-3 sm:flex-row sm:items-center">
+                          <label className="flex min-w-0 flex-1 items-center gap-3">
+                            <input type="color" value={toValidHexColor(subjectForm.color) ?? "#2563EB"} onChange={(event) => setSubjectForm((current) => ({ ...current, color: event.target.value.toUpperCase() }))} className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-border bg-transparent p-1" aria-label="Choose a custom subject colour" />
+                            <span className="min-w-0"><span className="block text-sm font-medium text-foreground">Custom colour</span><span className="block text-xs text-muted-foreground">Choose any shade.</span></span>
+                          </label>
+                          <div className="flex items-center gap-2 sm:w-40">
+                            <span className="h-8 w-8 shrink-0 rounded-lg border border-border shadow-sm" style={{ backgroundColor: toValidHexColor(subjectForm.color) ?? "transparent" }} aria-hidden="true" />
+                            <input type="text" value={subjectForm.color} maxLength={7} placeholder="#F9A8D4" onChange={(event) => setSubjectForm((current) => ({ ...current, color: event.target.value }))} onBlur={() => { const color = toValidHexColor(subjectForm.color); if (color) setSubjectForm((current) => ({ ...current, color })); }} className="min-w-0 flex-1 rounded-lg border border-border bg-input-background px-3 py-2 text-sm uppercase outline-none focus:ring-2 focus:ring-primary/30" aria-label="Custom subject colour hex value" />
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
