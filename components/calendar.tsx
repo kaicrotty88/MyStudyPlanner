@@ -369,12 +369,6 @@ const relativeLuminance = (hex: string) => {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 };
 
-const getReadableTextColor = (background: string) =>
-  relativeLuminance(background) > 0.58 ? "#252824" : "#ffffff";
-
-const getMutedTextColor = (background: string) =>
-  relativeLuminance(background) > 0.58 ? "rgba(37, 40, 36, 0.72)" : "rgba(255, 255, 255, 0.78)";
-
 const isCompactMarkerItem = (item: CalendarItem) =>
   item.isDeadlineMarker;
 
@@ -391,13 +385,13 @@ const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?:
       background,
       border: veryLight ? visibleBorder : mixHex(normalizedBase, "#ffffff", 0.25),
       stripe: visibleStripe,
-      text: "#252824",
-      mutedText: "rgba(37, 40, 36, 0.68)",
+      text: "var(--foreground)",
+      mutedText: "var(--muted-foreground)",
     };
   }
 
   if (kind === "imported") {
-    return { background: "color-mix(in srgb, #64748b 12%, var(--card))", border: "color-mix(in srgb, #64748b 32%, var(--border))", text: "#475569", dot: "#64748b" };
+    return { background: "color-mix(in srgb, #64748b 12%, var(--card))", border: "color-mix(in srgb, #64748b 32%, var(--border))", text: "var(--foreground)", mutedText: "var(--muted-foreground)", dot: "#64748b" };
   }
 
   if (kind === "study") {
@@ -407,8 +401,8 @@ const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?:
       background,
       border: veryLight ? visibleBorder : mixHex(normalizedBase, "#ffffff", 0.18),
       stripe: visibleStripe,
-      text: "#252824",
-      mutedText: "rgba(37, 40, 36, 0.68)",
+      text: "var(--foreground)",
+      mutedText: "var(--muted-foreground)",
     };
   }
 
@@ -418,8 +412,8 @@ const createEventPalette = (baseColor: string, kind: CalendarItemKind, isClass?:
     background,
     border: veryLight ? visibleBorder : mixHex(normalizedBase, "#ffffff", 0.12),
     stripe: visibleStripe,
-    text: getReadableTextColor(background),
-    mutedText: getMutedTextColor(background),
+    text: "var(--foreground)",
+    mutedText: "var(--muted-foreground)",
   };
 };
 
@@ -1506,12 +1500,12 @@ function CalendarView({
         key={item.id}
         type="button"
         onClick={(event) => { event.stopPropagation(); openCalendarItem(item); }}
-        className="calendar-month-chip min-w-0 overflow-hidden border"
+        className="calendar-month-chip flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border px-1.5 py-1 text-left text-[11px]"
         style={{ backgroundColor: palette.background, borderColor: palette.border, color: palette.text }}
         title={`${minimalSecondary(item)}: ${item.title}`}
       >
         <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: palette.text }}>{minimalPrimary(item)}</span>
-        <span className="shrink-0 text-xs font-medium max-[1180px]:hidden" style={{ color: palette.mutedText }}>{minimalSecondary(item)}</span>
+        <span className="shrink-0 text-[10px] font-medium max-[1500px]:hidden" style={{ color: palette.mutedText }}>{minimalSecondary(item)}</span>
       </button>
     );
   };
@@ -1770,7 +1764,7 @@ function CalendarView({
                   item.importedEvent?.kind === "class"
                 ),
             );
-            const visible = dayItems.slice(0, 4);
+            const visible = dayItems.slice(0, 3);
             const hiddenCount = Math.max(0, dayItems.length - visible.length);
 
             const isToday = isSameDay(new Date(), date);

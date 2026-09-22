@@ -49,6 +49,7 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showAllResults, setShowAllResults] = useState(false);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingMarkTask, setDeletingMarkTask] = useState<Task | null>(null);
@@ -175,6 +176,19 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
       return bDate - aDate;
     });
   }, [recordedTasks]);
+
+
+  const resultsTasks = useMemo(() => {
+    const pending = [...pendingTasks].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    const recorded = showAllResults ? recentRecordedTasks : recentRecordedTasks.slice(0, 5);
+    return [...pending, ...recorded];
+  }, [pendingTasks, recentRecordedTasks, showAllResults]);
+
+  const hiddenRecordedCount = Math.max(0, recentRecordedTasks.length - 5);
+
+  useEffect(() => {
+    setShowAllResults(false);
+  }, [selectedSubject, selectedPeriod]);
 
   const recentAverage = useMemo(() => {
     if (recentRecordedTasks.length === 0) return null;
@@ -358,14 +372,16 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
             Recent change
           </div>
           <div className="mt-2.5 text-2xl font-semibold text-foreground">
-            {momentum === null ? "—" : `${momentum >= 0 ? "+" : ""}${Math.round(momentum)}%`}
+            {momentum === null
+              ? "—"
+              : momentum === 0
+                ? "No change"
+                : `${Math.abs(Math.round(momentum))} ${Math.abs(Math.round(momentum)) === 1 ? "point" : "points"} ${momentum > 0 ? "higher" : "lower"}`}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             {momentum === null
               ? "Needs more recorded results."
-              : momentum >= 0
-              ? "Improving compared with earlier results."
-              : "Slight drop from your earlier results."}
+              : "Compared with your previous three results."}
           </div>
         </div>
 
@@ -563,7 +579,7 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
               <div className="text-right">Actions</div>
             </div>
 
-            {filteredTasks.map((task) => {
+            {resultsTasks.map((task) => {
               const subject = subjectById(task.subjectId);
               const hasResult = Boolean(task.result);
               const lifecycle = getAssessmentLifecycle(task, studySessions);
@@ -670,6 +686,18 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
                 </div>
               );
             })}
+
+            {hiddenRecordedCount > 0 ? (
+              <div className="flex justify-center border-t border-border bg-background/20 px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAllResults((current) => !current)}
+                  className="app-btn-ghost h-9 px-4 text-sm"
+                >
+                  {showAllResults ? "Show recent results" : `Show all results (${recordedCount})`}
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

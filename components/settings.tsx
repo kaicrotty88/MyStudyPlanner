@@ -1308,6 +1308,7 @@ export function Settings({
                     <div className="grid grid-cols-8 gap-2 sm:grid-cols-10 md:grid-cols-12">
                       {SUBJECT_COLOR_PALETTE.map((color) => {
                         const selected = normalizeHex(subjectForm.color) === normalizeHex(color);
+                        const isWhite = normalizeHex(color) === "#FFFFFF";
 
                         return (
                           <button
@@ -1318,7 +1319,9 @@ export function Settings({
                               "h-9 w-9 rounded-xl border transition-transform md:h-10 md:w-10",
                               selected
                                 ? "scale-105 border-border ring-2 ring-primary"
-                                : "border-border hover:scale-105",
+                                : isWhite
+                                  ? "border-slate-400 shadow-inner hover:scale-105"
+                                  : "border-border hover:scale-105",
                             ].join(" ")}
                             style={{ backgroundColor: color }}
                             aria-label={`Pick ${color}`}
