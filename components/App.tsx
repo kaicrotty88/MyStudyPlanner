@@ -934,9 +934,9 @@ const makeDemoData = () => {
     { id: "s2", title: "Physics review", subjectId: "2", date: twoDaysAgo, startTime: "18:00", duration: "45 min", linkedTaskId: "t3", completed: true, completedAt: twoDaysAgo },
     { id: "s3", title: "Chemistry practical prep", subjectId: "3", date: yesterday, startTime: "16:30", duration: "30 min", linkedTaskId: "t2", completed: true, completedAt: yesterday },
     { id: "s4", title: "English paragraph planning", subjectId: "4", date: twoDaysAgo, startTime: "17:15", duration: "45 min", linkedTaskId: "t4", completed: true, completedAt: twoDaysAgo },
-    { id: "s5", title: "Economics budget questions", subjectId: "6", date: tomorrow, startTime: "18:30", duration: "50 min", linkedTaskId: "t11", completed: false },
-    { id: "s6", title: "Legal Studies case review", subjectId: "7", date: in2, startTime: "17:00", duration: "40 min", linkedTaskId: "t10", completed: false },
-    { id: "s7", title: "Physics practice questions", subjectId: "2", date: in5, startTime: "16:45", duration: "60 min", linkedTaskId: "t3", completed: false },
+    { id: "s5", title: "Economics budget questions study", subjectId: "6", date: tomorrow, startTime: "18:30", duration: "50 min", linkedTaskId: "t11", completed: false },
+    { id: "s6", title: "Legal Studies case notes study", subjectId: "7", date: in2, startTime: "17:00", duration: "40 min", linkedTaskId: "t10", completed: false },
+    { id: "s7", title: "Motion topic test study", subjectId: "2", date: in5, startTime: "16:45", duration: "60 min", linkedTaskId: "t3", completed: false },
   ];
 
   tasks.push(

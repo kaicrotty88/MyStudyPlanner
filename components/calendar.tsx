@@ -921,13 +921,22 @@ function CalendarView({
       const durationMins = parseDurationToMinutes(session.duration);
       const start = dateWithMinutes(session.date, startMins);
       const end = dateWithMinutes(session.date, startMins + durationMins);
+      const linkedTask = session.linkedTaskId ? taskById.get(session.linkedTaskId) : undefined;
+      const subjectName = session.subjectId ? subjectById.get(session.subjectId)?.name : undefined;
+      const sessionTitle = linkedTask
+        ? `${linkedTask.title} study`
+        : session.title?.trim()
+        ? session.title.trim()
+        : subjectName
+        ? `${subjectName} study`
+        : "Study session";
 
       return {
         id: `study-${session.id}`,
         sourceId: session.id,
         kind: "study",
         placement: "timed",
-        title: session.title || "Study Session",
+        title: sessionTitle,
         subjectId: session.subjectId,
         start,
         end,
@@ -1476,7 +1485,7 @@ function CalendarView({
 
   const minimalPrimary = (item: CalendarItem) => {
     const subjectName = item.subjectId ? subjectById.get(item.subjectId)?.name : undefined;
-    if (item.kind === "study") return subjectName ?? "Study";
+    if (item.kind === "study") return item.title || (subjectName ? `${subjectName} study` : "Study session");
     if (item.task) return item.title;
     if (item.importedEvent?.allDay) return item.title;
     return subjectName ?? item.title;
@@ -1502,7 +1511,8 @@ function CalendarView({
         onClick={(event) => { event.stopPropagation(); openCalendarItem(item); }}
         className="calendar-month-chip flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border px-1.5 py-1 text-left text-[11px]"
         style={{ backgroundColor: palette.background, borderColor: palette.border, color: palette.text }}
-        title={`${minimalSecondary(item)}: ${item.title}`}
+        title={item.title}
+        aria-label={`${item.title}${minimalSecondary(item) ? `, ${minimalSecondary(item)}` : ""}`}
       >
         <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: palette.text }}>{minimalPrimary(item)}</span>
         <span className="shrink-0 text-[10px] font-medium max-[1500px]:hidden" style={{ color: palette.mutedText }}>{minimalSecondary(item)}</span>

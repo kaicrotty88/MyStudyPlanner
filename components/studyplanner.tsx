@@ -524,18 +524,18 @@ export function StudyPlanner({
             return (
               <div className="rounded-2xl border border-primary/25 bg-primary/[0.035] p-4 sm:p-5">
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Recommended next</div>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 flex-1">
+                <div className="mt-2 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-5">
+                  <div className="min-w-0">
                     <div className="text-lg font-semibold text-foreground">{task.title}</div>
                     <div className="mt-1 text-sm text-muted-foreground">{subject?.name ?? "Assessment"} · {typeLabel(task.type)} · {daysLeft < 0 ? "Overdue" : daysLeft === 0 ? "Due today" : `Due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</div>
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border/70">
                         <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (completedMinutes / Math.max(1, targetMinutes)) * 100)}%` }} />
                       </div>
                       <div className="shrink-0 text-xs text-muted-foreground">{formatMinutes(completedMinutes)} / {formatMinutes(targetMinutes)}</div>
                     </div>
                   </div>
-                  <button type="button" className="app-btn-primary shrink-0 sm:ml-2" onClick={() => startTimerForTask(task)}>Start studying</button>
+                  <button type="button" className="app-btn-primary shrink-0" onClick={() => startTimerForTask(task)}>Start studying</button>
                 </div>
               </div>
             );
@@ -574,7 +574,7 @@ export function StudyPlanner({
                         </div>
                         <div className="mt-1 truncate text-sm font-semibold text-foreground">{task.title}</div>
                         <div className="mt-2 flex items-center gap-3">
-                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border/70">
                             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
                           </div>
                           <span className="shrink-0 text-xs text-muted-foreground">{formatMinutes(completedMinutes)} / {formatMinutes(targetMinutes)}</span>
@@ -813,28 +813,42 @@ export function StudyPlanner({
           </div>
         </>
       ) : showPremiumInsightsLock ? (
-        <div className="app-card p-8">
-          <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-            <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-softer text-primary">
-              <Lock className="h-6 w-6" />
+        <div className="relative min-h-0 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none select-none blur-[3px] opacity-55"
+          >
+            <StudyInsights
+              subjects={subjects}
+              tasks={tasks}
+              studySessions={studySessions}
+            />
+          </div>
+
+          <div className="absolute inset-0 z-10 flex min-h-[34rem] items-center justify-center bg-background/25 px-4 backdrop-blur-[1px]">
+            <div className="app-card w-full max-w-xl p-8 shadow-lg">
+              <div className="mx-auto flex flex-col items-center text-center">
+                <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft">
+                  <Lock className="h-6 w-6 text-muted-foreground" />
+                </div>
+
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                  Unlock Insights
+                </h2>
+
+                <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+                  See study streaks, subject breakdowns, busiest days, and assessment-linked study trends.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={onGoToSettings}
+                  className="app-btn-primary mt-6"
+                >
+                  View Premium
+                </button>
+              </div>
             </div>
-
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              Study insights are Premium
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Keep logging sessions for free. Upgrade to unlock streaks, subject breakdowns,
-              busiest days, and assessment-linked study analytics.
-            </p>
-
-            <button
-              type="button"
-              onClick={onGoToSettings}
-              className="app-btn-primary mt-6"
-            >
-              View Premium
-            </button>
           </div>
         </div>
       ) : (
