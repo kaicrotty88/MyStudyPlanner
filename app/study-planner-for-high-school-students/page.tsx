@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best study planner for high school students?",
+      name: "What should a study planner for high school students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best study planner for high school students is one that keeps homework, assignments, exams, study sessions, and marks in one place. MyStudyPlanner is built for that simple kind of school planning, without extra clutter.",
+        text: "A useful study planner for high school students should keep homework, assignments, exams, study sessions, and marks in one place. MyStudyPlanner is built for that simple kind of school planning, without extra clutter.",
       },
     },
     {
@@ -390,10 +390,10 @@ export default function HighSchoolStudyPlannerPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best study planner for high school students?
+              What should a study planner for high school students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best study planner for high school students is one that keeps
+              A useful study planner for high school students should keep
               homework, assignments, exams, study sessions, and marks in one
               place. MyStudyPlanner is designed for students who want a planner
               that feels clear, simple, and easy to keep using throughout the

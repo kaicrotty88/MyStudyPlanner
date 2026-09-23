@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best assignment tracker for students?",
+      name: "What should an assignment tracker for students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best assignment tracker for students is one that keeps due dates, subject details, study sessions, and progress in one place. MyStudyPlanner helps students track assignments clearly without adding extra clutter.",
+        text: "A useful assignment tracker for students should keep due dates, subject details, study sessions, and progress in one place. MyStudyPlanner helps students track assignments clearly without adding extra clutter.",
       },
     },
     {
@@ -391,10 +391,10 @@ export default function AssignmentTrackerForStudentsPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best assignment tracker for students?
+              What should an assignment tracker for students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best assignment tracker for students is one that keeps due
+              A useful assignment tracker for students should keep due
               dates, subject details, and study time together in one place.
               MyStudyPlanner helps students track assignments clearly without
               adding extra clutter or complexity.

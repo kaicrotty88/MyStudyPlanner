@@ -23,6 +23,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/how-it-works", priority: 0.8, changeFrequency: "monthly" },
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
+    { path: "/refund", priority: 0.2, changeFrequency: "yearly" },
+    { path: "/cookies", priority: 0.2, changeFrequency: "yearly" },
 
     { path: "/study-planner-for-university-students", priority: 0.9, changeFrequency: "monthly" },
     { path: "/assignment-tracker-for-students", priority: 0.9, changeFrequency: "monthly" },

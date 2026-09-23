@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best marks tracker for students?",
+      name: "What should a marks tracker for students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best marks tracker for students is one that helps you record grades, see subject progress, and keep results in one place without feeling cluttered. MyStudyPlanner gives students a calm way to track marks alongside the rest of their study routine.",
+        text: "A useful marks tracker for students should help you record grades, see subject progress, and keep results in one place without feeling cluttered. MyStudyPlanner gives students a calm way to track marks alongside the rest of their study routine.",
       },
     },
     {
@@ -421,10 +421,10 @@ export default function MarksTrackerForStudentsPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best marks tracker for students?
+              What should a marks tracker for students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best marks tracker for students is one that helps you record
+              A useful marks tracker for students should help you record
               grades, see subject progress, and keep results in one place
               without feeling cluttered. MyStudyPlanner gives students a calm
               way to track marks alongside the rest of their study routine.

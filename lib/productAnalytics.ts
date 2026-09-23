@@ -22,6 +22,14 @@ export function trackProductEvent(
 ) {
   if (typeof window === "undefined") return;
 
+  try {
+    const raw = window.localStorage.getItem("msp_cookie_consent_v1");
+    const consent = raw ? JSON.parse(raw) as { analytics?: boolean } : null;
+    if (consent?.analytics !== true) return;
+  } catch {
+    return;
+  }
+
   const cleanProperties = Object.fromEntries(
     Object.entries(properties).filter(([, value]) => value !== undefined)
   );

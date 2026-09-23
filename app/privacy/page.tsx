@@ -1,147 +1,103 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import CookiePreferencesButton from "@/components/CookiePreferencesButton";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://mystudyplanner.co"),
   title: "Privacy Policy | MyStudyPlanner",
-  description:
-    "Read the MyStudyPlanner Privacy Policy to understand how account data, study data, cookies, and authentication are handled.",
+  description: "How MyStudyPlanner collects, uses, stores and protects personal information.",
   alternates: { canonical: "/privacy" },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    title: "Privacy Policy | MyStudyPlanner",
-    description:
-      "How MyStudyPlanner handles account data, study data, cookies, and authentication.",
-    url: "/privacy",
-    siteName: "MyStudyPlanner",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Privacy Policy | MyStudyPlanner",
-    description:
-      "How MyStudyPlanner handles account data, study data, cookies, and authentication.",
-  },
 };
+
+const updated = "23 September 2026";
 
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12 md:px-10 md:py-16">
       <header className="max-w-3xl space-y-4">
-        <Link
-          href="/"
-          className="inline-flex items-center text-sm text-muted-foreground transition hover:text-foreground"
-        >
-          ← Back to home
-        </Link>
-
+        <Link href="/" className="inline-flex text-sm text-muted-foreground transition hover:text-foreground">← Back to home</Link>
         <p className="text-sm text-muted-foreground">Legal</p>
-
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
-          Privacy Policy
-        </h1>
-
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">Privacy Policy</h1>
         <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-          This page explains what information MyStudyPlanner collects, how it is used, and how basic account and study
-          data is handled.
+          This policy explains what information MyStudyPlanner handles, why it is used, and the choices available to you.
         </p>
-
-        <p className="text-sm text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
+        <p className="text-sm text-muted-foreground">Last updated: {updated}</p>
       </header>
 
       <div className="mt-10 space-y-6">
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <p className="text-base leading-relaxed text-foreground">
-            MyStudyPlanner is built by students, for students. We try to collect as little personal information as
-            possible while still making the app work properly.
-          </p>
+          <h2 className="text-lg font-semibold text-foreground">Information we handle</h2>
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+            <p>When you create an account, authentication details such as your email address and account identifier are handled through Clerk.</p>
+            <p>Planner information you choose to enter may include subjects, tasks, assessments, timetable information, study sessions, marks, notes and settings. Signed-in planner data is stored using Supabase so it can remain available across sessions and supported devices.</p>
+            <p>We aim to collect only information needed to operate, secure, improve and support the service. Please avoid entering unnecessary sensitive personal information into free-text fields.</p>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">What information we collect</h2>
+          <h2 className="text-lg font-semibold text-foreground">Google Calendar</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            When you create an account, basic account details such as your email address and name may be collected for
-            authentication and account access. If you use the planner, the study information you choose to enter may
-            also be stored, such as subjects, tasks, assessments, study sessions, and marks.
-          </p>
-        </section>
-
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">How your data is used</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            Your data is used to operate MyStudyPlanner, including signing you in, saving your planner data, supporting
-            subscriptions, and keeping the app secure. We do not sell your personal data and we do not use it for
-            third-party advertising.
-          </p>
-        </section>
-
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Authentication and security</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            MyStudyPlanner uses Clerk for authentication and account security. Clerk may use strictly necessary cookies
-            or similar technologies to keep you signed in, protect sessions, and reduce unauthorised access.
+            If you choose to connect Google Calendar, MyStudyPlanner requests calendar read access so you can import events. Imported information may include event titles, dates, times, descriptions, locations and calendar identifiers. OAuth tokens and selected calendar identifiers are stored so the connection can continue working. Disconnecting Google Calendar removes the stored integration connection and stops future imports.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
           <h2 className="text-lg font-semibold text-foreground">Payments</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            Premium subscriptions and billing are handled through Stripe. MyStudyPlanner does not store full card
-            details on its own servers. Stripe may process billing information according to its own privacy and security
-            practices.
+            Premium checkout and subscription management are provided by Stripe. We may send Stripe your account identifier, selected billing interval and account email so checkout and subscription status can be associated with your MyStudyPlanner account. MyStudyPlanner does not store your full payment card details.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Cookies</h2>
+          <h2 className="text-lg font-semibold text-foreground">Analytics and cookies</h2>
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+            <p>Necessary browser storage and cookies may be used for sign-in, security and core app functionality.</p>
+            <p>Optional analytics are disabled unless you accept analytics. If accepted, Google Analytics, Vercel Analytics and MyStudyPlanner first-party product analytics may collect information about pages or features used, device/browser information and limited event metadata. We do not use advertising cookies.</p>
+            <p>You can change this choice at any time.</p>
+          </div>
+          <CookiePreferencesButton className="mt-4 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted" />
+        </section>
+
+        <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+          <h2 className="text-lg font-semibold text-foreground">Service providers and overseas processing</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            We only use cookies and similar technologies that are needed for the app to function properly, including
-            login, session security, and basic site functionality. These are not intended to track you across unrelated
-            websites.
+            MyStudyPlanner relies on service providers including Clerk, Supabase, Vercel, Stripe and, when you choose to connect them, Google services. These providers may process information in countries outside Australia. Their own privacy and security terms also apply to information they process on our behalf.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Data storage</h2>
+          <h2 className="text-lg font-semibold text-foreground">Children and young people</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            Planner data is stored so the app can work across sessions and devices for signed-in users. Demo mode data
-            may be stored locally in your browser and can usually be cleared from your device at any time.
+            MyStudyPlanner is designed for students, including secondary-school students. We try to use clear language, limit collection to what the product needs, and avoid behavioural advertising. If local law requires parent or guardian involvement for your use of an online service, please use MyStudyPlanner with that involvement. We do not ask users to upload identity documents merely to prove age.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Changes to this policy</h2>
+          <h2 className="text-lg font-semibold text-foreground">Retention, access and deletion</h2>
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+            <p>We keep account and planner information while it is needed to provide the service, meet legal obligations, resolve disputes or protect the service. Data may also remain for a limited period in secure backups.</p>
+            <p>You can clear planner data from Settings. Disconnecting Google Calendar removes the saved calendar connection. For an account deletion, access, correction or privacy request, email <a className="underline underline-offset-2 hover:text-foreground" href="mailto:mystudyplanner.studio@gmail.com?subject=Privacy%20or%20data%20request">mystudyplanner.studio@gmail.com</a>. We may need to verify that the request relates to your account before acting on it.</p>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
+          <h2 className="text-lg font-semibold text-foreground">Security</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            This policy may be updated from time to time as MyStudyPlanner changes. Material updates will be reflected
-            on this page.
+            We use access controls, authentication and service-provider security features intended to protect stored information. No internet service can guarantee absolute security, so please use a strong login method and do not share access to your account.
           </p>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Contact</h2>
+          <h2 className="text-lg font-semibold text-foreground">Contact and complaints</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            If you have questions about privacy or data usage, contact{" "}
-            <a href="mailto:mystudyplanner.studio@gmail.com" className="underline transition hover:text-foreground">
-              mystudyplanner.studio@gmail.com
-            </a>
-            .
+            For privacy questions, access or correction requests, deletion requests or complaints, contact <a href="mailto:mystudyplanner.studio@gmail.com" className="underline underline-offset-2 hover:text-foreground">mystudyplanner.studio@gmail.com</a>. We will review privacy complaints in good faith and respond as reasonably practicable.
           </p>
         </section>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <Link href="/terms" className="text-muted-foreground transition hover:text-foreground">
-            Terms of Use
-          </Link>
-          <Link href="/about" className="text-muted-foreground transition hover:text-foreground">
-            About
-          </Link>
-          <Link href="/how-it-works" className="text-muted-foreground transition hover:text-foreground">
-            How it works
-          </Link>
-        </div>
+        <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Legal pages">
+          <Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms of Use</Link>
+          <Link href="/refund" className="text-muted-foreground hover:text-foreground">Refund Policy</Link>
+          <Link href="/cookies" className="text-muted-foreground hover:text-foreground">Cookie Policy</Link>
+        </nav>
       </div>
     </main>
   );

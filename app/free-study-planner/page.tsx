@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best free study planner for students?",
+      name: "What should a free study planner for students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best free study planner for students is one that helps you organise assignments, homework, exams, and study sessions in one place without feeling cluttered. MyStudyPlanner gives students a simple free way to start planning.",
+        text: "A useful free study planner for students should help you organise assignments, homework, exams, and study sessions in one place without feeling cluttered. MyStudyPlanner gives students a simple free way to start planning.",
       },
     },
     {
@@ -402,10 +402,10 @@ export default function FreeStudyPlannerPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best free study planner for students?
+              What should a free study planner for students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best free study planner for students is one that helps you
+              A useful free study planner for students should help you
               organise assignments, homework, exams, and study sessions in one
               place without feeling cluttered. MyStudyPlanner gives students a
               simple free way to start planning.

@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best study planner for university students?",
+      name: "What should a study planner for university students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best study planner for university students is one that helps you manage assignments, exams, study sessions, and due dates in one place without adding extra complexity. MyStudyPlanner is designed for that kind of simple, calm planning.",
+        text: "A useful study planner for university students should help you manage assignments, exams, study sessions, and due dates in one place without adding extra complexity. MyStudyPlanner is designed for that kind of simple, calm planning.",
       },
     },
     {
@@ -391,10 +391,10 @@ export default function UniversityStudyPlannerPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best study planner for university students?
+              What should a study planner for university students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best study planner for university students is one that helps
+              A useful study planner for university students should help
               you manage assignments, exams, study sessions, and due dates in
               one place without adding extra complexity. MyStudyPlanner is built
               for students who want a planner that feels clear, simple, and easy

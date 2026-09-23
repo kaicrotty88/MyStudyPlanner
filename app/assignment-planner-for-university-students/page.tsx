@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best assignment planner for university students?",
+      name: "What should an assignment planner for university students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best assignment planner for university students is one that helps you organise deadlines, study sessions, and progress across multiple units in one place. MyStudyPlanner is built for that kind of calm, simple semester planning.",
+        text: "A useful assignment planner for university students should help you organise deadlines, study sessions, and progress across multiple units in one place. MyStudyPlanner is built for that kind of calm, simple semester planning.",
       },
     },
     {
@@ -383,10 +383,10 @@ export default function AssignmentPlannerForUniversityStudentsPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best assignment planner for university students?
+              What should an assignment planner for university students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best assignment planner for university students is one that
+              A useful assignment planner for university students should
               helps you organise deadlines, study sessions, and progress across
               multiple units in one place. MyStudyPlanner is built for students
               who want that kind of calm, simple semester planning.

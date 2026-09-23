@@ -2464,10 +2464,17 @@ export function Settings({
               <span className="settings-row-icon settings-icon-support"><LifeBuoy className="h-4 w-4" /></span>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">Support</div>
-                <div className="text-xs leading-5 text-muted-foreground">Need help or found a bug? We’re happy to help.</div>
+                <div className="text-xs leading-5 text-muted-foreground">Need help, found a bug, or want to make a privacy request?</div>
               </div>
             </div>
             <a href="mailto:mystudyplanner.studio@gmail.com" className="app-btn-secondary h-9 shrink-0 px-3">Email support</a>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border px-5 py-3 text-xs text-muted-foreground">
+            <a href="/privacy" className="transition hover:text-foreground">Privacy</a>
+            <a href="/terms" className="transition hover:text-foreground">Terms</a>
+            <a href="/refund" className="transition hover:text-foreground">Refunds</a>
+            <a href="/cookies" className="transition hover:text-foreground">Cookies</a>
+            <a href="mailto:mystudyplanner.studio@gmail.com?subject=Account%20deletion%20request" className="transition hover:text-foreground">Request account deletion</a>
           </div>
         </div>
       </div>

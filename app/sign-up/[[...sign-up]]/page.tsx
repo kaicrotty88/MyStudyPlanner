@@ -67,7 +67,11 @@ export default function Page() {
           </Link>
         </div>
 
-        {/* Small legit footer */}
+        <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
+          By creating an account, you agree to the <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">Terms of Use</Link> and acknowledge the <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>. This does not opt you into marketing messages.
+        </p>
+
+        {/* Legal links */}
         <div className="mt-3 flex items-center justify-center gap-3 text-xs text-muted-foreground/80">
           <Link href="/privacy" className="hover:text-muted-foreground transition">
             Privacy
@@ -75,6 +79,10 @@ export default function Page() {
           <span className="opacity-60">•</span>
           <Link href="/terms" className="hover:text-muted-foreground transition">
             Terms
+          </Link>
+          <span className="opacity-60">•</span>
+          <Link href="/cookies" className="hover:text-muted-foreground transition">
+            Cookies
           </Link>
         </div>
       </div>

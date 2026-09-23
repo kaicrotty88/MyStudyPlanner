@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Analytics } from "@vercel/analytics/react";
-import GoogleAnalyticsPageView from "@/components/GoogleAnalyticsPageView";
+import CookieConsent from "@/components/CookieConsent";
+import ConsentAnalytics from "@/components/ConsentAnalytics";
 import "./globals.css";
-
-const GA_MEASUREMENT_ID = "G-1ZLJMK2TLL";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,9 +15,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const defaultTitle = "MyStudyPlanner | Calendar, Tasks and Study";
+const defaultTitle = "MyStudyPlanner | Calendar, Tasks, Study and Marks";
 const defaultDescription =
-  "Plan classes, assignments, exams and study sessions in one simple student calendar.";
+  "A calm student planner that connects assessments, Calendar, study preparation and results.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
@@ -65,20 +61,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-full antialiased`}
       >
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            window.gtag = gtag;
-            gtag('js', new Date());
-          `}
-        </Script>
-
         <ClerkProvider
           appearance={{
             variables: {
@@ -114,12 +96,9 @@ export default function RootLayout({
             },
           }}
         >
-          <Suspense fallback={null}>
-            <GoogleAnalyticsPageView />
-          </Suspense>
-
           {children}
-          <Analytics />
+          <ConsentAnalytics />
+          <CookieConsent />
         </ClerkProvider>
       </body>
     </html>

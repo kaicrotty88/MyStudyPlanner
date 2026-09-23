@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best student planner app?",
+      name: "What should a student planner app include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best student planner app is one that helps you organise assignments, homework, exams, study sessions, and marks in one place without feeling cluttered. MyStudyPlanner is designed for students who want a calm and simple planning routine.",
+        text: "A useful student planner app should help you organise assignments, homework, exams, study sessions, and marks in one place without feeling cluttered. MyStudyPlanner is designed for students who want a calm and simple planning routine.",
       },
     },
     {
@@ -406,10 +406,10 @@ export default function StudentPlannerAppPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best student planner app?
+              What should a student planner app include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best student planner app is one that helps you organise
+              A useful student planner app should help you organise
               assignments, homework, exams, study sessions, and marks in one
               place without feeling cluttered. MyStudyPlanner is designed for
               students who want a calm and simple planning routine.

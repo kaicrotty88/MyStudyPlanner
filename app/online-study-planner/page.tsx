@@ -8,10 +8,10 @@ const faqSchema = {
   mainEntity: [
     {
       "@type": "Question",
-      name: "What is the best online study planner for students?",
+      name: "What should an online study planner for students include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "The best online study planner for students is one that keeps assignments, homework, exams, and study sessions in one place without feeling cluttered. MyStudyPlanner is designed to give students a calm and simple online planning routine.",
+        text: "A useful online study planner for students should keep assignments, homework, exams, and study sessions in one place without feeling cluttered. MyStudyPlanner is designed to give students a calm and simple online planning routine.",
       },
     },
     {
@@ -405,10 +405,10 @@ export default function OnlineStudyPlannerPage() {
         <div className="mt-6 space-y-6">
           <div>
             <h3 className="text-base font-semibold text-foreground md:text-lg">
-              What is the best online study planner for students?
+              What should an online study planner for students include?
             </h3>
             <p className="mt-2 text-sm leading-7 text-muted-foreground md:text-base">
-              The best online study planner for students is one that keeps
+              A useful online study planner for students should keep
               assignments, homework, exams, and study sessions in one place
               without feeling cluttered. MyStudyPlanner is designed to give
               students a calm and simple online planning routine.
