@@ -9,6 +9,7 @@ import { Calendar } from "./calendar";
 import { Tasks } from "./tasks";
 import { StudyPlanner } from "./studyplanner";
 import { Settings } from "./settings";
+import { Premium } from "./Premium";
 import { ThemeToggle } from "./ThemeToggle";
 import { Marks } from "./marks";
 
@@ -68,11 +69,12 @@ type Tab =
   | "tasks"
   | "study"
   | "marks"
+  | "premium"
   | "settings";
 
 type AppMode = "demo" | "app";
 type Plan = "free" | "premium";
-type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | "premium" | null;
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | null;
 
 const defaultSubjects: Subject[] = [
   { id: "1", name: "Mathematics", color: "#6B9BC3" },
@@ -1144,6 +1146,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }, [session]);
 
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
+
+  useEffect(() => {
+    if (mode !== "demo") return;
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (view === "marks") setActiveTab("marks");
+    if (view === "study" || view === "study-insights") setActiveTab("study");
+  }, [mode]);
   const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
   const [calendarPlanningTaskId, setCalendarPlanningTaskId] = useState<string | null>(null);
   const timerStorageKey = useMemo(
@@ -1284,6 +1293,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     { id: "tasks", label: "Tasks" },
     { id: "study", label: "Study" },
     { id: "marks", label: "Marks" },
+    { id: "premium", label: "Premium" },
     { id: "settings", label: "Settings" },
   ] satisfies Array<{ id: Tab; label: string }>;
 
@@ -1582,9 +1592,9 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }, [activeTab, mode, isSignedIn, isReady, profileLoaded, plan, hasPremium]);
 
   useEffect(() => {
-    if (mode !== "app" || !isSignedIn || settingsOpenSection !== "premium") return;
+    if (mode !== "app" || !isSignedIn || activeTab !== "premium") return;
     trackProductEvent("premium_viewed", { plan });
-  }, [settingsOpenSection, mode, isSignedIn, plan]);
+  }, [activeTab, mode, isSignedIn, plan]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2305,7 +2315,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTask={handleUpdateTask}
             onPlanStudy={planStudyOnCalendar}
             hasPremium={hasPremium}
-            onGoToSettings={() => openSettingsSection("premium")}
+            onGoToSettings={() => setActiveTab("premium")}
+            initialView={mode === "demo" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "study-insights" ? "insights" : "focus"}
             initialTaskId={studyTaskToOpen}
             onInitialTaskHandled={() => setStudyTaskToOpen(null)}
             timerStorageKey={timerStorageKey}
@@ -2352,7 +2363,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
                     <button
                       type="button"
-                      onClick={() => openSettingsSection("premium")}
+                      onClick={() => setActiveTab("premium")}
                       className="app-btn-primary mt-6"
                     >
                       <Sparkles className="h-4 w-4" />
@@ -2365,6 +2376,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           )
         ) : null}
 
+        {activeTab === "premium" ? <Premium appMode={mode} plan={plan} /> : null}
+
         {activeTab === "settings" ? (
           <Settings
             appMode={mode}
@@ -2373,7 +2386,6 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             tasks={tasks}
             studyItems={[]}
             studySessions={studySessions}
-            plan={plan}
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}

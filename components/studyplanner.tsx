@@ -135,6 +135,7 @@ interface StudyPlannerProps {
   onUpdateTask?: (id: string, task: Omit<Task, "id">) => void;
   onPlanStudy?: (taskId: string) => void;
   hasPremium?: boolean;
+  initialView?: "focus" | "insights";
   onGoToSettings?: () => void;
   initialTaskId?: string | null;
   onInitialTaskHandled?: () => void;
@@ -151,12 +152,13 @@ export function StudyPlanner({
   onUpdateTask,
   onPlanStudy,
   hasPremium = false,
+  initialView = "focus",
   onGoToSettings,
   initialTaskId = null,
   onInitialTaskHandled,
   timerStorageKey,
 }: StudyPlannerProps) {
-  const [studyView, setStudyView] = useState<"focus" | "log" | "insights">("focus");
+  const [studyView, setStudyView] = useState<"focus" | "log" | "insights">(initialView);
   const [activeSubject, setActiveSubject] = useState<string>("all");
   const [sessionIntent, setSessionIntent] = useState<"plan" | "log">("log");
 

@@ -23,7 +23,6 @@ type SettingsOpenSection =
   | "terms"
   | "timetable"
   | "backup"
-  | "premium"
   | null;
 
 interface OnboardingFlowProps {
@@ -91,7 +90,6 @@ export function OnboardingFlow({
   timetableSettings,
   timetablePeriods,
   timetableClasses,
-  plan,
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
@@ -195,7 +193,6 @@ export function OnboardingFlow({
             tasks={tasks}
             studyItems={[]}
             studySessions={studySessions}
-            plan={plan}
             timetableSettings={timetableSettings}
             timetablePeriods={timetablePeriods}
             timetableClasses={timetableClasses}

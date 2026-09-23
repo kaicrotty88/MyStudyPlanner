@@ -12,11 +12,9 @@ import {
   Clock3,
   CalendarDays,
   Database,
-  Sparkles,
   LifeBuoy,
 } from "lucide-react";
 import { CalendarImports } from "./calendar/CalendarImports";
-import { trackProductEvent } from "@/lib/productAnalytics";
 
 import type {
   Subject,
@@ -44,7 +42,6 @@ interface StudyItem {
 }
 
 type AppMode = "demo" | "app";
-type Plan = "free" | "premium";
 
 type Period = {
   id: string;
@@ -60,7 +57,7 @@ type PeriodStored = {
   endDate: string;
 };
 
-type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup" | "premium";
+type SettingsOpenSection = "subjects" | "terms" | "timetable" | "backup";
 
 type ManualTimetableForm = {
   title: string;
@@ -104,7 +101,6 @@ interface SettingsProps {
   onUpdatePeriods: (periods: Period[]) => void;
 
   appMode: AppMode;
-  plan?: Plan;
   onClearAllData: () => void;
   importedCalendarEvents?: ImportedCalendarEvent[];
   onImportCalendarEvents?: (events: ImportedCalendarEvent[]) => void;
@@ -245,7 +241,6 @@ export function Settings({
   onDeleteSubject,
   onUpdatePeriods,
   appMode,
-  plan = "free",
   onClearAllData,
   importedCalendarEvents = [],
   onImportCalendarEvents = () => {},
@@ -259,7 +254,6 @@ export function Settings({
   const [periodsOpen, setPeriodsOpen] = useState(false);
   const [timetableOpen, setTimetableOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
-  const [premiumOpen, setPremiumOpen] = useState(false);
 
   const [showAddSubjectForm, setShowAddSubjectForm] = useState(false);
   const [customColourOpen, setCustomColourOpen] = useState(false);
@@ -305,14 +299,11 @@ export function Settings({
   const [importError, setImportError] = useState("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
-  const [billingLoading, setBillingLoading] = useState(false);
-  const [billingError, setBillingError] = useState("");
 
   const subjectsCardRef = useRef<HTMLDivElement>(null);
   const termsCardRef = useRef<HTMLDivElement>(null);
   const timetableCardRef = useRef<HTMLDivElement>(null);
   const backupCardRef = useRef<HTMLDivElement>(null);
-  const premiumCardRef = useRef<HTMLDivElement>(null);
   const subjectNameInputRef = useRef<HTMLInputElement>(null);
   const termNameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -445,7 +436,6 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(false);
       setBackupOpen(false);
-      setPremiumOpen(false);
       setShowAddSubjectForm(true);
       setEditingSubjectId(null);
 
@@ -460,7 +450,6 @@ export function Settings({
       setPeriodsOpen(true);
       setTimetableOpen(false);
       setBackupOpen(false);
-      setPremiumOpen(false);
       openNewTerm();
 
       requestAnimationFrame(() => {
@@ -474,7 +463,6 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(true);
       setBackupOpen(false);
-      setPremiumOpen(false);
 
       requestAnimationFrame(() => {
         timetableCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -486,22 +474,9 @@ export function Settings({
       setPeriodsOpen(false);
       setTimetableOpen(false);
       setBackupOpen(true);
-      setPremiumOpen(false);
 
       requestAnimationFrame(() => {
         backupCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
-
-    if (openSection === "premium") {
-      setSubjectsOpen(false);
-      setPeriodsOpen(false);
-      setTimetableOpen(false);
-      setBackupOpen(false);
-      setPremiumOpen(true);
-
-      requestAnimationFrame(() => {
-        premiumCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
 
@@ -1025,66 +1000,6 @@ export function Settings({
     }
   };
 
-  const currentPlanLabel = appMode === "demo" ? "Preview Premium" : plan === "premium" ? "Premium" : "Free plan";
-
-  const startPremiumCheckout = async (interval: "monthly" | "yearly") => {
-    if (appMode === "demo") return;
-
-    setBillingError("");
-    setBillingLoading(true);
-    trackProductEvent("premium_checkout_started", { interval });
-
-    try {
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ interval }),
-      });
-
-      const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
-
-      if (!response.ok || !data?.url) {
-        throw new Error(data?.error ?? "Could not start checkout.");
-      }
-
-      window.location.href = data.url;
-    } catch (error) {
-      setBillingError(error instanceof Error ? error.message : "Could not start checkout.");
-    } finally {
-      setBillingLoading(false);
-    }
-  };
-
-  const openBillingPortal = async () => {
-    if (appMode === "demo") return;
-
-    setBillingError("");
-    setBillingLoading(true);
-    trackProductEvent("premium_portal_opened");
-
-    try {
-      const response = await fetch("/api/stripe/portal", {
-        method: "POST",
-      });
-
-      const data = (await response.json().catch(() => null)) as
-        | { url?: string; error?: string }
-        | null;
-
-      if (!response.ok || !data?.url) {
-        throw new Error(data?.error ?? "Could not open billing management.");
-      }
-
-      window.location.href = data.url;
-    } catch (error) {
-      setBillingError(
-        error instanceof Error ? error.message : "Could not open billing management."
-      );
-    } finally {
-      setBillingLoading(false);
-    }
-  };
-
   const clearButtonLabel = appMode === "demo" ? "Reset demo" : "Clear all data";
 
   const handleConfirmClear = () => {
@@ -1106,143 +1021,6 @@ export function Settings({
       </div>
 
       <div className="space-y-3">
-        <div ref={premiumCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
-          <button
-            type="button"
-            onClick={() => setPremiumOpen((value) => !value)}
-            className="settings-panel-trigger flex w-full items-center justify-between px-5 py-3 transition-colors"
-          >
-            <div className="flex items-center gap-3 text-left">
-              <span className="settings-row-icon settings-icon-premium">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <div>
-                <div className="text-sm font-semibold text-foreground">Premium</div>
-                <div className="text-xs text-muted-foreground">
-                  Compare plans and manage your subscription.
-                </div>
-              </div>
-            </div>
-
-            <ChevronDown
-              className={[
-                "h-5 w-5 text-muted-foreground transition-transform",
-                premiumOpen ? "rotate-180" : "rotate-0",
-              ].join(" ")}
-            />
-          </button>
-
-          {premiumOpen ? (
-            <div className="settings-panel-content space-y-4 border-t border-border px-5 pb-5 pt-4">
-              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-foreground">Current plan</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {appMode === "demo"
-                      ? "Preview mode includes Premium features."
-                      : plan === "premium"
-                        ? "Premium is active on this account."
-                        : "The core planner remains available on the Free plan."}
-                  </div>
-                </div>
-                <span className="app-pill w-fit">{currentPlanLabel}</span>
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                <button
-                  type="button"
-                  disabled={plan === "premium" || billingLoading || appMode === "demo"}
-                  onClick={() => {
-                    void startPremiumCheckout("monthly");
-                  }}
-                  className="rounded-2xl border border-border bg-background/50 p-5 text-left transition hover:border-border-strong hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <div className="text-sm font-semibold text-foreground">Monthly</div>
-                  <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-                    US$2.99
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">per month</div>
-                  <div className="mt-4 text-xs font-medium text-foreground">
-                    Choose monthly
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={plan === "premium" || billingLoading || appMode === "demo"}
-                  onClick={() => {
-                    void startPremiumCheckout("yearly");
-                  }}
-                  className="relative rounded-2xl border border-primary/40 bg-primary-soft/50 p-5 text-left transition hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className="absolute right-4 top-4 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-                    Best value
-                  </span>
-                  <div className="text-sm font-semibold text-foreground">Yearly</div>
-                  <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-                    US$19.99
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">per year</div>
-                  <div className="mt-3 text-xs font-semibold text-primary">
-                    Save US$15.89, about 44%
-                  </div>
-                  <div className="mt-4 text-xs font-medium text-foreground">
-                    Choose yearly
-                  </div>
-                </button>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    Free includes
-                  </div>
-                  <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                    <div>Calendar, tasks, study sessions, subjects, terms, and timetable</div>
-                    <div>Account sync and backup tools</div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-background/50 p-4">
-                  <div className="text-sm font-semibold text-foreground">
-                    Premium unlocks
-                  </div>
-                  <div className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                    <div>See how preparation translates into results</div>
-                    <div>Track marks, subject averages, trends and study insights</div>
-                  </div>
-                </div>
-              </div>
-
-              {billingError ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-                  {billingError}
-                </div>
-              ) : null}
-
-              {plan === "premium" && appMode === "app" ? (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={openBillingPortal}
-                    disabled={billingLoading}
-                    className="app-btn-primary"
-                  >
-                    {billingLoading ? "Opening billing..." : "Manage or cancel subscription"}
-                  </button>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    Cancellation is handled securely in the Stripe billing page. Choose <span className="font-medium text-foreground">Manage or cancel subscription</span>, then cancel your plan there. You keep Premium access until the end of the paid billing period.
-                  </div>
-                </div>
-              ) : null}
-
-              {billingLoading && plan !== "premium" ? (
-                <div className="text-xs text-muted-foreground">Opening secure checkout...</div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
         <div ref={subjectsCardRef} className="settings-panel overflow-hidden rounded-2xl border border-border bg-card">
           <button
             type="button"
