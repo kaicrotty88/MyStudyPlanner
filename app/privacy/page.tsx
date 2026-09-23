@@ -3,7 +3,7 @@ import Link from "next/link";
 import CookiePreferencesButton from "@/components/CookiePreferencesButton";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | MyStudyPlanner",
+  title: "Privacy Policy",
   description: "How MyStudyPlanner collects, uses, stores and protects personal information.",
   alternates: { canonical: "/privacy" },
 };

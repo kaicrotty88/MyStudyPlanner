@@ -5,26 +5,16 @@ import { Check, ChevronDown, Pause, Play, RotateCcw, Square, X } from "lucide-re
 
 import type { Subject, StudySession, Task } from "./models";
 import { isAssessmentTask } from "./assessmentLifecycle";
+import {
+  EMPTY_STUDY_TIMER,
+  elapsedStudyTimerSeconds,
+  readStoredStudyTimer,
+  writeStoredStudyTimer,
+  type StoredStudyTimerState,
+} from "@/lib/studyTimerStorage";
 
-const TIMER_STORAGE_KEY = "mystudyplanner-live-study-timer";
-
-type TimerState = {
-  running: boolean;
-  startedAt: number | null;
-  accumulatedSeconds: number;
-  subjectId: string;
-  linkedTaskId?: string;
-  plannedSessionId?: string;
-  title: string;
-};
-
-const EMPTY_TIMER: TimerState = {
-  running: false,
-  startedAt: null,
-  accumulatedSeconds: 0,
-  subjectId: "",
-  title: "",
-};
+type TimerState = StoredStudyTimerState;
+const EMPTY_TIMER = EMPTY_STUDY_TIMER;
 
 export type StudyTimerStartRequest = {
   key: number;
@@ -41,6 +31,7 @@ interface StudyTimerProps {
   onAddStudySession: (session: Omit<StudySession, "id">) => void;
   onUpdateStudySession: (id: string, session: Omit<StudySession, "id">) => void;
   startRequest?: StudyTimerStartRequest | null;
+  storageKey: string;
 }
 
 const formatSeconds = (seconds: number) => {
@@ -58,25 +49,29 @@ export function StudyTimer({
   onAddStudySession,
   onUpdateStudySession,
   startRequest = null,
+  storageKey,
 }: StudyTimerProps) {
   const [now, setNow] = useState(() => new Date());
   const [timer, setTimer] = useState<TimerState>(EMPTY_TIMER);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [finishNote, setFinishNote] = useState("");
+  const [finishElapsedSeconds, setFinishElapsedSeconds] = useState<number | null>(null);
+  const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(TIMER_STORAGE_KEY);
-      if (raw) setTimer({ ...EMPTY_TIMER, ...JSON.parse(raw) });
-    } catch {}
-  }, []);
+    setHydratedStorageKey(null);
+    setTimer(readStoredStudyTimer(storageKey));
+    setFinishOpen(false);
+    setFinishNote("");
+    setFinishElapsedSeconds(null);
+    setHydratedStorageKey(storageKey);
+  }, [storageKey]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timer));
-    } catch {}
-  }, [timer]);
+    if (hydratedStorageKey !== storageKey) return;
+    writeStoredStudyTimer(storageKey, timer);
+  }, [timer, storageKey, hydratedStorageKey]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -97,6 +92,7 @@ export function StudyTimer({
     setPickerOpen(false);
     setFinishOpen(false);
     setFinishNote("");
+    setFinishElapsedSeconds(null);
   }, [startRequest]);
 
   const elapsedSeconds =
@@ -151,6 +147,7 @@ export function StudyTimer({
   };
 
   const pauseResume = () => {
+    setFinishElapsedSeconds(null);
     setTimer((current) => {
       if (current.running) {
         const added = current.startedAt
@@ -167,8 +164,26 @@ export function StudyTimer({
     });
   };
 
+  const openFinishConfirmation = () => {
+    const frozenSeconds = elapsedStudyTimerSeconds(timer);
+    setTimer((current) => ({
+      ...current,
+      running: false,
+      startedAt: null,
+      accumulatedSeconds: frozenSeconds,
+    }));
+    setFinishElapsedSeconds(frozenSeconds);
+    setFinishOpen(true);
+  };
+
+  const closeFinishConfirmation = () => {
+    setFinishOpen(false);
+    setFinishElapsedSeconds(null);
+  };
+
   const saveTimer = () => {
-    const actualMinutes = Math.max(0, Math.round(elapsedSeconds / 60));
+    const frozenSeconds = finishElapsedSeconds ?? elapsedStudyTimerSeconds(timer);
+    const actualMinutes = Math.max(0, Math.round(frozenSeconds / 60));
     const actualDuration = `${actualMinutes} min`;
     const linkedTask = timer.linkedTaskId
       ? tasks.find((task) => task.id === timer.linkedTaskId)
@@ -182,6 +197,7 @@ export function StudyTimer({
         ...existing,
         plannedDuration: existing.plannedDuration ?? existing.duration,
         duration: actualDuration,
+        actualSeconds: frozenSeconds,
         notes: finishNote.trim() || existing.notes,
         completed: true,
         completedAt: new Date(),
@@ -193,6 +209,7 @@ export function StudyTimer({
         date: new Date(),
         startTime: new Date().toTimeString().slice(0, 5),
         duration: actualDuration,
+        actualSeconds: frozenSeconds,
         linkedTaskId: timer.linkedTaskId,
         notes: finishNote.trim() || undefined,
         completed: true,
@@ -203,6 +220,7 @@ export function StudyTimer({
     setTimer(EMPTY_TIMER);
     setFinishOpen(false);
     setFinishNote("");
+    setFinishElapsedSeconds(null);
   };
 
   const statusLabel = timer.running
@@ -251,11 +269,11 @@ export function StudyTimer({
                     {timer.running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     {timer.running ? "Pause" : "Resume"}
                   </button>
-                  <button type="button" className="app-btn-secondary h-10 px-4" onClick={() => setFinishOpen(true)}>
+                  <button type="button" className="app-btn-secondary h-10 px-4" onClick={openFinishConfirmation}>
                     <Square className="h-4 w-4" />
                     Finish
                   </button>
-                  <button type="button" className="app-btn-ghost h-10 px-3" onClick={() => setTimer(EMPTY_TIMER)}>
+                  <button type="button" className="app-btn-ghost h-10 px-3" onClick={() => { setTimer(EMPTY_TIMER); setFinishElapsedSeconds(null); }}>
                     <RotateCcw className="h-4 w-4" />
                     Reset
                   </button>
@@ -328,23 +346,40 @@ export function StudyTimer({
       ) : null}
 
       {finishOpen ? (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4 backdrop-blur-[2px]" onMouseDown={() => setFinishOpen(false)}>
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4 backdrop-blur-[2px]" onMouseDown={closeFinishConfirmation}>
+          <div
+            className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="finish-study-title"
+            onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              const target = event.target as HTMLElement;
+              const isTextInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT";
+              if (event.key === "Enter" && (!isTextInput || event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                saveTimer();
+              }
+              if (event.key === "Escape") closeFinishConfirmation();
+            }}
+          >
             <div className="border-b border-border px-5 py-4">
-              <div className="text-base font-semibold text-foreground">Finish study session</div>
-              <div className="mt-1 text-xs text-muted-foreground">Confirm the time that will be recorded in your Study log.</div>
+              <div id="finish-study-title" className="text-base font-semibold text-foreground">Finish study session</div>
+              <div className="mt-1 text-xs text-muted-foreground">Confirm the frozen duration before saving it to your Study log.</div>
             </div>
             <div className="p-5">
+              <div className="mb-3 text-sm font-semibold text-foreground">{timerSelectionLabel}</div>
               <div className="rounded-2xl bg-muted/35 px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recorded by timer</div>
-                <div className="mt-1 font-mono text-2xl font-semibold text-foreground">{formatSeconds(elapsedSeconds)}</div>
+                <div className="mt-1 font-mono text-2xl font-semibold text-foreground">{formatSeconds(finishElapsedSeconds ?? elapsedSeconds)}</div>
               </div>
               <label className="mt-4 block text-sm font-medium text-foreground">What did you work on? <span className="font-normal text-muted-foreground">Optional</span></label>
               <textarea rows={3} value={finishNote} onChange={(event) => setFinishNote(event.target.value)} className="mt-2 w-full rounded-xl border border-border bg-input-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
               <div className="mt-5 flex gap-2">
                 <button type="button" className="app-btn-primary flex-1" onClick={saveTimer}>Save session</button>
-                <button type="button" className="app-btn-secondary" onClick={() => setFinishOpen(false)}>Cancel</button>
+                <button type="button" className="app-btn-secondary" onClick={closeFinishConfirmation}>Cancel</button>
               </div>
+              <div className="mt-2 text-center text-[11px] text-muted-foreground">Enter saves on desktop. Use Ctrl/⌘ + Enter while writing a note.</div>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
-  title: "About MyStudyPlanner | Study Planner for Students",
+  title: "About",
   description:
     "Learn what MyStudyPlanner is, who it is for, and why it was built as a study planner for high school and university students.",
   keywords: [

@@ -145,7 +145,7 @@ export default async function Page() {
               <Sparkles className="h-3.5 w-3.5 text-primary" />
               Calendar first. Study connected.
             </div>
-            <h1 className="mt-6 text-5xl font-semibold tracking-[-0.04em] text-foreground sm:text-6xl lg:text-7xl">
+            <h1 className="mt-6 text-5xl font-semibold tracking-[-0.04em] text-foreground sm:text-6xl lg:text-[4rem] xl:text-7xl">
               Add the work once. Keep the whole study process connected.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">

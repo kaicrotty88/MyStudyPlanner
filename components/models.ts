@@ -368,6 +368,7 @@ export interface StudySession {
   date: Date;
   startTime: string; // "HH:MM" 24h preferred
   duration: string; // actual duration when completed, planned duration while upcoming
+  actualSeconds?: number; // exact timer duration when a session is completed from the live timer
   plannedDuration?: string; // preserves the original plan after completion
   linkedTaskId?: string;
   notes?: string;

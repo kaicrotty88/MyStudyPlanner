@@ -40,6 +40,14 @@ import { type ProfileRow } from "@/lib/profileSupabase";
 
 import WhatsNewModal from "@/components/WhatsNewModal";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import {
+  STUDY_TIMER_CHANGE_EVENT,
+  elapsedStudyTimerSeconds,
+  pauseStoredStudyTimer,
+  readStoredStudyTimer,
+  timerStorageKeyForContext,
+  type StoredStudyTimerState,
+} from "@/lib/studyTimerStorage";
 
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
@@ -1138,6 +1146,56 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
   const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
   const [calendarPlanningTaskId, setCalendarPlanningTaskId] = useState<string | null>(null);
+  const timerStorageKey = useMemo(
+    () => timerStorageKeyForContext(mode, user?.id),
+    [mode, user?.id]
+  );
+  const previousTimerStorageKeyRef = useRef<string | null>(null);
+  const [navTimer, setNavTimer] = useState<StoredStudyTimerState | null>(null);
+  const [navTimerNow, setNavTimerNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const previousKey = previousTimerStorageKeyRef.current;
+    if (previousKey && previousKey !== timerStorageKey) pauseStoredStudyTimer(previousKey);
+    previousTimerStorageKeyRef.current = timerStorageKey;
+  }, [timerStorageKey]);
+
+  useEffect(() => {
+    const syncTimer = () => setNavTimer(readStoredStudyTimer(timerStorageKey));
+    const handleTimerChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ storageKey?: string; timer?: StoredStudyTimerState }>).detail;
+      if (detail?.storageKey === timerStorageKey && detail.timer) setNavTimer(detail.timer);
+      else syncTimer();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === timerStorageKey) syncTimer();
+    };
+
+    syncTimer();
+    window.addEventListener(STUDY_TIMER_CHANGE_EVENT, handleTimerChange as EventListener);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(STUDY_TIMER_CHANGE_EVENT, handleTimerChange as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [timerStorageKey]);
+
+  useEffect(() => {
+    if (!navTimer?.running) return;
+    const id = window.setInterval(() => setNavTimerNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [navTimer?.running]);
+
+  const navTimerElapsed = navTimer ? elapsedStudyTimerSeconds(navTimer, navTimerNow) : 0;
+  const formatNavTimer = (seconds: number) => {
+    const safe = Math.max(0, Math.floor(seconds));
+    const hours = Math.floor(safe / 3600);
+    const minutes = Math.floor((safe % 3600) / 60);
+    const secs = safe % 60;
+    return hours > 0
+      ? `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+      : `${minutes}:${String(secs).padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     if (activeTab !== "calendar" && calendarPlanningTaskId) {
@@ -1308,6 +1366,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             date: hydrateDate(s?.date),
             startTime: String(s?.startTime ?? "16:00"),
             duration: String(s?.duration ?? "60 min"),
+            actualSeconds: Number.isFinite(Number(s?.actualSeconds)) ? Math.max(0, Number(s.actualSeconds)) : undefined,
             completed:
               typeof s?.completed === "boolean"
                 ? s.completed
@@ -2000,6 +2059,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                 >
                   <span className="inline-flex items-center gap-1.5">
                     {tab.label}
+                    {tab.id === "study" && navTimer?.running ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-primary">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                        {formatNavTimer(navTimerElapsed)}
+                      </span>
+                    ) : null}
                     {locked ? <Lock className="h-3.5 w-3.5" /> : null}
                   </span>
                 </button>
@@ -2081,6 +2146,12 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                 >
                   <span className="inline-flex items-center gap-1.5">
                     {tab.label}
+                    {tab.id === "study" && navTimer?.running ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-primary">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                        {formatNavTimer(navTimerElapsed)}
+                      </span>
+                    ) : null}
                     {locked ? <Lock className="h-3.5 w-3.5" /> : null}
                   </span>
                 </button>
@@ -2237,6 +2308,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onGoToSettings={() => setActiveTab("settings")}
             initialTaskId={studyTaskToOpen}
             onInitialTaskHandled={() => setStudyTaskToOpen(null)}
+            timerStorageKey={timerStorageKey}
           />
         ) : null}
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Use | MyStudyPlanner",
+  title: "Terms of Use",
   description: "Terms for using MyStudyPlanner, including accounts, Premium subscriptions and acceptable use.",
   alternates: { canonical: "/terms" },
 };

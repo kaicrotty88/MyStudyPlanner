@@ -1,6 +1,8 @@
 // components/tasks.tsx
 "use client";
 
+const TASK_SECTION_STATE_KEY = "mystudyplanner-task-sections";
+
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
@@ -253,6 +255,27 @@ export function Tasks({
     exam: true,
     personal: true,
   });
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(TASK_SECTION_STATE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setExpandedSections((current) => ({
+        ...current,
+        homework: typeof parsed?.homework === "boolean" ? parsed.homework : current.homework,
+        assignment: typeof parsed?.assignment === "boolean" ? parsed.assignment : current.assignment,
+        exam: typeof parsed?.exam === "boolean" ? parsed.exam : current.exam,
+        personal: typeof parsed?.personal === "boolean" ? parsed.personal : current.personal,
+      }));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(TASK_SECTION_STATE_KEY, JSON.stringify(expandedSections));
+    } catch {}
+  }, [expandedSections]);
 
   const [showAddForm, setShowAddForm] = useState<TaskSectionType | null>(null);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);

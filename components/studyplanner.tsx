@@ -138,6 +138,7 @@ interface StudyPlannerProps {
   onGoToSettings?: () => void;
   initialTaskId?: string | null;
   onInitialTaskHandled?: () => void;
+  timerStorageKey: string;
 }
 
 export function StudyPlanner({
@@ -153,6 +154,7 @@ export function StudyPlanner({
   onGoToSettings,
   initialTaskId = null,
   onInitialTaskHandled,
+  timerStorageKey,
 }: StudyPlannerProps) {
   const [studyView, setStudyView] = useState<"focus" | "log" | "insights">("focus");
   const [activeSubject, setActiveSubject] = useState<string>("all");
@@ -512,6 +514,7 @@ export function StudyPlanner({
             onAddStudySession={onAddStudySession}
             onUpdateStudySession={onUpdateStudySession}
             startRequest={timerStartRequest}
+            storageKey={timerStorageKey}
           />
         </div>
       ) : null}

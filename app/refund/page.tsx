@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Refund Policy | MyStudyPlanner",
+  title: "Refund Policy",
   description: "MyStudyPlanner Premium refund and cancellation policy.",
   alternates: { canonical: "/refund" },
 };
