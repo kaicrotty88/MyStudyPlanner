@@ -1149,8 +1149,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
 
   useEffect(() => {
-    if (mode !== "demo") return;
     const view = new URLSearchParams(window.location.search).get("view");
+    if (mode === "app") {
+      if (view === "premium") setActiveTab("premium");
+      return;
+    }
     if (view === "marks") setActiveTab("marks");
     if (view === "study" || view === "study-insights") setActiveTab("study");
   }, [mode]);
@@ -2031,7 +2034,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       <nav className="app-shell-header z-30 border-b border-border bg-card/90 backdrop-blur-xl">
         <div className="app-shell-header-grid app-shell-header-grid-polished">
           <Link
-            href={mode === "demo" ? "/demo" : "/app"}
+            href={mode === "demo" && isSignedIn ? "/app?view=premium" : mode === "demo" ? "/demo" : "/app"}
             className="group flex min-w-0 items-center gap-2"
           >
             <div className="relative h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[9px] shadow-sm ring-1 ring-border/60 transition-transform group-hover:scale-[1.02]">
@@ -2108,7 +2111,11 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
 
             <ThemeToggle />
 
-            {mode === "demo" ? (
+            {mode === "demo" && isSignedIn ? (
+              <Link href="/app?view=premium" className="app-btn-secondary h-9 px-3 text-xs sm:text-sm">
+                Back to Premium
+              </Link>
+            ) : mode === "demo" ? (
               <Link
                 href="/sign-up"
                 className="app-btn-primary hidden sm:inline-flex"
@@ -2377,7 +2384,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           )
         ) : null}
 
-        {activeTab === "premium" ? <Premium appMode={mode} plan={plan} /> : null}
+        {activeTab === "premium" ? <Premium appMode={mode} plan={plan} isSignedIn={Boolean(isSignedIn)} /> : null}
 
         {activeTab === "settings" ? (
           <Settings

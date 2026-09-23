@@ -7,7 +7,7 @@ import { trackProductEvent } from "@/lib/productAnalytics";
 
 type Interval = "monthly" | "yearly";
 
-export function Premium({ appMode, plan }: { appMode: "app" | "demo"; plan: "free" | "premium" }) {
+export function Premium({ appMode, plan, isSignedIn }: { appMode: "app" | "demo"; plan: "free" | "premium"; isSignedIn: boolean }) {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const isPreview = appMode === "demo";
@@ -91,7 +91,7 @@ export function Premium({ appMode, plan }: { appMode: "app" | "demo"; plan: "fre
           <p className="mt-1 text-sm text-muted-foreground">Both plans include the same Premium features. Cancel through billing management when you need to.</p>
         </div>
         {isPreview ? (
-          <Link href="/sign-up" className="app-btn-primary">Create an account to upgrade</Link>
+          <Link href={isSignedIn ? "/app?view=premium" : "/sign-up"} className="app-btn-primary">{isSignedIn ? "Back to your Premium page" : "Create an account to upgrade"}</Link>
         ) : isPremium ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Premium is active on your account.</p>
