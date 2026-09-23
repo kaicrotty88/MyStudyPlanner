@@ -305,7 +305,6 @@ export function Settings({
   const [importError, setImportError] = useState("");
   const [pendingBackup, setPendingBackup] = useState<BackupV1 | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
-  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
 
@@ -1028,18 +1027,18 @@ export function Settings({
 
   const currentPlanLabel = appMode === "demo" ? "Preview Premium" : plan === "premium" ? "Premium" : "Free plan";
 
-  const startPremiumCheckout = async () => {
+  const startPremiumCheckout = async (interval: "monthly" | "yearly") => {
     if (appMode === "demo") return;
 
     setBillingError("");
     setBillingLoading(true);
-    trackProductEvent("premium_checkout_started", { interval: billingInterval });
+    trackProductEvent("premium_checkout_started", { interval });
 
     try {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ interval: billingInterval }),
+        body: JSON.stringify({ interval }),
       });
 
       const data = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
@@ -1154,8 +1153,7 @@ export function Settings({
                   type="button"
                   disabled={plan === "premium" || billingLoading || appMode === "demo"}
                   onClick={() => {
-                    setBillingInterval("monthly");
-                    void startPremiumCheckout();
+                    void startPremiumCheckout("monthly");
                   }}
                   className="rounded-2xl border border-border bg-background/50 p-5 text-left transition hover:border-border-strong hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -1173,8 +1171,7 @@ export function Settings({
                   type="button"
                   disabled={plan === "premium" || billingLoading || appMode === "demo"}
                   onClick={() => {
-                    setBillingInterval("yearly");
-                    void startPremiumCheckout();
+                    void startPremiumCheckout("yearly");
                   }}
                   className="relative rounded-2xl border border-primary/40 bg-primary-soft/50 p-5 text-left transition hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -2464,10 +2461,10 @@ export function Settings({
               <span className="settings-row-icon settings-icon-support"><LifeBuoy className="h-4 w-4" /></span>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">Support</div>
-                <div className="text-xs leading-5 text-muted-foreground">Need help, found a bug, or want to make a privacy request?</div>
+                <div className="text-xs leading-5 text-muted-foreground">Need help or have an idea? Tell us what would make planning easier. We read feedback and use it to guide improvements.</div>
               </div>
             </div>
-            <a href="mailto:mystudyplanner.studio@gmail.com" className="app-btn-secondary h-9 shrink-0 px-3">Email support</a>
+            <a href="mailto:mystudyplanner.studio@gmail.com" className="break-all text-sm font-medium text-primary hover:underline">mystudyplanner.studio@gmail.com</a>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border px-5 py-3 text-xs text-muted-foreground">
             <a href="/privacy" className="transition hover:text-foreground">Privacy</a>

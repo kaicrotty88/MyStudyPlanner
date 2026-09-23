@@ -2305,7 +2305,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onUpdateTask={handleUpdateTask}
             onPlanStudy={planStudyOnCalendar}
             hasPremium={hasPremium}
-            onGoToSettings={() => setActiveTab("settings")}
+            onGoToSettings={() => openSettingsSection("premium")}
             initialTaskId={studyTaskToOpen}
             onInitialTaskHandled={() => setStudyTaskToOpen(null)}
             timerStorageKey={timerStorageKey}

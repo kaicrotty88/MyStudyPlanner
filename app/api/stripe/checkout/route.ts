@@ -28,6 +28,14 @@ export async function POST(request: Request) {
 
     const appUrl = getAppUrl();
     const priceId = getStripePriceId(interval);
+    const price = await stripe.prices.retrieve(priceId);
+    const expectedAmount = interval === "yearly" ? 1999 : 299;
+    const expectedInterval = interval === "yearly" ? "year" : "month";
+
+    if (!price.active || price.currency !== "usd" || price.unit_amount !== expectedAmount || price.recurring?.interval !== expectedInterval) {
+      console.error("Stripe price configuration does not match selected plan", { interval, priceId });
+      return NextResponse.json({ error: "This plan is temporarily unavailable. Please contact support." }, { status: 503 });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
