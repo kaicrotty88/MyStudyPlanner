@@ -931,6 +931,7 @@ const makeDemoData = () => {
   );
 
   const studySessions: StudySession[] = [
+    { id: "demo-study-today", title: "Motion topic test revision", subjectId: "2", date: today, startTime: "07:30", duration: "40 min", linkedTaskId: "t3", completed: true, completedAt: today },
     {
       id: "s1",
       title: "Calculus practice",
@@ -945,6 +946,8 @@ const makeDemoData = () => {
     { id: "s2", title: "Physics review", subjectId: "2", date: twoDaysAgo, startTime: "18:00", duration: "45 min", linkedTaskId: "t3", completed: true, completedAt: twoDaysAgo },
     { id: "s3", title: "Chemistry practical prep", subjectId: "3", date: yesterday, startTime: "16:30", duration: "30 min", linkedTaskId: "t2", completed: true, completedAt: yesterday },
     { id: "s4", title: "English paragraph planning", subjectId: "4", date: twoDaysAgo, startTime: "17:15", duration: "45 min", linkedTaskId: "t4", completed: true, completedAt: twoDaysAgo },
+    { id: "demo-study-economics", title: "Economics essay preparation", subjectId: "6", date: addDays(now, -9), startTime: "16:00", duration: "75 min", linkedTaskId: "t9", completed: true, completedAt: addDays(now, -9) },
+    { id: "demo-study-physics", title: "Physics topic test revision", subjectId: "2", date: addDays(now, -18), startTime: "17:00", duration: "50 min", linkedTaskId: "t8", completed: true, completedAt: addDays(now, -18) },
     { id: "s5", title: "Economics budget questions study", subjectId: "6", date: tomorrow, startTime: "18:30", duration: "50 min", linkedTaskId: "t11", completed: false },
     { id: "s6", title: "Legal Studies case notes study", subjectId: "7", date: in2, startTime: "17:00", duration: "40 min", linkedTaskId: "t10", completed: false },
     { id: "s7", title: "Motion topic test study", subjectId: "2", date: in5, startTime: "16:45", duration: "60 min", linkedTaskId: "t3", completed: false },
@@ -1147,6 +1150,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   }, [session]);
 
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
+  const [demoStudyView, setDemoStudyView] = useState<"focus" | "insights">("focus");
 
   useEffect(() => {
     const view = new URLSearchParams(window.location.search).get("view");
@@ -1155,8 +1159,18 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       return;
     }
     if (view === "marks") setActiveTab("marks");
-    if (view === "study" || view === "study-insights") setActiveTab("study");
+    if (view === "study" || view === "study-insights") {
+      setDemoStudyView(view === "study-insights" ? "insights" : "focus");
+      setActiveTab("study");
+    }
   }, [mode]);
+
+  const previewDemoView = (view: "marks" | "study-insights") => {
+    if (mode !== "demo") return;
+    window.history.pushState({}, "", `/demo?view=${view}`);
+    if (view === "study-insights") setDemoStudyView("insights");
+    setActiveTab(view === "marks" ? "marks" : "study");
+  };
   const [studyTaskToOpen, setStudyTaskToOpen] = useState<string | null>(null);
   const [calendarPlanningTaskId, setCalendarPlanningTaskId] = useState<string | null>(null);
   const timerStorageKey = useMemo(
@@ -2324,7 +2338,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
             onPlanStudy={planStudyOnCalendar}
             hasPremium={hasPremium}
             onGoToSettings={() => setActiveTab("premium")}
-            initialView={mode === "demo" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "study-insights" ? "insights" : "focus"}
+            initialView={mode === "demo" ? demoStudyView : "focus"}
             initialTaskId={studyTaskToOpen}
             onInitialTaskHandled={() => setStudyTaskToOpen(null)}
             timerStorageKey={timerStorageKey}
@@ -2384,7 +2398,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
           )
         ) : null}
 
-        {activeTab === "premium" ? <Premium appMode={mode} plan={plan} isSignedIn={Boolean(isSignedIn)} /> : null}
+        {activeTab === "premium" ? <Premium appMode={mode} plan={plan} isSignedIn={Boolean(isSignedIn)} onPreview={previewDemoView} /> : null}
 
         {activeTab === "settings" ? (
           <Settings

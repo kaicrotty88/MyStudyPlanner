@@ -230,7 +230,7 @@ export default async function Page() {
                 <ul className="mt-6 space-y-3 text-sm text-muted-foreground">
                   {["Everything in Free", "Marks and subject performance", "Preparation-to-result context", "Deeper study insights"].map((item) => <li key={item} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{item}</li>)}
                 </ul>
-                <p className="mt-6 text-xs leading-5 text-muted-foreground">Subscriptions renew automatically at the selected monthly or yearly interval until cancelled. Manage or cancel through Settings.</p>
+                <p className="mt-6 text-xs leading-5 text-muted-foreground">Subscriptions renew automatically at the selected monthly or yearly interval until cancelled. Manage or cancel from the Premium page.</p>
                 <Link href="/sign-up" className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Start with Free</Link>
               </div>
             </div>

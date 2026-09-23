@@ -159,6 +159,7 @@ export function StudyPlanner({
   timerStorageKey,
 }: StudyPlannerProps) {
   const [studyView, setStudyView] = useState<"focus" | "log" | "insights">(initialView);
+  useEffect(() => setStudyView(initialView), [initialView]);
   const [activeSubject, setActiveSubject] = useState<string>("all");
   const [sessionIntent, setSessionIntent] = useState<"plan" | "log">("log");
 

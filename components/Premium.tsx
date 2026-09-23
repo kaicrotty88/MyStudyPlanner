@@ -7,7 +7,7 @@ import { trackProductEvent } from "@/lib/productAnalytics";
 
 type Interval = "monthly" | "yearly";
 
-export function Premium({ appMode, plan, isSignedIn }: { appMode: "app" | "demo"; plan: "free" | "premium"; isSignedIn: boolean }) {
+export function Premium({ appMode, plan, isSignedIn, onPreview }: { appMode: "app" | "demo"; plan: "free" | "premium"; isSignedIn: boolean; onPreview: (view: "marks" | "study-insights") => void }) {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const isPreview = appMode === "demo";
@@ -71,13 +71,13 @@ export function Premium({ appMode, plan, isSignedIn }: { appMode: "app" | "demo"
             <div className="text-xs font-semibold uppercase tracking-wide text-primary">Marks and results</div>
             <h3 className="mt-2 text-base font-semibold text-foreground">See the result alongside the preparation</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Enter a mark for an assessment, then review your results, subject averages and recent performance in one place.</p>
-            <Link href="/demo?view=marks" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Explore Marks in the demo <ArrowUpRight className="h-4 w-4" /></Link>
+            <Link href="/demo?view=marks" onClick={(event) => { if (isPreview) { event.preventDefault(); onPreview("marks"); } }} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Explore Marks in the demo <ArrowUpRight className="h-4 w-4" /></Link>
           </div>
           <div className="rounded-2xl border border-border bg-background/60 p-5">
             <div className="text-xs font-semibold uppercase tracking-wide text-primary">Study Insights</div>
             <h3 className="mt-2 text-base font-semibold text-foreground">Understand your study patterns</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Review completed sessions, subject breakdowns, streaks and assessment-linked study trends.</p>
-            <Link href="/demo?view=study-insights" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Explore Insights in the demo <ArrowUpRight className="h-4 w-4" /></Link>
+            <Link href="/demo?view=study-insights" onClick={(event) => { if (isPreview) { event.preventDefault(); onPreview("study-insights"); } }} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Explore Insights in the demo <ArrowUpRight className="h-4 w-4" /></Link>
           </div>
         </div>
         <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm leading-6 text-muted-foreground">
