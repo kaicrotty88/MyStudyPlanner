@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import App from "@/components/App";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Try it now - MyStudyPlanner",
@@ -11,7 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default async function DemoPage() {
-  const { userId } = await auth();
-  if (userId) redirect("/app");
   return <App mode="demo" />;
 }

@@ -53,6 +53,7 @@ import {
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+const DEMO_PERIODS_STORAGE_KEY = "mystudyplanner-demo-periods";
 const AUTO_DELETE_COMPLETED_AFTER_MS = 24 * 60 * 60 * 1000;
 
 const WHATS_NEW_VERSION_KEY = "2026-07-17-core-update";
@@ -982,7 +983,7 @@ const makeDemoData = () => {
   };
 };
 
-const seedPeriodsStorage = (periods: Period[]) => {
+const seedPeriodsStorage = (periods: Period[], key = PERIODS_STORAGE_KEY) => {
   try {
     const stored = periods.map((p) => ({
       id: p.id,
@@ -991,7 +992,7 @@ const seedPeriodsStorage = (periods: Period[]) => {
       endDate: p.endDate.toISOString(),
     }));
 
-    localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
+    localStorage.setItem(key, JSON.stringify(stored));
   } catch {}
 };
 
@@ -1635,7 +1636,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTimetablePeriods(demo.timetablePeriods);
       setTimetableClasses(demo.timetableClasses);
       setImportedCalendarEvents([]);
-      seedPeriodsStorage(demo.periods);
+      seedPeriodsStorage(demo.periods, DEMO_PERIODS_STORAGE_KEY);
 
       finishLoading();
       return () => {
@@ -1813,8 +1814,8 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
   const handleClearAllData = async () => {
     try {
       localStorage.removeItem(storageKey);
-      localStorage.removeItem(REAL_STORAGE_KEY);
-      localStorage.removeItem(PERIODS_STORAGE_KEY);
+      if (mode === "app") localStorage.removeItem(REAL_STORAGE_KEY);
+      localStorage.removeItem(mode === "demo" ? DEMO_PERIODS_STORAGE_KEY : PERIODS_STORAGE_KEY);
     } catch {}
 
     if (mode === "demo") {
@@ -1828,7 +1829,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
       setTimetablePeriods(demo.timetablePeriods);
       setTimetableClasses(demo.timetableClasses);
       setImportedCalendarEvents([]);
-      seedPeriodsStorage(demo.periods);
+      seedPeriodsStorage(demo.periods, DEMO_PERIODS_STORAGE_KEY);
       setActiveTab("calendar");
       return;
     }
@@ -1954,7 +1955,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
     );
 
     setPeriods(sorted);
-    seedPeriodsStorage(sorted);
+    seedPeriodsStorage(sorted, mode === "demo" ? DEMO_PERIODS_STORAGE_KEY : PERIODS_STORAGE_KEY);
   };
 
 

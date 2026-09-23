@@ -73,6 +73,7 @@ type ManualTimetableForm = {
 const REAL_STORAGE_KEY = "mystudyplanner-data";
 const DEMO_STORAGE_KEY = "mystudyplanner-demo";
 const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
+const DEMO_PERIODS_STORAGE_KEY = "mystudyplanner-demo-periods";
 
 interface SettingsProps {
   subjects: Subject[];
@@ -249,6 +250,7 @@ export function Settings({
   onOpenSectionHandled,
 }: SettingsProps) {
   const storageKey = appMode === "demo" ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY;
+  const periodsStorageKey = appMode === "demo" ? DEMO_PERIODS_STORAGE_KEY : PERIODS_STORAGE_KEY;
 
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [periodsOpen, setPeriodsOpen] = useState(false);
@@ -397,7 +399,7 @@ export function Settings({
     if (appPeriods.length > 0) return;
 
     try {
-      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
+      const raw = localStorage.getItem(periodsStorageKey);
       if (!raw) return;
 
       const parsed = JSON.parse(raw) as PeriodStored[];
@@ -424,7 +426,7 @@ export function Settings({
         endDate: p.endDate.toISOString(),
       }));
 
-      localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(stored));
+      localStorage.setItem(periodsStorageKey, JSON.stringify(stored));
     } catch {}
   }, [periods]);
 
@@ -886,7 +888,7 @@ export function Settings({
 
     const rawAppData = safeJsonParse<any>(localStorage.getItem(storageKey));
     const rawPeriods =
-      safeJsonParse<PeriodStored[]>(localStorage.getItem(PERIODS_STORAGE_KEY)) ?? undefined;
+      safeJsonParse<PeriodStored[]>(localStorage.getItem(periodsStorageKey)) ?? undefined;
 
     const fallbackData = {
       subjects,
@@ -989,7 +991,7 @@ export function Settings({
       localStorage.setItem(storageKey, JSON.stringify(pendingBackup.data));
 
       if (pendingBackup.periods) {
-        localStorage.setItem(PERIODS_STORAGE_KEY, JSON.stringify(pendingBackup.periods));
+        localStorage.setItem(periodsStorageKey, JSON.stringify(pendingBackup.periods));
       }
 
       window.location.reload();
@@ -1004,7 +1006,7 @@ export function Settings({
 
   const handleConfirmClear = () => {
     try {
-      localStorage.removeItem(PERIODS_STORAGE_KEY);
+      localStorage.removeItem(periodsStorageKey);
     } catch {}
 
     onClearAllData();
