@@ -42,9 +42,9 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Marks Tracker for Students | MyStudyPlanner";
+  const title = "Marks Tracker for Students";
   const description =
-    "A calm marks tracker for students. Record grades, review subject progress, and keep results organised in one place.";
+    "A marks tracker for students to record grades, review subject progress and connect assessment results with the study preparation that came before them.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -59,11 +59,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/marks-tracker-for-students",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }

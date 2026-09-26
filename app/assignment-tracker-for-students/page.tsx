@@ -42,9 +42,9 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Assignment Tracker for Students | MyStudyPlanner";
+  const title = "Assignment Tracker for Students";
   const description =
-    "A calm assignment tracker for students. Keep deadlines, homework, study sessions, and subjects organised in one place.";
+    "An assignment tracker for students that keeps deadlines, homework, subjects and study sessions together, so upcoming work stays visible before it becomes urgent.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -59,11 +59,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/assignment-tracker-for-students",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }

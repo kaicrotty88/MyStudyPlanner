@@ -3,9 +3,23 @@ import Link from "next/link";
 import CookiePreferencesButton from "@/components/CookiePreferencesButton";
 
 export const metadata: Metadata = {
-  title: "Cookies",
-  description: "How MyStudyPlanner uses necessary storage and optional analytics.",
+  title: "Cookie & Analytics Policy",
+  description: "Learn how MyStudyPlanner uses necessary browser storage and optional analytics, what those technologies do and how you can manage your preferences.",
   alternates: { canonical: "/cookies" },
+  openGraph: {
+    title: "Cookie & Analytics Policy | MyStudyPlanner",
+    description: "Learn how MyStudyPlanner uses necessary browser storage and optional analytics, what those technologies do and how you can manage your preferences.",
+    url: "/cookies",
+    siteName: "MyStudyPlanner",
+    type: "website",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cookie & Analytics Policy | MyStudyPlanner",
+    description: "Learn how MyStudyPlanner uses necessary browser storage and optional analytics, what those technologies do and how you can manage your preferences.",
+    images: ["/twitter-image"],
+  },
 };
 
 export default function CookiesPage() {

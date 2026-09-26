@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const defaultTitle = "MyStudyPlanner | Calendar, Tasks, Study and Marks";
+const defaultTitle = "Study Planner for Students | MyStudyPlanner";
 const defaultDescription =
-  "A calm student planner that connects assessments, Calendar, study preparation and results.";
+  "Plan assignments, exams and study sessions in one calm online student planner. Keep your calendar, tasks, preparation and results connected.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
@@ -40,16 +40,17 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    url: "https://mystudyplanner.co/",
     siteName: "MyStudyPlanner",
     title: defaultTitle,
     description: defaultDescription,
     locale: "en_AU",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
   },
   twitter: {
     card: "summary_large_image",
     title: defaultTitle,
     description: defaultDescription,
+    images: ["/twitter-image"],
   },
 };
 

@@ -3,8 +3,22 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Refund Policy",
-  description: "MyStudyPlanner Premium refund and cancellation policy.",
+  description: "Read the MyStudyPlanner Premium refund and cancellation policy, including subscription renewals, cancellation timing and how refund requests are handled.",
   alternates: { canonical: "/refund" },
+  openGraph: {
+    title: "Refund Policy | MyStudyPlanner",
+    description: "Read the MyStudyPlanner Premium refund and cancellation policy, including subscription renewals, cancellation timing and how refund requests are handled.",
+    url: "/refund",
+    siteName: "MyStudyPlanner",
+    type: "website",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Refund Policy | MyStudyPlanner",
+    description: "Read the MyStudyPlanner Premium refund and cancellation policy, including subscription renewals, cancellation timing and how refund requests are handled.",
+    images: ["/twitter-image"],
+  },
 };
 
 export default function RefundPage() {

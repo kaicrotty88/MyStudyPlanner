@@ -34,7 +34,7 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Exam Planner for Students | MyStudyPlanner";
+  const title = "Exam Planner for Students";
   const description =
     "An exam planner that helps students space revision across the weeks before exam day instead of cramming at the last minute.";
 
@@ -51,11 +51,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/exam-planner",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }

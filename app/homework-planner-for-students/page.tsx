@@ -34,9 +34,9 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Homework Planner for Students | MyStudyPlanner";
+  const title = "Online Homework Planner for Students";
   const description =
-    "A homework planner for students juggling work across multiple subjects. Organise homework by subject, night, due date, and timetable.";
+    "An online homework planner for students juggling multiple subjects. Organise homework by subject, due date and timetable, then plan study around the week.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -51,11 +51,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/homework-planner-for-students",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }
@@ -98,7 +100,7 @@ export default function HomeworkPlannerForStudentsPage() {
         <p className="text-sm text-muted-foreground">For the nightly grind</p>
 
         <h1 className="text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
-          Homework planner for students who have five subjects due the same week
+          Online homework planner for students with a busy week
         </h1>
 
         <p className="text-base leading-relaxed text-muted-foreground md:text-lg">

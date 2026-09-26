@@ -42,9 +42,9 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Online Study Planner for Students | MyStudyPlanner";
+  const title = "Online Study Planner for Students";
   const description =
-    "A calm online study planner for students. Organise assignments, homework, exams, and study sessions in one place.";
+    "An online study planner for students to organise assignments, homework, exams and study sessions in one clear calendar, with a free plan and live demo.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -59,11 +59,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/online-study-planner",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }

@@ -42,9 +42,9 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Student Planner App for Students | MyStudyPlanner";
+  const title = "Student Planner App for School and University";
   const description =
-    "A calm student planner app for students. Organise assignments, homework, exams, study sessions, and marks in one place.";
+    "An online student planner app for school and university. Organise assignments, homework, exams, study sessions and marks in one connected place.";
 
   return {
     metadataBase: new URL("https://mystudyplanner.co"),
@@ -59,11 +59,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/student-planner-app",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }
@@ -115,7 +117,7 @@ export default function StudentPlannerAppPage() {
         </h1>
 
         <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-          MyStudyPlanner is a calm student planner app for students who want one
+          MyStudyPlanner is an online student planner app for students who want one
           place to organise assignments, homework, exams, study sessions,
           reminders, and marks. It is built for high school and university
           students who want a clearer way to manage study without using a busy

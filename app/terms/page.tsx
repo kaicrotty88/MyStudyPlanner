@@ -3,8 +3,22 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
-  description: "Terms for using MyStudyPlanner, including accounts, Premium subscriptions and acceptable use.",
+  description: "Terms for using MyStudyPlanner, including accounts, acceptable use, Premium subscriptions, payments, cancellations and availability of the service.",
   alternates: { canonical: "/terms" },
+  openGraph: {
+    title: "Terms of Use | MyStudyPlanner",
+    description: "Terms for using MyStudyPlanner, including accounts, acceptable use, Premium subscriptions, payments, cancellations and availability of the service.",
+    url: "/terms",
+    siteName: "MyStudyPlanner",
+    type: "website",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Use | MyStudyPlanner",
+    description: "Terms for using MyStudyPlanner, including accounts, acceptable use, Premium subscriptions, payments, cancellations and availability of the service.",
+    images: ["/twitter-image"],
+  },
 };
 
 const updated = "23 September 2026";

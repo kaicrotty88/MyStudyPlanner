@@ -4,8 +4,22 @@ import CookiePreferencesButton from "@/components/CookiePreferencesButton";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How MyStudyPlanner collects, uses, stores and protects personal information.",
+  description: "How MyStudyPlanner collects, uses, stores and protects personal information, including account data, analytics, subscriptions and connected calendar data.",
   alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Privacy Policy | MyStudyPlanner",
+    description: "How MyStudyPlanner collects, uses, stores and protects personal information, including account data, analytics, subscriptions and connected calendar data.",
+    url: "/privacy",
+    siteName: "MyStudyPlanner",
+    type: "website",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy | MyStudyPlanner",
+    description: "How MyStudyPlanner collects, uses, stores and protects personal information, including account data, analytics, subscriptions and connected calendar data.",
+    images: ["/twitter-image"],
+  },
 };
 
 const updated = "23 September 2026";

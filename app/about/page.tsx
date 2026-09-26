@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mystudyplanner.co"),
-  title: "About",
+  title: { absolute: "About MyStudyPlanner | Student Study Planner" },
   description:
     "Learn what MyStudyPlanner is, who it is for, and why it was built as a study planner for high school and university students.",
   keywords: [
@@ -22,12 +22,14 @@ export const metadata: Metadata = {
     url: "/about",
     siteName: "MyStudyPlanner",
     type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "About MyStudyPlanner | Study Planner for Students",
     description:
       "A study planner for students who want one place to organise assignments, exams, and study.",
+      images: ["/twitter-image"],
   },
   robots: {
     index: true,

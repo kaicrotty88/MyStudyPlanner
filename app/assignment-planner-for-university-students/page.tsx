@@ -42,7 +42,7 @@ const faqSchema = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Assignment Planner for University Students | MyStudyPlanner";
+  const title = "Assignment Planner for University Students";
   const description =
     "A calm assignment planner for university students. Organise uni deadlines, study sessions, and semester workload in one place.";
 
@@ -59,11 +59,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: "/assignment-planner-for-university-students",
       siteName: "MyStudyPlanner",
       type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/twitter-image"],
     },
   };
 }

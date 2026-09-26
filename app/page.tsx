@@ -38,6 +38,14 @@ const faq = [
   },
 ] as const;
 
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "MyStudyPlanner",
+  alternateName: "My Study Planner",
+  url: "https://mystudyplanner.co/",
+};
+
 const softwareApplicationSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -65,10 +73,24 @@ const faqSchema = {
 };
 
 export const metadata: Metadata = {
-  title: "MyStudyPlanner | A Calm Student Planner for Calendar, Tasks and Study",
+  title: { absolute: "Study Planner for Students | MyStudyPlanner" },
   description:
-    "Add assessments, plan study days, focus on what to do next and connect preparation to results in one calm student planner.",
+    "Plan assignments, exams and study sessions in one calm online study planner. Keep your calendar, tasks, preparation and results connected.",
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "Study Planner for Students | MyStudyPlanner",
+    description: "Plan assignments, exams and study sessions in one calm online study planner.",
+    url: "/",
+    siteName: "MyStudyPlanner",
+    type: "website",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MyStudyPlanner study planner for students" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Study Planner for Students | MyStudyPlanner",
+    description: "Plan assignments, exams and study sessions in one calm online study planner.",
+    images: ["/twitter-image"],
+  },
 };
 
 function ProductCard() {
@@ -120,6 +142,7 @@ export default async function Page() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Script id="website-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
       <Script id="software-application-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema) }} />
       <Script id="faq-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
@@ -146,10 +169,10 @@ export default async function Page() {
               Calendar first. Study connected.
             </div>
             <h1 className="mt-6 text-5xl font-semibold tracking-[-0.04em] text-foreground sm:text-6xl lg:text-[4rem] xl:text-7xl">
-              Add the work once. Keep the whole study process connected.
+              A study planner that keeps your whole study process connected.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              MyStudyPlanner connects assessments, Calendar, study days, focused sessions and results without turning your week into a complicated scheduling system.
+              MyStudyPlanner is an online study planner for students that connects assignments, exams, Calendar, study days, focused sessions and results without turning your week into a complicated scheduling system.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
@@ -234,6 +257,30 @@ export default async function Page() {
                 <Link href="/sign-up" className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Start with Free</Link>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 md:px-10 md:py-20">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium text-primary">Planning for different workloads</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight">Choose the planner view that matches what you need.</h2>
+            <p className="mt-4 text-base leading-7 text-muted-foreground">Explore focused guides for online study planning, exams, homework, assignments and different stages of study.</p>
+          </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["/online-study-planner", "Online study planner"],
+              ["/exam-planner", "Exam planner"],
+              ["/homework-planner-for-students", "Homework planner"],
+              ["/assignment-tracker-for-students", "Assignment tracker"],
+              ["/study-planner-for-high-school-students", "High school study planner"],
+              ["/study-planner-for-university-students", "University study planner"],
+              ["/free-study-planner", "Free study planner"],
+              ["/student-planner-app", "Student planner app"],
+            ].map(([href, label]) => (
+              <Link key={href} href={href} className="rounded-2xl border border-border bg-card p-4 text-sm font-medium shadow-sm transition hover:bg-muted/60">
+                {label} <span aria-hidden="true">→</span>
+              </Link>
+            ))}
           </div>
         </section>
 
