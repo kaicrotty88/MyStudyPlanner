@@ -52,23 +52,23 @@ const jsonLd = {
     step: [
       {
         "@type": "HowToStep",
-        name: "Set up your subjects",
-        text: "Add your subjects and give them colours so your student planner stays clear at a glance.",
+        name: "Add an assessment",
+        text: "Enter an exam or assignment with its subject and due date so it appears on Calendar.",
       },
       {
         "@type": "HowToStep",
-        name: "Add assignments, homework, and exams",
-        text: "Keep important deadlines visible so you know what matters next.",
+        name: "Choose study days",
+        text: "Plan preparation around classes and other deadlines. An exact time is optional.",
       },
       {
         "@type": "HowToStep",
-        name: "Plan study sessions",
-        text: "Log study sessions quickly without building a complicated planning system.",
+        name: "Study and log the session",
+        text: "Open Study and use the timer for the assessment you are preparing for.",
       },
       {
         "@type": "HowToStep",
-        name: "Review marks and progress",
-        text: "Use marks and insights to keep a clearer view of how each subject is going.",
+        name: "Record a result with Premium",
+        text: "Premium lets you enter a mark and review it alongside your preparation.",
       },
     ],
   },
@@ -77,49 +77,30 @@ const jsonLd = {
 const steps = [
   {
     k: "01",
-    title: "Set up your subjects",
-    desc: "Add subjects with distinct colours so your online study planner stays easy to read throughout the week.",
+    title: "Add your next assessment",
+    desc: "Enter an exam or assignment, its subject and due date. It appears in Calendar next to the rest of your week.",
   },
   {
     k: "02",
-    title: "Add assignments, homework, and exams",
-    desc: "Track assessments, deadlines, and due dates so the most important work is always visible.",
+    title: "Plan days to prepare",
+    desc: "Choose days that fit around classes and other work. You can leave the exact time open.",
   },
   {
     k: "03",
-    title: "Plan and log study sessions",
-    desc: "Keep study planning practical by logging sessions quickly instead of building an overcomplicated system.",
+    title: "Open Study and start a session",
+    desc: "Work with the assessment linked to your timer. Completed study stays separate from what you have only planned.",
   },
   {
     k: "04",
-    title: "Review marks and adjust",
-    desc: "Use marks and insights to see progress across your subjects and decide where to focus next.",
-  },
-];
-
-const features = [
-  {
-    title: "One student workflow",
-    desc: "Subjects, assignments, exams, study sessions, and marks work together in one place.",
-  },
-  {
-    title: "Clear weekly planning",
-    desc: "See what is due, what you have studied, and what needs attention next.",
-  },
-  {
-    title: "Quick logging",
-    desc: "Track study sessions without making the app feel like extra homework.",
-  },
-  {
-    title: "Useful visibility",
-    desc: "Get a clearer picture of workload and progress without dashboard clutter.",
+    title: "Record the outcome if you use Premium",
+    desc: "Add a mark and compare it with your preparation. Calendar, Tasks and Study remain free.",
   },
 ];
 
 const faqs = [
   {
     q: "Is MyStudyPlanner free to use?",
-    a: "Yes. You can start with a free account for the core planner features, then upgrade later for marks, insights, and future advanced features.",
+    a: "Yes. Calendar, Tasks and Study are free. Premium adds Marks and deeper study insights.",
   },
   {
     q: "Is MyStudyPlanner for high school or university students?",
@@ -131,7 +112,7 @@ const faqs = [
   },
   {
     q: "What is the best way to start?",
-    a: "Add your subjects first, then enter your next assignments or exams, and begin logging study sessions during the week.",
+    a: "Add a subject and one upcoming assignment or exam, then choose a day to prepare for it.",
   },
 ];
 
@@ -153,8 +134,8 @@ export default function HowItWorksPage() {
             How to use MyStudyPlanner as your online study planner.
           </h1>
           <p className="max-w-3xl text-base leading-relaxed text-muted-foreground md:text-lg">
-            MyStudyPlanner helps students organise subjects, assignments, homework, exams, study sessions, and marks in
-            one calm place so it is easier to stay on top of school or university work.
+            Start with one exam or assignment. This guide follows that work from its due date through preparation,
+            a completed study session and, with Premium, its result.
           </p>
         </div>
 
@@ -182,8 +163,7 @@ export default function HowItWorksPage() {
           <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
             <h2 className="text-lg font-semibold text-foreground">The workflow</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-              You do not need a complicated productivity system. Start with the essentials, keep your study planner
-              current, and use it to stay clear on what matters next.
+              You can do the first three steps on the free plan. The demo lets you try the complete workflow.
             </p>
 
             <div className="mt-6 space-y-3">
@@ -203,20 +183,7 @@ export default function HowItWorksPage() {
             </div>
 
             <div className="mt-5 rounded-2xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-              Best starting point: add your subjects, enter your next assignments or exams, then log study sessions as
-              you work through the week.
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
-            <h2 className="text-lg font-semibold text-foreground">Why this workflow works</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {features.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-border bg-background/60 p-4">
-                  <div className="text-sm font-semibold text-foreground">{item.title}</div>
-                  <div className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.desc}</div>
-                </div>
-              ))}
+              Start with one subject, one real deadline and one study day. You can add more subjects and timetable classes later.
             </div>
           </div>
 

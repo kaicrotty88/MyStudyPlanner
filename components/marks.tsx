@@ -4,34 +4,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Edit2, Trash2, X, TrendingUp, Target, Clock3, Award } from "lucide-react";
 
-import type { Task, Subject, StudySession } from "./models";
+import type { Task, Subject, StudySession, Period } from "./models";
 import {
   AssessmentLifecycleBadge,
   AssessmentPreparationLine,
+  formatPreparationMinutes,
   getAssessmentLifecycle,
+  parseStudyDurationMinutes,
 } from "./assessmentLifecycle";
-
-// Must match Settings + Tasks key
-const PERIODS_STORAGE_KEY = "mystudyplanner-periods";
-
-type PeriodStored = {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-};
-
-type PeriodHydrated = {
-  id: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-};
 
 interface MarksProps {
   tasks: Task[];
   subjects: Subject[];
   studySessions: StudySession[];
+  periods: Period[];
   onUpdateTask: (id: string, task: Omit<Task, "id">) => void;
   onStudyTask?: (taskId: string) => void;
 }
@@ -45,7 +31,7 @@ type SubjectPerformance = {
   latestDate: Date | null;
 };
 
-export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTask }: MarksProps) {
+export function Marks({ tasks, subjects, studySessions, periods, onUpdateTask, onStudyTask }: MarksProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -60,56 +46,11 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
     notes: "",
   });
 
-  const [periods, setPeriods] = useState<PeriodHydrated[]>([]);
-
-  const readPeriodsFromStorage = (): PeriodHydrated[] => {
-    try {
-      const raw = localStorage.getItem(PERIODS_STORAGE_KEY);
-      if (!raw) return [];
-
-      const parsed = JSON.parse(raw) as PeriodStored[];
-      const hydrated: PeriodHydrated[] = (Array.isArray(parsed) ? parsed : []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        startDate: new Date(p.startDate),
-        endDate: new Date(p.endDate),
-      }));
-
-      hydrated.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-
-      const onlyTerms1to4 = hydrated.filter((p) => /^term\s*[1-4]$/i.test(p.name.trim()));
-      return onlyTerms1to4.length ? onlyTerms1to4 : hydrated;
-    } catch {
-      return [];
-    }
-  };
-
   useEffect(() => {
-    const refresh = () => {
-      const next = readPeriodsFromStorage();
-      setPeriods(next);
-
-      if (selectedPeriod !== "all" && !next.some((p) => p.id === selectedPeriod)) {
-        setSelectedPeriod("all");
-      }
-    };
-
-    refresh();
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === PERIODS_STORAGE_KEY) refresh();
-    };
-
-    const onFocus = () => refresh();
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", onFocus);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [selectedPeriod]);
+    if (selectedPeriod !== "all" && !periods.some((p) => p.id === selectedPeriod)) {
+      setSelectedPeriod("all");
+    }
+  }, [periods, selectedPeriod]);
 
   const periodNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -269,16 +210,10 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
       .slice(0, 4);
   }, [pendingTasks]);
 
-  const buildUpdatePayload = (task: Task, nextResult: Task["result"] | undefined): Omit<Task, "id"> => ({
-    title: task.title,
-    subjectId: task.subjectId,
-    dueDate: task.dueDate,
-    type: task.type,
-    periodId: task.periodId,
-    completed: task.completed,
-    completedAt: task.completedAt,
-    result: nextResult,
-  });
+  const buildUpdatePayload = (task: Task, nextResult: Task["result"] | undefined): Omit<Task, "id"> => {
+    const { id: _id, ...unchanged } = task;
+    return { ...unchanged, result: nextResult };
+  };
 
   const openEdit = (task: Task) => {
     setEditingTask(task);
@@ -588,12 +523,14 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
               const percentValue = hasResult ? percentage(task.result!.score, task.result!.outOf) : null;
               const percentDisplay = percentValue !== null ? formatPercent(percentValue) : "";
 
-              const termLabel =
-                task.periodId && periodNameById.get(task.periodId)
-                  ? periodNameById.get(task.periodId)
-                  : task.periodId
-                  ? task.periodId
-                  : undefined;
+      const termLabel = task.periodId ? periodNameById.get(task.periodId) : undefined;
+      const plannedMinutes = studySessions.reduce(
+        (total, session) =>
+          session.linkedTaskId === task.id && !session.completed
+            ? total + parseStudyDurationMinutes(session.duration)
+            : total,
+        0
+      );
 
               return (
                 <div
@@ -623,10 +560,11 @@ export function Marks({ tasks, subjects, studySessions, onUpdateTask, onStudyTas
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <AssessmentLifecycleBadge state={lifecycle.state} label={lifecycle.label} />
-                        <AssessmentPreparationLine
-                          minutes={lifecycle.stats.minutes}
-                          sessions={lifecycle.stats.sessions}
-                        />
+                        {plannedMinutes > 0 && lifecycle.stats.sessions === 0 ? (
+                          <span className="text-xs text-muted-foreground">{formatPreparationMinutes(plannedMinutes)} planned · none completed</span>
+                        ) : (
+                          <AssessmentPreparationLine minutes={lifecycle.stats.minutes} sessions={lifecycle.stats.sessions} />
+                        )}
                       </div>
                     </div>
 

@@ -2107,6 +2107,13 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               </span>
             ) : null}
 
+            {mode === "demo" && !isSignedIn ? (
+              <Link href="/" aria-label="Back to website" className="text-xs font-medium text-muted-foreground hover:text-foreground">
+                <span className="sm:hidden">Website</span>
+                <span className="hidden sm:inline">Back to website</span>
+              </Link>
+            ) : null}
+
             {mode === "app" && Boolean(isSignedIn) && saveStatus !== "idle" ? (
               <span
                 className={[
@@ -2351,6 +2358,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
               tasks={tasks}
               subjects={subjects}
               studySessions={studySessions}
+              periods={periods}
               onUpdateTask={handleUpdateTask}
               onStudyTask={openStudyForTask}
             />
@@ -2364,6 +2372,7 @@ export default function App({ mode = "app" }: { mode?: AppMode }) {
                   tasks={tasks}
                   subjects={subjects}
                   studySessions={studySessions}
+                  periods={periods}
                   onUpdateTask={handleUpdateTask}
                   onStudyTask={openStudyForTask}
                 />

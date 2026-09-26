@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import Script from "next/script";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -7,13 +8,12 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
-  CircleCheckBig,
   ListChecks,
-  Sparkles,
   TimerReset,
   TrendingUp,
 } from "lucide-react";
 import CookiePreferencesButton from "@/components/CookiePreferencesButton";
+import demoCalendarPreview from "@/app/assets/demo-calendar-preview.png";
 
 const faq = [
   {
@@ -95,44 +95,12 @@ export const metadata: Metadata = {
 
 function ProductCard() {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-border bg-card shadow-[0_24px_70px_rgba(37,40,36,0.10)]">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <div>
-          <div className="text-sm font-semibold text-foreground">Calendar</div>
-          <div className="text-xs text-muted-foreground">Wednesday 23 September</div>
-        </div>
-        <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary">Add item</span>
-      </div>
-      <div className="grid gap-px bg-border md:grid-cols-2">
-        <div className="bg-card p-5">
-          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Upcoming</div>
-          <div className="mt-4 space-y-3">
-            {[
-              ["Motion topic test", "Physics · Exam · 30 Sep"],
-              ["Practical report draft", "Chemistry · Assignment · 2 Oct"],
-              ["Calculus worksheet", "Mathematics · 24 Sep"],
-            ].map(([title, meta]) => (
-              <div key={title} className="rounded-2xl border border-border bg-background/70 p-3.5">
-                <div className="text-sm font-semibold text-foreground">{title}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-card p-5">
-          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Study Focus</div>
-          <div className="mt-4 rounded-2xl border border-border bg-primary-softer p-4">
-            <div className="text-xs font-medium text-primary">Recommended next</div>
-            <div className="mt-2 text-base font-semibold text-foreground">Motion topic test</div>
-            <div className="mt-1 text-xs text-muted-foreground">1h of 3h prepared</div>
-            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-1/3 rounded-full bg-primary" />
-            </div>
-            <div className="mt-4 inline-flex rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground">Start studying</div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <figure className="min-w-0">
+      <Link href="/demo" aria-label="Open the MyStudyPlanner calendar demo" className="block overflow-hidden rounded-2xl border border-border bg-card shadow-[0_20px_55px_rgba(37,40,36,0.10)] transition hover:shadow-[0_24px_65px_rgba(37,40,36,0.15)]">
+        <Image src={demoCalendarPreview} alt="MyStudyPlanner demo showing a student calendar with homework, study sessions and assessment deadlines" className="h-auto w-full" priority sizes="(max-width: 1024px) 100vw, 55vw" />
+      </Link>
+      <figcaption className="mt-3 text-xs text-muted-foreground">A sample week in the real planner. <Link href="/demo" className="font-medium text-foreground underline underline-offset-4">Explore it yourself</Link>.</figcaption>
+    </figure>
   );
 }
 
@@ -150,7 +118,7 @@ export default async function Page() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 md:px-10">
           <Link href="/" className="leading-tight" aria-label="MyStudyPlanner home">
             <div className="text-base font-semibold tracking-tight">MyStudyPlanner</div>
-            <div className="text-[11px] text-muted-foreground">A calmer way to plan study</div>
+            <div className="text-[11px] text-muted-foreground">Made by students, for students</div>
           </Link>
           <nav className="flex items-center gap-2" aria-label="Main navigation">
             <a href="#how-it-works" className="hidden rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground md:inline-flex">How it works</a>
@@ -164,15 +132,11 @@ export default async function Page() {
       <main>
         <section className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 sm:px-6 md:px-10 md:py-24 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Calendar first. Study connected.
-            </div>
-            <h1 className="mt-6 text-5xl font-semibold tracking-[-0.04em] text-foreground sm:text-6xl lg:text-[4rem] xl:text-7xl">
-              A study planner that keeps your whole study process connected.
+            <h1 className="text-5xl font-semibold tracking-[-0.04em] text-foreground sm:text-6xl lg:text-[4rem] xl:text-7xl">
+              Plan your school week. Know what to study next.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              MyStudyPlanner is an online study planner for students that connects assignments, exams, Calendar, study days, focused sessions and results without turning your week into a complicated scheduling system.
+              Keep assignments, exams and study days in one place. When it is time to work, open Study and pick up where you left off.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
@@ -212,22 +176,6 @@ export default async function Page() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 md:px-10 md:py-20">
-          <div className="grid gap-5 lg:grid-cols-3">
-            {[
-              ["Calendar is the base", "Deadlines, classes and planned study live in one calm calendar. Day-level planning is the default."],
-              ["Study tells you what to do next", "Recommended next keeps one assessment prominent while the rest stay available without competing for attention."],
-              ["Marks closes the loop", "Premium connects preparation time, assessment results, subject averages and trends without changing the core free workflow."],
-            ].map(([title, body]) => (
-              <article key={title} className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <CircleCheckBig className="h-5 w-5 text-primary" />
-                <h2 className="mt-4 text-xl font-semibold">{title}</h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
         <section id="pricing" className="border-y border-border bg-card/60">
           <div className="mx-auto max-w-5xl px-5 py-16 sm:px-6 md:px-10 md:py-20">
             <div className="text-center">
@@ -254,19 +202,15 @@ export default async function Page() {
                   {["Everything in Free", "Marks and subject performance", "Preparation-to-result context", "Deeper study insights"].map((item) => <li key={item} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{item}</li>)}
                 </ul>
                 <p className="mt-6 text-xs leading-5 text-muted-foreground">Subscriptions renew automatically at the selected monthly or yearly interval until cancelled. Manage or cancel from the Premium page.</p>
-                <Link href="/sign-up" className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Start with Free</Link>
+                <Link href="/demo?view=premium" className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Explore Premium in the demo</Link>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 md:px-10 md:py-20">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium text-primary">Planning for different workloads</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight">Choose the planner view that matches what you need.</h2>
-            <p className="mt-4 text-base leading-7 text-muted-foreground">Explore focused guides for online study planning, exams, homework, assignments and different stages of study.</p>
-          </div>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mx-auto max-w-7xl border-b border-border px-5 py-12 sm:px-6 md:px-10">
+          <h2 className="text-xl font-semibold tracking-tight">Find a guide for your workload</h2>
+          <nav aria-label="Student planning guides" className="mt-5 flex flex-wrap gap-x-6 gap-y-3 text-sm">
             {[
               ["/online-study-planner", "Online study planner"],
               ["/exam-planner", "Exam planner"],
@@ -277,11 +221,11 @@ export default async function Page() {
               ["/free-study-planner", "Free study planner"],
               ["/student-planner-app", "Student planner app"],
             ].map(([href, label]) => (
-              <Link key={href} href={href} className="rounded-2xl border border-border bg-card p-4 text-sm font-medium shadow-sm transition hover:bg-muted/60">
-                {label} <span aria-hidden="true">→</span>
+              <Link key={href} href={href} className="text-muted-foreground underline underline-offset-4 transition hover:text-foreground">
+                {label}
               </Link>
             ))}
-          </div>
+          </nav>
         </section>
 
         <section className="mx-auto max-w-4xl px-5 py-16 sm:px-6 md:px-10 md:py-20">

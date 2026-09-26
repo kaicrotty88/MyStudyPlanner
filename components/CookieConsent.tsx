@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CONSENT_EVENT,
   CONSENT_STORAGE_KEY,
@@ -22,13 +23,14 @@ function saveConsent(analytics: boolean) {
 }
 
 export default function CookieConsent() {
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [analytics, setAnalytics] = useState(false);
 
   useEffect(() => {
     const existing = readConsent();
-    if (!existing) setVisible(true);
+    if (!existing) setVisible(pathname === "/app" || pathname.startsWith("/app/"));
     else setAnalytics(existing.analytics);
 
     const openPreferences = () => {
@@ -40,7 +42,7 @@ export default function CookieConsent() {
 
     window.addEventListener(OPEN_PREFERENCES_EVENT, openPreferences);
     return () => window.removeEventListener(OPEN_PREFERENCES_EVENT, openPreferences);
-  }, []);
+  }, [pathname]);
 
   if (!visible) return null;
 
@@ -53,18 +55,18 @@ export default function CookieConsent() {
 
   return (
     <div
-      className="fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-2xl rounded-2xl border border-border bg-card p-5 shadow-2xl sm:inset-x-6"
+      className="fixed inset-x-4 bottom-4 z-[100] rounded-2xl border border-border bg-card p-4 shadow-xl sm:inset-x-auto sm:right-5 sm:w-[390px]"
       role="dialog"
       aria-labelledby="cookie-consent-title"
       aria-describedby="cookie-consent-description"
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
           <h2 id="cookie-consent-title" className="text-base font-semibold text-foreground">
             {showPreferences ? "Cookie and analytics preferences" : "Your privacy choices"}
           </h2>
           <p id="cookie-consent-description" className="mt-1 text-sm leading-6 text-muted-foreground">
-            Necessary storage keeps sign-in and core planner features working. Optional analytics help us understand which parts of MyStudyPlanner are used. We do not use advertising cookies.
+            Allow optional analytics to help us improve the planner? Necessary storage stays on either way.
           </p>
         </div>
 
@@ -92,7 +94,7 @@ export default function CookieConsent() {
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-3">
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <Link href="/cookies" className="underline underline-offset-2 hover:text-foreground">Cookie Policy</Link>
             <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy</Link>
@@ -110,7 +112,7 @@ export default function CookieConsent() {
             <button type="button" onClick={() => commit(false)} className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
               Reject non-essential
             </button>
-            <button type="button" onClick={() => commit(true)} className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
+            <button type="button" onClick={() => commit(true)} className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
               Accept analytics
             </button>
           </div>

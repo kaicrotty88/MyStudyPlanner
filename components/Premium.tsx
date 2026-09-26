@@ -91,7 +91,21 @@ export function Premium({ appMode, plan, isSignedIn, onPreview }: { appMode: "ap
           <p className="mt-1 text-sm text-muted-foreground">Both plans include the same Premium features. Cancel through billing management when you need to.</p>
         </div>
         {isPreview ? (
-          <Link href={isSignedIn ? "/app?view=premium" : "/sign-up"} className="app-btn-primary">{isSignedIn ? "Back to your Premium page" : "Create an account to upgrade"}</Link>
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-background/50 p-5">
+                <div className="text-sm font-semibold text-foreground">Monthly</div>
+                <div className="mt-2 text-2xl font-semibold text-foreground">US$2.99</div>
+                <div className="text-xs text-muted-foreground">per month, billed monthly</div>
+              </div>
+              <div className="rounded-2xl border border-primary/40 bg-primary-soft/50 p-5">
+                <div className="text-sm font-semibold text-foreground">Yearly</div>
+                <div className="mt-2 text-2xl font-semibold text-foreground">US$19.99</div>
+                <div className="text-xs text-muted-foreground">per year, billed yearly · save US$15.89 vs monthly</div>
+              </div>
+            </div>
+            <Link href={isSignedIn ? "/app?view=premium" : "/sign-up"} className="app-btn-primary">{isSignedIn ? "Back to your Premium page" : "Create an account to upgrade"}</Link>
+          </div>
         ) : isPremium ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Premium is active on your account.</p>

@@ -55,21 +55,6 @@ const jsonLd = {
   },
 };
 
-const values = [
-  {
-    title: "Built for students",
-    desc: "Designed around subjects, assignments, exams, study sessions, and marks instead of generic productivity systems.",
-  },
-  {
-    title: "Clear to use",
-    desc: "The goal is to help students stay organised without turning planning into another layer of work.",
-  },
-  {
-    title: "Useful over time",
-    desc: "A student planner only matters if it is easy to keep using throughout the term, semester, or school year.",
-  },
-];
-
 const useCases = [
   {
     title: "Assignment tracking",
@@ -138,29 +123,18 @@ export default function AboutPage() {
 
           <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground md:text-base">
             <p>
-              Many students end up piecing together notes apps, task apps, calendars, and reminders just to stay on top
-              of school or university. That works for a while, but it often becomes messy fast.
+              Made by students, for students. MyStudyPlanner focuses on a simple problem: an exam date in a calendar
+              does not show when you will prepare for it, what you actually studied, or how it went.
             </p>
-
             <p>
-              MyStudyPlanner was built as a calmer alternative: one student planner where you can manage subjects,
-              assignments, homework, exams, study sessions, and marks in one place.
+              Add an assessment and it appears on Calendar. Choose study days around your classes, then start a
+              session linked to that assessment. If you want to review the outcome, Premium lets you record the
+              result in Marks. The core planning and study workflow is free.
             </p>
-
             <p>
-              The aim is not to feel like a generic productivity app. It is to give students a planning tool that fits
-              real academic workloads and is simple enough to keep coming back to each week.
+              You can <Link href="/demo" className="text-foreground underline underline-offset-4">try that workflow in the demo</Link> before creating an account. If something feels missing, you can tell us through the contact address in Settings.
             </p>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {values.map((item) => (
-            <div key={item.title} className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-              <div className="text-sm font-semibold text-foreground">{item.title}</div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
-            </div>
-          ))}
         </div>
 
         <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
